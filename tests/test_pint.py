@@ -57,6 +57,7 @@ class Test_pint( unittest.TestCase):
         print("RAD/s:", q.check('rad/s'), q.check('s/rad'), q, q.to_base_units(), q.dimensionality)
         q = uReg("9 s/deg")
         print("RAD/s:", q.check('rad/s'), q.check({'s':1, 'rad':-1}), q, q.to_base_units(), q.dimensionality)
+        print("30 degrees in base units: ", uReg("30 deg").to_base_units().magnitude +" radians.")
         
         
 
