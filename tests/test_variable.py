@@ -50,10 +50,13 @@ class Test_variable( unittest.TestCase):
         myEnum = Variable( mod, "Test4", description="An enumeration variable", causality='output', variability='discrete', initialVal=Causality.parameter,  annotations={})
         myStr = Variable( mod, "Test5", description="A string variable", typ=str, causality='parameter', variability='fixed', initialVal="Hello World!",  annotations={})
         myNP = Variable_NP( mod, "Test6", description="A NP variable", causality='parameter', variability='fixed', initialVal= ('1.0m','2deg','3rad'),  rng=( (0,'3m'), (0,float('inf')), (float('-inf'),'5rad')))
-        return( mod,myInt,myInt2,myFloat,myEnum,myStr,myNP)
+        myNP2 = Variable_NP( mod, "Test7", description="A NP variable with on_set and on_step", causality='input', variability='continuous',
+                             initialVal= ('1.0','2.0','3.0'),  rng=( (0,float('inf')), (0,float('inf')), (0,float('inf'))),
+                             on_set = lambda val : (0.9*val[0], 0.9*val[1], 0.9*val[2]), on_step = lambda t, dT : self.value[0]( dT* self.value[0]))
+        return( mod,myInt,myInt2,myFloat,myEnum,myStr,myNP, myNP2)
         
     def test_init(self):
-        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP = self.init_model_variables()
+        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP,myNP2 = self.init_model_variables()
         # test _get_auto_extreme()
         self.assertEqual( Variable._get_auto_extreme( 1.0), ( float('-inf'), float('inf')))
         with self.assertRaises( VariableInitError) as err:
@@ -121,7 +124,7 @@ class Test_variable( unittest.TestCase):
         print("BOOM", boom.initialVal, np.linalg.norm( boom.initialVal))
 
     def test_var_ref(self):
-        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP = self.init_model_variables()
+        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP,myNP2 = self.init_model_variables()
         self.assertEqual( mod.vars[1].name, "Test2")
         self.assertIsNone( mod.vars[6]) #a sub-element
         var,sub = mod.ref_to_var( 6)
@@ -131,7 +134,7 @@ class Test_variable( unittest.TestCase):
         self.assertEqual( mod.variable_by_name("Test2").valueReference, 1)
         
     def test_vars_iter(self):
-        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP = self.init_model_variables()
+        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP,myNP2 = self.init_model_variables()
         self.assertEqual( len(list(mod.vars_iter(float))), 2)
         self.assertEqual( list( mod.vars_iter(float))[0].name, 'Test3')
         self.assertEqual( list( mod.vars_iter(float))[1].name, "Test6")
@@ -140,7 +143,7 @@ class Test_variable( unittest.TestCase):
         self.assertEqual( list( mod.vars_iter( key=lambda x: x.causality==Causality.input or x.causality==Causality.output))[2].name, 'Test4')
     
     def test_get(self):
-        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP = self.init_model_variables()
+        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP,myNP2 = self.init_model_variables()
         self.assertEqual( mod._get( [0,1], int), [99,99])  
         self.assertEqual( mod.get_integer( [0,1]), [99,99])     
         self.assertEqual( mod.get_integer( [0,1]), [99,99])     
@@ -156,7 +159,7 @@ class Test_variable( unittest.TestCase):
 #         self.assertTrue( str( err.exception).startswith("Variable with valueReference=8 does not exist in model My"))
 
     def test_set(self):
-        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP = self.init_model_variables()
+        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP,myNP2 = self.init_model_variables()
         mod.set_integer( [0,1], [50, 51])
         self.assertEqual( mod.vars[0].value, 50)
         self.assertEqual( mod.vars[1].value, 51)
@@ -173,21 +176,27 @@ class Test_variable( unittest.TestCase):
         myNP2 = Variable_NP( mod, "Test9", description="A NP variable with units included in initial values and partially fixed range", causality='input', variability='continuous',
                              initialVal= ('1m','2deg','3 deg'),  rng=( (0,'3m'), None, None))
         myNP2.to_xml()
-        
+
+    def test_on_set(self):
+        mod,myInt,myInt2,myFloat,myEnum,myStr,myNP,myNP2 = self.init_model_variables()
+        myNP2.value = (3,4,5)
+
+
 if __name__ == '__main__':
 #    suite = unittest.TestLoader().loadTestsFromTestCase(Test_variable) # use that to do all tests
     suite = unittest.TestSuite() # use this to load only single tests (together with next lines)
     # single tests:
-    suite.addTest( Test_variable("test_varCheck"))
-    suite.addTest( Test_variable("test_init")) 
-    suite.addTest( Test_variable("test_variable_np")) 
-    suite.addTest( Test_variable("test_spherical_cartesian"))
-    suite.addTest( Test_variable("test_xml"))
-    suite.addTest( Test_variable("test_var_ref"))
-    suite.addTest( Test_variable("test_vars_iter"))
-    suite.addTest( Test_variable("test_get"))
-    suite.addTest( Test_variable("test_set"))
-    
+#     suite.addTest( Test_variable("test_varCheck"))
+#     suite.addTest( Test_variable("test_init")) 
+#     suite.addTest( Test_variable("test_variable_np")) 
+#     suite.addTest( Test_variable("test_spherical_cartesian"))
+#     suite.addTest( Test_variable("test_xml"))
+#     suite.addTest( Test_variable("test_var_ref"))
+#     suite.addTest( Test_variable("test_vars_iter"))
+#     suite.addTest( Test_variable("test_get"))
+#     suite.addTest( Test_variable("test_set"))
+    suite.addTest( Test_variable("test_on_set"))
+
     test_result = unittest.TextTestRunner(verbosity=1).run(suite)
     if test_result.wasSuccessful():
         pass # possibility to perform cleanup when everything was successful

@@ -66,10 +66,11 @@ class Model(Fmi2Slave):
         kwargs.update( { 'modelName':name, 'description':description,
                    'author':author, 'version':version, 'copyright':copyright, 'license':license, 
                    'guid':guid, 'default_experiment':defaultExperiment})
-        if 'instance_name' not in kwargs: kwargs['instance_name'] = self.make_instance_name(__name__)
+        if 'instance_name' not in kwargs: kwargs['instance_name'] = self.make_instanceName(__name__)
         self.check_and_register_instance_name( kwargs['instance_name'])
         if 'resources' not in kwargs: kwargs['resources'] = None 
         super().__init__( **kwargs) # in addition, OrderedDict vars is initialized
+        # Additional variables which are hidden here: .vars, 
         self.name = name
         self.description = description
         self.author = author
@@ -80,17 +81,35 @@ class Model(Fmi2Slave):
         self.guid = guid if guid is not None else uuid.uuid4().hex
 #        print("FLAGS", nonDefaultFlags)
         self.nonDefaultFlags = self.check_flags( nonDefaultFlags)
+        self.varsDirty = {} # possibility to list dirty compound variables, so that on_set() is run on the whole variable when elements are set.
         self._units = {} # dict of units and displayUnits (unitName : conversionFacto) used in the model (for usage in UnitDefinitions element)
         self.currentTime = 0 # keeping track of time when dynamic calculations are performed
-        self.changedVariables = [] # list of input variables which are changed at any time, i.e. the variables which are taken into account during do_step()
-                                   # A changed variable is kept in the list until its value is not changed any more
-                                   # Adding/removing of variables happens through change_variable()
         self._eventList = [] # possibility for a list of events that will be activated on time during a simulation
                              # Events consist of tuples of (time, changedVariable)
 
     def do_step(self, currentTime, stepSize):
-        '''Do a simulation step of size 'stepSize at time 'currentTime'''
-        pass # this need to be re-defined
+        '''Do a simulation step of size 'stepSize at time 'currentTime
+        Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
+        '''
+        while len(self._eventList): # there is a non-empty event list. Check whether any event is pending and set the respective variables
+            (t0, (var, val)) = self._eventList[-1]
+            if t0 <= currentTime:
+                print(f"MODEL.on_step event at time {currentTime}, variable {var.name}, value {val}", self.boom0.axis)
+                var.value = val
+                self._eventList.pop()
+            else:
+                break
+        # ensure that on_set is run on changed compound variables with on_set is not None
+        for vD, val in self.varsDirty.items():
+            if None in val:
+                raise ValueError(f"The variable {vD.name} is defined with an 'on_set' routine. When setting values all components must be set. Received: {val}")
+            vD.on_set( val)
+        self.varsDirty = {}
+        
+        for idx, var in self.vars.items():
+            if var is not None and var.on_step is not None:
+                var.on_step( currentTime, stepSize)
+        return( True)
 
     def _ensure_unit_registered(self, candidate:Variable|tuple):
         '''Ensure that the displayUnit of a variable is registered. To register the units of a compound variable, the whole variable is entered and a recursive call to the underlying displayUnits is made'''
@@ -144,7 +163,7 @@ class Model(Fmi2Slave):
             raise ModelOperationError("Trying to add event related to unknown variable " +str( event[0]) +". Ignored.")
             return        
         if time is None:
-            self._eventList.append(-1, (var, event[1])) # append (the list is sorted wrt. decending time)            
+            self._eventList.append(-1, (var, event[1])) # append. The list is sorted wrt. decending time negative times denote 'immediate'
         else:
             if not len( self._eventList):
                 self._eventList.append( ( time, (var, event[1])))
@@ -195,7 +214,7 @@ class Model(Fmi2Slave):
         for name in Model.instances:
             if name.startswith( base+'_') and name[ len(base)+1:].isnumeric():
                 ext.append( int( name[ len(base)+1:]))
-        return( base+'_'+str(sorted( ext)[-1]+1))
+        return( base+'_'+'0' if not len( ext) else str(sorted( ext)[-1]+1))
     
     def check_and_register_instance_name(self, iName):
         if any( name==iName for name in Model.instances):
@@ -420,12 +439,14 @@ class Model(Fmi2Slave):
             else:
                 sub = 0
             if isinstance( var, Variable_NP):
+#                print("MODEL._get", var, sub, var.value)
                 refs.append( var.unit_convert( var.value[sub].tolist(), toBase=False))
             else: # non-compound variable. Just append to refs
                 if var.displayUnit is None:
                     refs.append( var.value)
                 else:
                     refs.append( var.unit_convert( var.value, toBase=False))
+        print("MODEL._get", vrs, typ, refs)
         return( refs)
     def get_integer(self, vrs):   return( self._get( vrs, int)) 
     def get_real(self, vrs):      return( self._get( vrs, float))
@@ -437,9 +458,10 @@ class Model(Fmi2Slave):
         Variable range check, unit check and unit conversion is performed here.
         Compound variables do not really exist in fmi2 and therefore complicate this function.
         With respect to non-scalar variables we only set the component value,
-        but final 'triggers' need to wait until all values are set (which may come in any order)
+        but final 'triggers' need to wait until all values are set.
+        Non-scalar variables may be set in any order and even in several _set calls.
+        Therefore, on_set is only called during do_step for dirty variables
         '''
-        nonScalar = {} 
         for vr, value in zip(vrs, values):
             if vr >= len(self.vars):
                 raise KeyError(f"Variable with valueReference={vr} does not exist in model {self.name}")
@@ -451,18 +473,14 @@ class Model(Fmi2Slave):
             if var.type != typ:
                 raise TypeError( f"Variable with valueReference={vr} is not of type " +typ.__name__)
             if isinstance( var, Variable_NP):
-                if var in nonScalar: #already registered
-                    nonScalar[var][sub] = var.unit_convert( value, sub)
-                else:
-                    val = var.value # the current value of the whole array
-                    val[sub] = var.unit_convert( val, sub) # change component 'sub
-                    nonScalar.update({var: val}) # .. and register
+                if var.on_set is None: # the variable component value can be set without issues
+                    var.value[sub] = var.unit_convert( value, sub) # change component 'sub
+                else: # on_set can only be run once, when all components are change. Defer on_set
+                    if var not in self.varsDirty: #not yet registered
+                        self.varsDirty.update( { var : [None]*len(var)})    
+                    self.varsDirty[var][sub] = var.unit_convert( value, sub)
             elif isinstance( var, Variable):
                 var.value = var.unit_convert( value)
-        # finally we set all compound variables (in one piece)
-        for var in nonScalar:
-            if isinstance(var, Variable_NP):
-                var.value = np.array( nonScalar[var])
 
     def set_integer(self, vrs:list, values: list):
         self._set( vrs, values, int)
@@ -488,3 +506,35 @@ class Model(Fmi2Slave):
                 v = vars_by_name[name]
                 if v.setter is not None:
                     v.setter(value)
+
+
+#     def change_variable(self, variable:str|Variable, action:callable|None=None):
+#         '''Change the value of an input variable. The variable is added to/removed from changedVariables and the action itself is used to perform the variable change
+# 
+#         Args:
+#            variable (str,Variable): Identifier for the variable to be changed, either the Variable object or the variable name
+#            action (callable)=None: The action to perform during 'do_step', i.e. a function of dT. If None, the action is removed from the list
+# 
+#         Note that angles are always in radians.        
+#         '''
+#         if isinstance( variable, str): # variable provided as name
+#             variable = self.variable_by_name( variable, errorMsg="Trying to change unknown input variable " +variable)
+#         if not isinstance( variable, Variable):
+#             raise ModelOperationError("Trying to change variable " +str(variable)+", which is not instantiated")
+#         elif len(value) != len(variable.initialVal):
+#             raise ModelOperationError("Trying to change variable " +variable.name +" to value " +str(value) +" which has wrong dimensions. Expected dim: "+str(len(variable.initialVal)) +". Got value" +str(value))
+#         if action is None: # reset the variable
+#             if variable not in self.changedVariable:
+#                 logger.warning("Trying to reset the unchanged variable " +variable.name)
+#             variable.value = variable.initialVal #we set the value to the initial value in any case
+#         else:
+#             if variable not in self.changedVariables: # add it to the list of variables to take into account during do_step
+#                 self.changedVariables.append( variable)
+#             try:
+#                 if (variable==self.craneAngularVelocity or variable==self.craneVelocity) and len(value)>3: # need to calculate the axis or direction vector
+#                     val = quantity_direction( value[0], tuple(value[1:4]), asSpherical=value[4] if len(value)>4 else False, asDeg=value[5] if len(value)>5 else False) # this is a raw direction or axis vector, which must be multiplied by the stepSize
+#                     variable.value = val
+#                 else:
+#                     variable.value = value
+#             except:
+#                 raise ModelOperationError("Failed to set variable " +variable.name +" to value " +str( value))

@@ -33,10 +33,10 @@ class BouncingBallFMU(Model):
                  **kwargs
                  ):
         super().__init__( name=name, description=description, author=author, version=version, **kwargs)
-        self.x = Variable_NP( self, initialVal=(0.0,0.0), name="BallPosition", description='''Position of ball (x,z) at time.''',
+        self.x = Variable_NP( self, initialVal=(0.0,0.0), name="x", description='''Position of ball (x,z) at time.''',
                               causality='output', variability='continuous', 
                               on_step = None) #lambda t, dT: self.boom0.rotate( axis=self.craneAngularVelocity.value) if np.any(self.craneAngularVelocity.value!=0) else None,
-        self.v = Variable_NP( self, initialVal=(1.0,1.0), name="v0", description="speed at time as (x,z) vector",
+        self.v = Variable_NP( self, initialVal=(1.0,1.0), name="v", description="speed at time as (x,z) vector",
                               causality='output', variability='continuous')
         self.bounceFactor = Variable( self, initialVal = 0.95, name="bounceFactor", description="factor on speed when bouncing", causality='parameter', variability='fixed',)
         self.drag = Variable( self, initialVal=0.0, name="drag", description="drag decelleration factor defined as a = self.drag* v^2 with dimension 1/m", causality='parameter', variability='fixed',)
@@ -50,7 +50,7 @@ class BouncingBallFMU(Model):
         return( True)
         
     def do_step(self, current_time, step_size):
-        print("ENERGY", self.energy, type(self.energy))
+#        print("ENERGY", self.energy, type(self.energy))
         def bounce_loss( v0):
             if self.bounceFactor.value == 1.0:
                 return( v0)
@@ -95,9 +95,10 @@ if __name__ == '__main__':
     testIt = 1
     asBuilt = Model.build( 'test_BouncingBall.py')
     if testIt>0:
-        result = simulate_fmu( asBuilt.name, start_time=0.0, stop_time=10.0, step_size=0.1, solver='Euler', debug_logging=True, )
-#                               start_values={ 'v.0':1.0, 'v.1':1.0, })
-        print( dump( asBuilt.name))
+        result = simulate_fmu( asBuilt.name, start_time=0.0, stop_time=10.0, step_size=0.1, solver='Euler',
+                               debug_logging=False, visible=True, logger=print,  #fmi_call_logger=print,
+                               start_values={ 'v.0':1.0, 'v.1':1.0, })
+#        print( dump( asBuilt.name))
         plot_result(result)
     elif testIt==2: # checking the dll/so
         bb = WinDLL(os.path.abspath( os.path.curdir) +"\\BouncingBall.dll")

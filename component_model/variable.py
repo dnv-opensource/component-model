@@ -117,7 +117,11 @@ class Variable(ScalarVariable):
     def type(self): return( self._type)
     @property
     def initialVal(self): return( self._initialVal)
-    def initialVal_setter(self, val, rng, _type): # the initialVal is set during instantiation and is not meant to be changed!
+    def initialVal_setter(self, val, rng, _type):
+        '''Do checks (units, range, type) and set initialVal is during instantiation.
+          The initialVal is not meant to be changed!
+          The initialVal can be used to inform variable units. These may or may not be explicitly used during the simulation run
+        '''
         if _type==str: # explicit free string
             return( val, _type, '', None, tuple(), self.on_set( val) if self.on_set is not None else val)
         
@@ -139,7 +143,8 @@ class Variable(ScalarVariable):
     def range(self): return( self._range)
     
     @property
-    def value(self): return( self._value)
+    def value(self):
+        return( self._value)
     @value.setter
     def value(self, newVal):
         '''Set the variable (if allowed and if range check valid). This method is designed for variable setting within the model.
@@ -148,7 +153,9 @@ class Variable(ScalarVariable):
         if VarCheck.rangeCheck in self._valueCheck: # range checking is performed
             if not self.check_range( newVal, rng=self._range):
                 raise VariableRangeError("The value " +str(newVal) +" is not accepted within variable " +self.name +". Range is set to " +str(self._range))
+#        print("VARIABLE.value", self.name, self.on_set, newVal, end='')
         self._value = self.on_set( newVal) if self.on_set is not None else newVal #.. then pre-process if on_set is defined
+#        print("=>", self._value)
     
     @property
     def valueReference(self): return(self._valueReference)
@@ -442,14 +449,13 @@ class Variable(ScalarVariable):
             if toBase: return( val)            
         # val is numeric
         if isinstance( val, np.ndarray):
-            print("UNIT_CONVERT", val, idx, toBase)
             if idx is None: # the whole variable
                 value = [ self.unit_convert( val[i], idx=i, toBase=toBase) for i in range( len( self))]
                 return( np.array( value, dtype=self._type))
             else: # an element of the array
                 return( self.unit_convert( val[idx], idx=idx, toBase=toBase))
         else: # val is a single numeric value
-            if idx is None and self.displayUnit is None: # no indexing and no conversion required
+            if idx is None or self.displayUnit is None: # no indexing and no conversion required
                 return( val)
             elif idx is not None and self.displayUnit[idx] is None: # indexing and no conversion (for this index) required
                 return( val)
@@ -514,7 +520,8 @@ class Variable_NP( Variable):
         else:
             self.displayUnit = tuple( _displayUnit)
         self._range = tuple( _range)
-        self._value = self.on_set( self._initialVal) if self.on_set is not None else np.array( self._initialVal, dtype=self._type) #pre-process and set the current value        
+        self._valueRaw = np.array( self._initialVal, dtype=self._type) # if on_set is used we need to keep _value and _valueRaw separate, so that single elements can be set
+        self._value = self.on_set( self._valueRaw) if self.on_set is not None else np.copy( self._valueRaw) #pre-process and set the current value        
         self._idx = self.model.register_variable( self) # register in model and return index.
         #Note: Only the first valueReference is stored, representing the 0th element of the array
         self.valueReference = self._idx # always automatic reference number
@@ -534,8 +541,9 @@ class Variable_NP( Variable):
         if newVal is None: newVal = self._value
         if not len(self) == len(newVal):
             raise VariableUseError("Erroneous dimension in new setting " +str(newVal) +" of variable " +self.name +". Expected dimension " +str( len( self)))
-        if not all( [ self.check_range( v, rng=self._range[i]) for i,v in enumerate(newVal)]):
-            raise VariableRangeError(f"Range violation in variable {self.name}, value {newVal}")
+        for i,v in enumerate(newVal):
+            if not self.check_range( v, rng=self._range[i]):
+                raise VariableRangeError(f"Range violation in variable {self.name}({i}), value {v}. Should be in range {self._range[i]}")
         self._value = np.array( newVal, dtype=self._type) if self.on_set is None else self.on_set( newVal)
 #     def __getitem__(self, idx):
 #         return( self._value[idx])
