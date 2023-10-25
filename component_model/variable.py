@@ -143,6 +143,10 @@ class Variable(ScalarVariable):
     def range(self): return( self._range)
     
     @property
+    def valueRaw(self):
+        return( self._valueRaw)
+    
+    @property
     def value(self):
         return( self._value)
     @value.setter
@@ -153,10 +157,12 @@ class Variable(ScalarVariable):
         if VarCheck.rangeCheck in self._valueCheck: # range checking is performed
             if not self.check_range( newVal, rng=self._range):
                 raise VariableRangeError("The value " +str(newVal) +" is not accepted within variable " +self.name +". Range is set to " +str(self._range))
-#        print("VARIABLE.value", self.name, self.on_set, newVal, end='')
-        self._value = self.on_set( newVal) if self.on_set is not None else newVal #.. then pre-process if on_set is defined
-#        print("=>", self._value)
-    
+        if self.on_set is None:
+            self._value = newVal
+        else:
+            self._valueRaw = newVal # keep a copy of the raw value (attribute exists only if on_set exists)
+            self._value = self.on_set( newVal) #pre-process if on_set is defined
+            
     @property
     def valueReference(self): return(self._valueReference)
     @valueReference.setter

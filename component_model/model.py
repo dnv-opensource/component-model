@@ -91,6 +91,7 @@ class Model(Fmi2Slave):
         '''Do a simulation step of size 'stepSize at time 'currentTime
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         '''
+        print( f"MODEL.do_step: time: {currentTime}")
         while len(self._eventList): # there is a non-empty event list. Check whether any event is pending and set the respective variables
             (t0, (var, val)) = self._eventList[-1]
             if t0 <= currentTime:
@@ -175,11 +176,19 @@ class Model(Fmi2Slave):
                     
     def variable_by_name(self, name:str, errorMsg:str|None=None):
         '''Return Variable object related to name, or None, if not found.
-        If errorMsg is not None, an error is raised and the message provided
-        Note: So far, this does not handle components of compound variables!'''
+        For compound variables, the parent variable is returned irrespective of whether the '.#' is included or not
+        If errorMsg is not None, an error is raised and the message provided'''
         for ref, var in self.vars.items():
-            if var is not None and var.name == name:
-                return( var)
+            if var is not None and name.startswith(var.name):
+                if len(name)==len(var.name): # identical (single compound variable)
+                    return( var)
+                else:
+                    try:
+                        sub = int( name[ len(var.name)+1:])
+                        if sub < len( var):
+                            return( var)
+                    except:
+                        pass
         if errorMsg is not None:
             raise ModelInitError(errorMsg)
         return( None)
@@ -438,15 +447,20 @@ class Model(Fmi2Slave):
                 var,sub = self.ref_to_var( vr)
             else:
                 sub = 0
+            if var.on_set is None:
+                val = var.value
+            elif var.causality == Causality.output:
+                val = var.on_set( var.valueRaw) # on_set used for final processing
+            else:
+                val = var.valueRaw # get the non-processed value
             if isinstance( var, Variable_NP):
-#                print("MODEL._get", var, sub, var.value)
-                refs.append( var.unit_convert( var.value[sub].tolist(), toBase=False))
+                refs.append( var.unit_convert( val[sub].tolist(), toBase=False))
             else: # non-compound variable. Just append to refs
                 if var.displayUnit is None:
-                    refs.append( var.value)
+                    refs.append( val)
                 else:
-                    refs.append( var.unit_convert( var.value, toBase=False))
-        print("MODEL._get", vrs, typ, refs)
+                    refs.append( var.unit_convert( val, toBase=False))
+#        print("MODEL._get", vrs, typ, refs)
         return( refs)
     def get_integer(self, vrs):   return( self._get( vrs, int)) 
     def get_real(self, vrs):      return( self._get( vrs, float))
@@ -475,7 +489,7 @@ class Model(Fmi2Slave):
             if isinstance( var, Variable_NP):
                 if var.on_set is None: # the variable component value can be set without issues
                     var.value[sub] = var.unit_convert( value, sub) # change component 'sub
-                else: # on_set can only be run once, when all components are change. Defer on_set
+                else: # on_set can only be run once, when all components are changed. Defer on_set
                     if var not in self.varsDirty: #not yet registered
                         self.varsDirty.update( { var : [None]*len(var)})    
                     self.varsDirty[var][sub] = var.unit_convert( value, sub)
@@ -492,21 +506,25 @@ class Model(Fmi2Slave):
         self._set( vrs, values, str)
 
     def _get_fmu_state(self) -> dict:
+        '''Get the value of all referenced variables of the model.
+        Note that also compound variables are saved in a single slot'''
         state = dict()
-        for var in self.vars.values():
-            state[var.name] = var.getter()
+        for ref, var in self.vars.items():
+            if var is not None:
+                state[var.name] = var.value if var.on_set is None else var.valueRaw
         return state
 
     def _set_fmu_state(self, state: dict):
-        vars_by_name = dict([(v.name, v) for v in self.vars.values()])
+        '''Set all variables as saved in state
+        Note: Compound variables are expected in a single slot'''
         for name, value in state.items():
-            if name not in vars_by_name:
+            var = self.variable_by_name( name)
+            if var is None: # not previously registered (seems to be allowed!?)
                 setattr(self, name, value)
+            elif var.on_set is None or var.causality == Causality.output:
+                var.value = value
             else:
-                v = vars_by_name[name]
-                if v.setter is not None:
-                    v.setter(value)
-
+                var.value = var.on_set( value)
 
 #     def change_variable(self, variable:str|Variable, action:callable|None=None):
 #         '''Change the value of an input variable. The variable is added to/removed from changedVariables and the action itself is used to perform the variable change
