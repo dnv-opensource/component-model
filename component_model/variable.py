@@ -62,7 +62,7 @@ class Variable(ScalarVariable):
             canHandleMultipleSetPerTimeInstant (bool) = False: (only used for ModelExchange). Determines when in simulation it is allowed to set the variable, i.e. loops are not allowed when False
             typ (type)=None: The type of variable to expect as initialVal and value. Since initial values are often set with strings (with units, see below), this is set explicitly.
                If None, _type is set to Enum/str if derived from these after disection or float if a number. 'int' is not automatically detected.
-            initialVal (str,int,float,Enum): The initial value of the variable.
+            initialVal (str,int,float,bool,Enum): The initial value of the variable.
             
                Optionally, the unit can be included, providing the initial value as string, evaluating to quantity of type typ a display unit and base unit.
                Note that the quantities are always converted to standard units of the same type, while the display unit may be different, i.e. the preferred user communication.
@@ -89,7 +89,7 @@ class Variable(ScalarVariable):
         .. requirement:: Requirement test
     '''
     def __init__(self, model, name: str, description:str=None, causality:str='parameter', variability:str='fixed', initial:str=None, canHandleMultipleSetPerTimeInstant: bool = False,
-                 typ:type|None=None, initialVal: str=None, rng: tuple = (),
+                 typ:type|None=None, initialVal:str|int|float|bool|Enum=None, rng: tuple = (),
                  annotations: dict = {}, valueCheck:VarCheck=VarCheck.all, fullInit:bool=True, on_step:callable=None, on_set:callable=None):
         self.model = model
         super().__init__( name=name, description=description, causality=Causality[causality], variability=Variability[variability], initial=initial, getter=self.getter, setter=self.setter) #Note that the variables class does not relate to valued
@@ -127,9 +127,8 @@ class Variable(ScalarVariable):
         
         _initialVal, _unit, _displayUnit = self.disect_unit( val) # first disect the initial value
         if _type is None: _type = self.auto_type( _initialVal)
-        self._type = _type # make it available for the functions below
         _initialVal = _type(_initialVal)
-        _range = self.init_range( rng, _initialVal, _unit) if VarCheck.rangeCheck in self._valueCheck else None
+        _range = self.init_range( rng, _initialVal, _unit, _type) if VarCheck.rangeCheck in self._valueCheck else None
         _value = self.on_set( _initialVal) if self.on_set is not None else _initialVal #.. then pre-process if on_set is defined
         return( _initialVal, _type, _unit, _displayUnit, _range, _value)
 
@@ -173,7 +172,9 @@ class Variable(ScalarVariable):
         '''Determine the Variable type from a provided example value.
         Since variables can be initialized using strings with units, the type can only be determined when the value is disected.
         Moreover, the value may indicate an integer, while the variable is designed a float. Therefore int Variables must be explicitly specified.'''
-        return( float if isinstance( exampleVal, (int,float)) else type( exampleVal))
+        if isinstance( exampleVal, bool):          return( bool)
+        elif isinstance( exampleVal, (int,float)): return( float)
+        else:                                      return( type( exampleVal))
 
     def check_value(self, val:str|int|float|Enum, _initialVal:int|float|Enum|str|None=None, _range:tuple|None=None, _displayUnit:str|None=None):
         '''Checks a provided value and returns the quantity, unit, displayUnit and range. Processing like on_set is not performed here.
@@ -216,22 +217,25 @@ class Variable(ScalarVariable):
         Returns:
             A tuple containing the minimum and maximum value the given variable can have
         '''
-        if isinstance(var, float):  return( ( float('-inf'), float('inf'))) 
-        elif isinstance(var, int):  raise VariableInitError(f"Unlimited integer variables do not make sense in Python. Please provide explicit limits for variable {self.name} or set the type to float.")
+        if isinstance(var, bool): return( (False,True))
+        elif isinstance(var, float):  return( ( float('-inf'), float('inf')))
+        elif isinstance(var, int):
+            raise VariableInitError(f"Unlimited integer variables do not make sense in Python. Please provide explicit limits for variable {self.name} or set the type to float.")
         elif isinstance(var, Enum): return( min( x.value for x in type(var)), max( x.value for x in type(var)))
         else:                       return( tuple()) # return an empty tuple (no range specified, e.g. for str)
 
-    def init_range(self, rng:tuple, initialVal=None, unit:str=None):
+    def init_range(self, rng:tuple, initialVal=None, unit:str=None, _type:type=None):
         '''Initialize the variable, including unit and range.
         Function can be called separately per component by derived classes
         The initialVal and unit can be explicitly provided, or self._* is used, if None'''
         if initialVal is None: initialVal = self._initialVal
         if unit is None: unit = self.unit
+        if _type is None: _type = self._type
         #=== initialize the variable range
         if rng is None: # set a zero-interval range. Note: this makes only sense for combined variables, where some components may be fixed and others variable
             _range = (initialVal, initialVal)
         elif not len( rng): # empty tuple => automatic range (for float and Enum)
-            _range = self._get_auto_extreme( initialVal)
+            _range = self._get_auto_extreme( _type(initialVal))
         elif len( rng) == 1:
             raise VariableInitError( f"Range specification of variable {self.name} is unclear, because only one value is provided")
         elif len( rng)==2:
@@ -256,11 +260,11 @@ class Variable(ScalarVariable):
                 raise NotImplementedError("What else?")
         else:
             raise VariableRangeError("Something wrong with this range specification (length): " +str( rng))
-        if not self.check_range( initialVal, _range): # check also whether the provided (initial) _initialValue is within the determined range
+        if not self.check_range( initialVal, _range, _type): # check also whether the provided (initial) _initialValue is within the determined range
             raise VariableInitError("The provided value " +str(initialVal) +" is not in the valid range " +str(_range))
         return( _range)
     
-    def check_range(self, val: int|float|str|Enum, rng:tuple|None=None) -> bool:
+    def check_range(self, val: int|float|str|Enum, rng:tuple|None=None, _type:type=None) -> bool:
         '''Check the provided 'val' with respect to the variable range
 
         Args:
@@ -275,7 +279,8 @@ class Variable(ScalarVariable):
             True/False with respect to whether val is the right type and is within range. self._range is registered as side-effect
         '''
         if rng is None: rng = self.range
-        if not isinstance( val, (int,float,str,Enum)) and len( val): # go per component
+        if _type is None: _type = self._type
+        if not isinstance( val, (bool,int,float,str,Enum)) and len( val): # go per component
             isOk = []
             for i in range( len(self)):
                 isOk.append( self.check_range( val[i], self.range[i]))
@@ -287,7 +292,8 @@ class Variable(ScalarVariable):
 #                     val = self.type(val) # try to cast the new value
 #                 except: # give up
 #                     return( False)
-            if isinstance( val, Enum):   return( isinstance( val, self.type))
+            if _type==bool:         return( isinstance( val, bool))
+            elif isinstance( val, Enum):   return( isinstance( val, _type))
             elif isinstance( val, str):  return( True) # no further requirements for str
             else:                        return(  rng is None or rng[0] <= val <= rng[1])
  
@@ -335,7 +341,7 @@ class Variable(ScalarVariable):
                 if initial is not None: # all values allowed
                     _initial = Initial[initial]
                 else: 
-                    _initial = Initial.exact # default value
+                    _initial = Initial.calculated # default value
         else:
             raise VariableInitError( "Causality/Variability/initial combination " +str(c)+" / " +str(v) +" / " +str(initial) + " not covered!")
         if len(msg):
@@ -343,7 +349,14 @@ class Variable(ScalarVariable):
             return(None)
         else:
             return(_initial)
-    
+        
+    def fmi_type_str(self, val):
+        '''Translate the provided type to a proper fmi type and return as string
+        See types defined in schema fmi2Unit.xsd
+        '''
+        if self._type==bool: return( 'true' if val else 'false')
+        else: return( str( val))
+        
     def to_xml(self, **kwargs):
         """ Generate modelDescription XML code with respect to this variable, i.e. <ScalarVariable> element within <ModelVariables>.
         Note that ScalarVariable attributes should all be listed in __attrs dictionary
@@ -364,7 +377,7 @@ class Variable(ScalarVariable):
             
         Returns:
             the etree element representing the sub-xml <ScalarVariable> tree for this variable
-        """
+        """            
         if kwargs.get('displayUnit', None) is None: kwargs['displayUnit'] = (self.unit, 1.0)
         typ = kwargs.get('typ', self._type)
         sv = super().to_xml()
@@ -387,7 +400,7 @@ class Variable(ScalarVariable):
              self.causality in (Causality.parameter, Causality.input) or
              self.variability == Variability.constant or
              ( self.causality in (Causality.output, Causality.local) and self.initial!=Initial.calculated)): # a start value is to be used
-            varInfo.attrib.update( {'start':str( self.initialVal if 'initialVal' not in kwargs else kwargs['initialVal'])})
+            varInfo.attrib.update( {'start':self.fmi_type_str(self.initialVal if 'initialVal' not in kwargs else kwargs['initialVal'])})
         if declaredType in ('Real', 'Integer', 'Enumeration'): # range to be specified
             xMin = self.range[0] if 'range' not in kwargs else kwargs['range'][0]
             if declaredType!='Real' or xMin>float('-inf'):
@@ -514,7 +527,7 @@ class Variable_NP( Variable):
         _initialVal, _unit, _displayUnit, _range = [], [], [], []
         for i in range( len(initialVal)):
             _i, _u, _d = self.disect_unit( initialVal[i]) # first disect the initial value
-            _r = self.init_range( rng[i], _i, _u) if VarCheck.rangeCheck in self._valueCheck else None
+            _r = self.init_range( rng[i], _i, _u, _type=self.type) if VarCheck.rangeCheck in self._valueCheck else None
             _initialVal.append( _i)
             _unit.append( _u)
             _displayUnit.append( _d)

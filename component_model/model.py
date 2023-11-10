@@ -68,7 +68,7 @@ class Model(Fmi2Slave):
                    'guid':guid, 'default_experiment':defaultExperiment})
         if 'instance_name' not in kwargs: kwargs['instance_name'] = self.make_instanceName(__name__)
         self.check_and_register_instance_name( kwargs['instance_name'])
-        if 'resources' not in kwargs: kwargs['resources'] = None 
+        if 'resources' not in kwargs: kwargs['resources'] = None
         super().__init__( **kwargs) # in addition, OrderedDict vars is initialized
         # Additional variables which are hidden here: .vars, 
         self.name = name
@@ -87,11 +87,19 @@ class Model(Fmi2Slave):
         self._eventList = [] # possibility for a list of events that will be activated on time during a simulation
                              # Events consist of tuples of (time, changedVariable)
 
+    def setup_experiment(self, start_time: float):
+        '''Minimum version of setup_experiment, just setting the startTime. In derived models this may not be enough.'''
+        self.startTime = start_time
+    
+    ## Other functions which can e overridden are
+    # def enter_initialization_mode(self):
+    # def exit_initialization_mode(self):
+    # def terminate(self):
+
     def do_step(self, currentTime, stepSize):
         '''Do a simulation step of size 'stepSize at time 'currentTime
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         '''
-        print( f"MODEL.do_step: time: {currentTime}")
         while len(self._eventList): # there is a non-empty event list. Check whether any event is pending and set the respective variables
             (t0, (var, val)) = self._eventList[-1]
             if t0 <= currentTime:
@@ -255,7 +263,9 @@ class Model(Fmi2Slave):
 # =====================
 # FMU-related functions
 # =====================
-    def build(scriptFile:str|None=None, project_files:list=[], dest:Path = ".", documentation_folder:Path|None = None):
+    def build( scriptFile:str|None=None, project_files:list=[], dest:Path = ".", documentation_folder:Path|None = None):
+        '''!!Note: Since the build process is linked to the scriptFile and not to the class,
+             it is currently not possible to define several FMUs in one script. Max 1 per file!'''
         if scriptFile is None: scriptFile = self.instance_name+'.py'
         print("BUILD", scriptFile, project_files)
         project_files.append( Path(__file__).parents[0])
@@ -343,10 +353,10 @@ class Model(Fmi2Slave):
             outputs_node = ET.SubElement(structure, "Outputs")
             for v in outputs:
                 if len(v) == 1:
-                    ET.SubElement(outputs_node, "Unknown", attrib=dict( index=str(v.valueReference)))
+                    ET.SubElement(outputs_node, "Unknown", attrib=dict( index=str(v.valueReference+1)))
                 else:
                     for i in range( len(v)):
-                        ET.SubElement(outputs_node, "Unknown", attrib=dict( index=str(v.valueReference+i)))
+                        ET.SubElement(outputs_node, "Unknown", attrib=dict( index=str(v.valueReference+i+1)))
         return root
 
     def xml_variables(self):
@@ -526,33 +536,68 @@ class Model(Fmi2Slave):
             else:
                 var.value = var.on_set( value)
 
-#     def change_variable(self, variable:str|Variable, action:callable|None=None):
-#         '''Change the value of an input variable. The variable is added to/removed from changedVariables and the action itself is used to perform the variable change
-# 
-#         Args:
-#            variable (str,Variable): Identifier for the variable to be changed, either the Variable object or the variable name
-#            action (callable)=None: The action to perform during 'do_step', i.e. a function of dT. If None, the action is removed from the list
-# 
-#         Note that angles are always in radians.        
-#         '''
-#         if isinstance( variable, str): # variable provided as name
-#             variable = self.variable_by_name( variable, errorMsg="Trying to change unknown input variable " +variable)
-#         if not isinstance( variable, Variable):
-#             raise ModelOperationError("Trying to change variable " +str(variable)+", which is not instantiated")
-#         elif len(value) != len(variable.initialVal):
-#             raise ModelOperationError("Trying to change variable " +variable.name +" to value " +str(value) +" which has wrong dimensions. Expected dim: "+str(len(variable.initialVal)) +". Got value" +str(value))
-#         if action is None: # reset the variable
-#             if variable not in self.changedVariable:
-#                 logger.warning("Trying to reset the unchanged variable " +variable.name)
-#             variable.value = variable.initialVal #we set the value to the initial value in any case
-#         else:
-#             if variable not in self.changedVariables: # add it to the list of variables to take into account during do_step
-#                 self.changedVariables.append( variable)
-#             try:
-#                 if (variable==self.craneAngularVelocity or variable==self.craneVelocity) and len(value)>3: # need to calculate the axis or direction vector
-#                     val = quantity_direction( value[0], tuple(value[1:4]), asSpherical=value[4] if len(value)>4 else False, asDeg=value[5] if len(value)>5 else False) # this is a raw direction or axis vector, which must be multiplied by the stepSize
-#                     variable.value = val
-#                 else:
-#                     variable.value = value
-#             except:
-#                 raise ModelOperationError("Failed to set variable " +variable.name +" to value " +str( value))
+# ==========================================
+# Open Simulation Platform related functions
+# ==========================================
+def make_OSP_system_structure( name:str='OspSystemStructure', models:dict={}, connections:tuple=(),
+                               version:str='0.1', startTime:float=0.0, baseStepSize:float=0.01, algorithm:str='fixedStep'):
+    '''Prepare a OspSystemStructure xml file according to `OSP configuration specification <https://open-simulation-platform.github.io/libcosim/configuration>`_
+
+    Args:
+        name (str)='OspSystemStructure': the name of the system model, used also as file name
+        models (dict)={}: dict of models (in OSP called 'simulators'). A model is represented by a dict element modelName : {property:prop, variable:value, ...}
+        connections (tuple)=(): tuple of model connections. Each connection is defined through a tuple of (model, variable, model, variable), where variable can be a tuple defining a variable group
+        version (str)='0.1': The version of the system model
+        startTime (float)=0.0: The simulation start time 
+        baseStepSize (float)=0.01: The base stepSize of the simulation. The exact usage depends on the algorithm chosen
+        algorithm (str)='fixedStep': The name of the algorithm
+        
+        ??ToDo: better stepSize control in dependence on algorithm selected, e.g. with fixedStep we should probably set all step sizes to the minimum of everything? 
+    '''
+    def make_simulators():
+        '''Make the <simulators> element (list of component models)'''
+        def make_initial_value( var:str, val:bool|int|float|str):
+            '''Make a <InitialValue> element from the provided var dict'''
+            typeName = {bool:'Boolean', int:'Integer', float:'Real', str:'String'}[type(val)]
+            initial = ET.Element( 'InitialValue', {'variable':var})
+            ET.SubElement( initial, typeName, {'value': ('true' if val else 'false') if isinstance(val,bool) else str(val)})
+            return( initial)
+        
+        simulators = ET.Element("Simulators")
+        for m,props in models.items():
+            #Note: instantiated model names might be small, but FMUs are based on class names and are therefore capitalized
+            simulator = ET.Element( 'Simulator', {'name':m, 'source':props.get('source', m[0].upper()+m[1:]+'.fmu'), 'stepSize':str(props.get('stepSize', baseStepSize))})
+            initialValues = ET.SubElement( simulator, 'InitialValues')
+            for prop, value in props.items():
+                if prop not in ('source','stepSize'):
+                    initialValues.append( make_initial_value( prop, value))
+            simulators.append( simulator)
+            print(f"Model {m}: {simulator}. Length {len(simulators)}")
+            ET.ElementTree(simulators).write("Test.xml")
+        return( simulators)
+    def make_connections():
+        '''Make the <connections> element from the provided con'''
+        cons = ET.Element("Connections")
+        for (m1, v1, m2, v2) in connections:
+            if isinstance( v1, (tuple,list)): # group connection (e.g. a Variable_NP)
+                if not isinstance( v2, (tuple,list)) or len(v2) != len(v1):
+                    raise ModelInitError( f"Something wrong with the vector connection between {m1} and {m2}. Variable vectors do not match.")
+                for i in range( len( v1)):
+                    con = ET.Element( "VariableConnection")
+                    ET.SubElement( con, "Variable", {'simulator':m1, 'name':v1[i]})
+                    ET.SubElement( con, "Variable", {'simulator':m2, 'name':v2[i]})
+                    cons.append( con)
+            else: # single connection
+                con = ET.Element( "VariableConnection")
+                ET.SubElement( con, "Variable", {'simulator':m1, 'name':v1})
+                ET.SubElement( con, "Variable", {'simulator':m2, 'name':v2})
+                cons.append( con)
+        return( cons)
+    
+    print("CON", connections)
+    osp = ET.Element( 'OspSystemStructure', {'xmlns':"http://opensimulationplatform.com/MSMI/OSPSystemStructure", 'version':version})
+    osp.append( make_simulators())
+    osp.append( make_connections())
+    tree = ET.ElementTree( osp)
+    ET.indent( tree, space="   ", level=0)
+    tree.write( name+'.xml', encoding="utf-8")

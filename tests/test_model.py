@@ -6,7 +6,7 @@ import logging
 from component_model.logger import get_module_logger
 logger = get_module_logger(__name__, level=logging.INFO)
 
-from component_model.model import Model, ModelInitError
+from component_model.model import Model, ModelInitError, make_OSP_system_structure
 
 import unittest
 
@@ -32,14 +32,24 @@ of this software and a ...'''
         self.assertEqual( c, "Copyleft (c) 3000 Nobody")
         self.assertTrue( l.startswith("Permission is hereby granted, free of charge, to any person obtaining a copy\nof this software and a .."))
 
-    def test_model_description(self):
+#    def test_model_description(self):
+    def test_osp_structure(self):
+        make_OSP_system_structure( 'systemModel', version='0.1', 
+                                   models={'simpleTable': {'interpolate':True},
+                                           'mobileCrane': {'pedestal.pedestalMass':5000.0, 'boom.boom.0':20.0}},
+                                   connections = ( ('simpleTable', 'outputs.0',
+                                                    'mobileCrane', 'pedestal.angularVelocity'), ))
+                                   
+                                                    
+        
 
 
 if __name__ == '__main__':
 #    suite = unittest.TestLoader().loadTestsFromTestCase(Test_model) # use that to do all tests
     suite = unittest.TestSuite() # use this to load only single tests (together with next lines)
     # single tests:
-    suite.addTest( Test_model("test_license")) 
+#    suite.addTest( Test_model("test_license")) 
+    suite.addTest( Test_model("test_osp_structure")) 
     test_result = unittest.TextTestRunner(verbosity=1).run(suite)
     if test_result.wasSuccessful():
         pass # possibility to perform cleanup when everything was successful
