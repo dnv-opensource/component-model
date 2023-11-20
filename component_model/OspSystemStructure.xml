@@ -1,5 +1,0 @@
-<OspSystemStructure xmlns="http://opensimulationplatform.com/MSMI/OSPSystemStructure" version="0.1">
-   <Simulators>
-      <Simulator name="mobileCrane" source="MobileCrane.fmu" stepSize="0.1" />
-   </Simulators>
-</OspSystemStructure>
