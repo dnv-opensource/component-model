@@ -15,6 +15,7 @@ from pythonfmu import Fmi2Slave, FmuBuilder, DefaultExperiment, __version__ as P
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS
 from pythonfmu.builder import get_model_description
 from pythonfmu.enums import Fmi2Causality as Causality, Fmi2Initial as Initial, Fmi2Variability as Variability
+import pkg_resources
 
 
 class ModelInitError(Exception):
@@ -247,7 +248,8 @@ class Model(Fmi2Slave):
         import datetime
         pkgPath = inspect.getfile( Model).split(os.path.sep+'component_model'+os.path.sep+'model.py')[0]
         if license is None:
-            with open( pkgPath+os.path.sep+'LICENSE', 'r') as f:
+            version = pkg_resources.get_distribution('component_model').version
+            with open( pkgPath+os.path.sep+f"component_model-{version}.dist-info/LICENSE", 'r') as f:
                 license = f.read()
             license = license.split('\n',2)[2] #Note: the copyright line of component_model cannot be used
         elif license.startswith('Copyright'):
