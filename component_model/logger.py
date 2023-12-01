@@ -27,6 +27,7 @@ import logging
 import sys
 import os
 
+
 class MsgCounterHandler(logging.StreamHandler):
     levelCounter = None
 
@@ -39,65 +40,88 @@ class MsgCounterHandler(logging.StreamHandler):
                 self._out = sys.stdout
             except:
                 self._out = sys.stderr
-        super( MsgCounterHandler, self).__init__(*args, **kwargs)
-        self.levelCounter = {'DEBUG':0, 'INFO':0, 'WARNING':0, 'ERROR':0}
+        super(MsgCounterHandler, self).__init__(*args, **kwargs)
+        self.levelCounter = {"DEBUG": 0, "INFO": 0, "WARNING": 0, "ERROR": 0}
         self.ideType = None
-        if 'idlelib.run' in sys.modules.keys(): ## if idlelib.run exists
+        if "idlelib.run" in sys.modules.keys():  ## if idlelib.run exists
             self.ideType = "Idle"
-            self.levelColor = {'DEBUG': 'DEFINITION', # blue
-                               'INFO' : 'STRING', #green
-                               'WARNING': 'KEYWORD', #orange
-                               'ERROR': 'stderr', # red
-                               'CRITICAL': 'ERROR'} # red background (not yet fully implemented)
-        elif 'thonny.tktextext' in sys.modules.keys(): # use escape codes. See also https://en.wikipedia.org/wiki/ANSI_escape_code
+            self.levelColor = {
+                "DEBUG": "DEFINITION",  # blue
+                "INFO": "STRING",  # green
+                "WARNING": "KEYWORD",  # orange
+                "ERROR": "stderr",  # red
+                "CRITICAL": "ERROR",
+            }  # red background (not yet fully implemented)
+        elif (
+            "thonny.tktextext" in sys.modules.keys()
+        ):  # use escape codes. See also https://en.wikipedia.org/wiki/ANSI_escape_code
             self.ideType = "Thonny"
-            self.levelColor = {'DEBUG':    '\033[34m',    #BLUE
-                               'INFO' :    '\033[32m',    #GREEN
-                               'WARNING':  '\033[33m',    #YELLOW
-                               'ERROR':    '\033[31m',    #RED
-                               'CRITICAL': '\033[37;41m'} #red background, white text
-            #all colors: 30:black, 31:red, 32:green, 33:yellow, 34:blue, 35:magenta, 36:cyan, 37: white. Similar: 4x:Background, 9x:bright foreground, 10x:bright background
+            self.levelColor = {
+                "DEBUG": "\033[34m",  # BLUE
+                "INFO": "\033[32m",  # GREEN
+                "WARNING": "\033[33m",  # YELLOW
+                "ERROR": "\033[31m",  # RED
+                "CRITICAL": "\033[37;41m",
+            }  # red background, white text
+            # all colors: 30:black, 31:red, 32:green, 33:yellow, 34:blue, 35:magenta, 36:cyan, 37: white. Similar: 4x:Background, 9x:bright foreground, 10x:bright background
 
     def emit(self, record):
-        level = record.levelname        
-        if (level not in self.levelCounter):
-            self.levelCounter[ level] = 0
-        self.levelCounter[ level] += 1
-        #print( record.__dict__) #super().emit( record)
-        fullMsg = record.__dict__['filename'].partition('.')[0] +' '+record.__dict__['levelname']+': ' +record.__dict__['msg']+'\n'
-        if self.ideType=='Idle':     num = self._out.write( fullMsg, self.levelColor[ level])
-        elif self.ideType=='Thonny': num = self._out.write( self.levelColor[level] + fullMsg +'\033[m' ) 
-        else:                        num = self._out.write( fullMsg) ## TextIOWrapper.write() takes one argument hence self.levelColor[l] removed from the argument
-        
-    def get_count(self, levels=['WARNING', 'ERROR'], pretty_print=False):
-        if pretty_print: # return a message string
+        level = record.levelname
+        if level not in self.levelCounter:
+            self.levelCounter[level] = 0
+        self.levelCounter[level] += 1
+        # print( record.__dict__) #super().emit( record)
+        fullMsg = (
+            record.__dict__["filename"].partition(".")[0]
+            + " "
+            + record.__dict__["levelname"]
+            + ": "
+            + record.__dict__["msg"]
+            + "\n"
+        )
+        if self.ideType == "Idle":
+            num = self._out.write(fullMsg, self.levelColor[level])
+        elif self.ideType == "Thonny":
+            num = self._out.write(self.levelColor[level] + fullMsg + "\033[m")
+        else:
+            num = self._out.write(
+                fullMsg
+            )  ## TextIOWrapper.write() takes one argument hence self.levelColor[l] removed from the argument
+
+    def get_count(self, levels=["WARNING", "ERROR"], pretty_print=False):
+        if pretty_print:  # return a message string
             msg = "Logger counts"
-            for i,l in enumerate(levels):
-                if i==0: msg += '. '
-                else: msg += ', '
+            for i, l in enumerate(levels):
+                if i == 0:
+                    msg += ". "
+                else:
+                    msg += ", "
                 if l in self.levelCounter:
-                    msg += l +'s:' +str(self.levelCounter[l])
-            return( msg)
-        elif len(levels)>1: # return the raw numbers as dictionary
-            return( self.levelCounter)
-        elif len(levels)==1: # return only the requested number
-            return( self.levelCounter[levels[0]])
+                    msg += l + "s:" + str(self.levelCounter[l])
+            return msg
+        elif len(levels) > 1:  # return the raw numbers as dictionary
+            return self.levelCounter
+        elif len(levels) == 1:  # return only the requested number
+            return self.levelCounter[levels[0]]
 
 
 def get_module_logger(mod_name, level=logging.DEBUG):
-#    print("Installing logger " +mod_name +" on level " +str(level))
+    #    print("Installing logger " +mod_name +" on level " +str(level))
     logger = logging.getLogger(mod_name)
-    logger.setLevel( level)
+    logger.setLevel(level)
     if len(logger.handlers) == 0:
         handler = MsgCounterHandler(logger)
-        handler.setLevel( level)
-        filename = os.path.basename(__file__).partition('.')[0]
-        formatter = logging.Formatter( '%(name)s. %(levelname)s - %(message)s', )
-#             '%(asctime)s %(name)-12s %(levelname)s %(message)s')
+        handler.setLevel(level)
+        filename = os.path.basename(__file__).partition(".")[0]
+        formatter = logging.Formatter(
+            "%(name)s. %(levelname)s - %(message)s",
+        )
+        #             '%(asctime)s %(name)-12s %(levelname)s %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-#    print("LOGGER " +mod_name +" on level " +str(level) +" installed:")
+    #    print("LOGGER " +mod_name +" on level " +str(level) +" installed:")
     return logger
+
 
 """
 logger = get_module_logger('RP-log')
