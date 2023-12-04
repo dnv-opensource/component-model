@@ -4,8 +4,9 @@ Note that they all need instantiation through derived classes with all arguments
 
 # from math import radians
 import numpy as np
+import matplotlib.pyplot as plt
 from .model import Model, ModelInitError, ModelOperationError
-from .variable import Variable, Variable_NP
+from .variable import Variable, Variable_NP, spherical_to_cartesian
 
 
 class InputTable(Model):

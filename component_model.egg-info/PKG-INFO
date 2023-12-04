@@ -10,10 +10,18 @@ Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.10.10
 Description-Content-Type: text/x-rst
-Provides-Extra: modelTest
-Provides-Extra: rest
-Provides-Extra: editor
 License-File: LICENSE
+Requires-Dist: pint>=0.22
+Requires-Dist: pythonfmu>=0.6.2
+Requires-Dist: numpy>=1.24.2
+Provides-Extra: modeltest
+Requires-Dist: FMPy>=3.9; extra == "modeltest"
+Requires-Dist: matplotlib>=3.7.1; extra == "modeltest"
+Provides-Extra: rest
+Requires-Dist: docutils>=0.3; extra == "rest"
+Requires-Dist: pack==1.1,==1.3; extra == "rest"
+Provides-Extra: editor
+Requires-Dist: thonny>=4.0.2; extra == "editor"
 
 Introduction
 ============

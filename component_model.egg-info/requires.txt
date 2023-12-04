@@ -1,5 +1,5 @@
 pint>=0.22
-pythonfmu>=0.6.3
+pythonfmu>=0.6.2
 numpy>=1.24.2
 
 [editor]
