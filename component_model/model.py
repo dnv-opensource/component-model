@@ -4,19 +4,15 @@ from abc import ABC, abstractmethod
 from pint import UnitRegistry
 import tempfile
 from pathlib import Path
-from zipfile import is_zipfile, ZipFile
 import datetime
 import numpy as np
-from .variable import Variable, Variable_NP
+from .variable import Variable, Variable_NP, variables_from_fmu
+from .utils import xml_to_python_val, read_model_description
 from math import log
 import uuid
 import xml.etree.ElementTree as ET
-from pythonfmu import (
-    Fmi2Slave,
-    FmuBuilder,
-    DefaultExperiment,
-    __version__ as PythonFMU_version,
-)
+from pythonfmu import Fmi2Slave, FmuBuilder, DefaultExperiment, __version__ as PythonFMU_version
+
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS
 from pythonfmu.builder import get_model_description
 from pythonfmu.enums import (
@@ -28,21 +24,15 @@ from pythonfmu.enums import (
 
 class ModelInitError(Exception):
     """Special error indicating that something is wrong with the boom definition"""
-
     pass
-
 
 class ModelOperationError(Exception):
     """Special error indicating that something went wrong during crane operation (rotations, translations,calculation of CoM,...)"""
-
     pass
-
 
 class ModelAnimationError(Exception):
     """Special error indicating that something went wrong during crane animation"""
-
     pass
-
 
 class Model(Fmi2Slave):
     """Defines a model including some common model concepts, like variables and units.
@@ -93,60 +83,37 @@ class Model(Fmi2Slave):
         guid=None,
         **kwargs,
     ):
-        if (
-            self.from_fmu(name) is None
-        ):  # a model built from scratch. This is the model name
-            kwargs.update(
-                {
-                    "modelName": name,
-                    "description": description,
-                    "author": author,
-                    "version": version,
-                    "copyright": copyright,
-                    "license": license,
-                    "guid": guid,
-                    "default_experiment": defaultExperiment,
-                }
-            )
-            if "instance_name" not in kwargs:
-                kwargs["instance_name"] = self.make_instanceName(__name__)
-            self.check_and_register_instance_name(kwargs["instance_name"])
-            if "resources" not in kwargs:
-                kwargs["resources"] = None
-            super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
-            # Additional variables which are hidden here: .vars,
-            self.name = name
-            self.description = description
-            self.author = author
-            self.version = version
-            self.uReg = UnitRegistry(
-                system=unitSystem, autoconvert_offset_to_baseunit=True
-            )  # use a common UnitRegistry for all variables
-            self.copyright, self.license = self.make_copyright_license(
-                copyright, license
-            )
-            self.default_experiment = (
-                DefaultExperiment(None, None, None, None)
-                if defaultExperiment is None
-                else DefaultExperiment(**defaultExperiment)
-            )
-            self.guid = guid if guid is not None else uuid.uuid4().hex
-            #        print("FLAGS", nonDefaultFlags)
-            self._units = (
-                {}
-            )  # dict of units and displayUnits (unitName : conversionFacto) used in the model (for usage in UnitDefinitions element)
-        else:  # the name refers to an FMU or a modelDescription.xml file
-            pass
+        kwargs.update({
+                "modelName": name,
+                "description": description,
+                "author": author,
+                "version": version,
+                "copyright": copyright,
+                "license": license,
+                "guid": guid,
+                "default_experiment": defaultExperiment,
+            })
+        if "instance_name" not in kwargs:
+            kwargs["instance_name"] = self.make_instanceName(__name__)
+        self.check_and_register_instance_name(kwargs["instance_name"])
+        if "resources" not in kwargs:
+            kwargs["resources"] = None
+        super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
+        # Additional variables which are hidden here: .vars,
+        self.name = name
+        self.description = description
+        self.author = author
+        self.version = version
+        self.uReg = UnitRegistry( system=unitSystem, autoconvert_offset_to_baseunit=True)  # use a common UnitRegistry for all variables
+        self.copyright, self.license = self.make_copyright_license( copyright, license)
+        self.default_experiment = (DefaultExperiment(None, None, None, None) if defaultExperiment is None else DefaultExperiment(**defaultExperiment))
+        self.guid = guid if guid is not None else uuid.uuid4().hex
+        #        print("FLAGS", nonDefaultFlags)
+        self._units = {}  # dict of units and displayUnits (unitName : conversionFacto) used in the model (for usage in UnitDefinitions element)
         self.nonDefaultFlags = self.check_flags(nonDefaultFlags)
-        self.varsDirty = (
-            {}
-        )  # possibility to list dirty compound variables, so that on_set() is run on the whole variable when elements are set.
-        self.currentTime = (
-            0  # keeping track of time when dynamic calculations are performed
-        )
-        self._eventList = (
-            []
-        )  # possibility for a list of events that will be activated on time during a simulation
+        self.varsDirty = {}  # possibility to list dirty compound variables, so that on_set() is run on the whole variable when elements are set.
+        self.currentTime = 0  # keeping track of time when dynamic calculations are performed
+        self._eventList = []  # possibility for a list of events that will be activated on time during a simulation
         # Events consist of tuples of (time, changedVariable)
 
     def setup_experiment(self, start_time: float):
@@ -522,55 +489,27 @@ class Model(Fmi2Slave):
                 mv.append(et)
         return mv
 
-    def from_fmu(self, fmu, provideMsg=False):
-        def read_model_description(fmu):
-            try:
-                with ZipFile(fmu) as zp:
-                    el = ET.fromstring(zp.read("modelDescription.xml"))
-            except:
-                try:
-                    el = ET.parse(fmu)
-                except:
-                    try:
-                        el = ET.parse(fmu + os.sep + "modelDescription.xml")
-                    except:
-                        if provideMsg:
-                            print(
-                                f"The supplied parameter '{fmu}' is neither a zipped FMU, an FMU folder or a modelDescription.xml file"
-                            )
-                        return None
-            return el
-
-        el = read_model_description(fmu)
-        print("EL", el)
-
     @staticmethod
-    def check_flags(flags):
-        """Check and collect provided flags and return the non-default flags
+    def check_flags( flags:dict|None):
+        """Check and collect provided flags dictionary and return the non-default flags
         Any of the defined FMI flags with a non-default value (see FMI 2.0.4, Section 4.3.1)
         .. todo:: Check also whether the model actually provides these features
         """
-
-        def check_flag(fl, typ):
-            if flags is not None and fl in flags:
-                if isinstance(flags[fl], bool) and flags[fl]:  # a nondefault value
-                    _flags.update({fl: flags[fl]})
-                elif (
-                    isinstance(flags[fl], int) and flags[fl] != 0
-                ):  # nondefault integer
-                    _flags.update({fl: flags[fl]})
-
         _flags = {}
-        check_flag("needsExecutionTool", bool)
-        check_flag("canHandleVariableCommunicationStepSize", bool)
-        check_flag("canInterpolateInputs", bool)
-        check_flag("maxOutputDerivativeOrder", int)
-        check_flag("canRunAsynchchronously", bool)
-        check_flag("canBeInstantiatedOnlyOncePerProcess", bool)
-        check_flag("canNotUstMemoryManagementFunctions", bool)
-        check_flag("canGetAndSetFMUstate", bool)
-        check_flag("canSerializeFMUstate", bool)
-        check_flag("providesDirectionalDerivative", bool)
+        if flags is not None:
+            for flag, default in { "needsExecutionTool":False,
+                                   "canHandleVariableCommunicationStepSize":False,
+                                   "canInterpolateInputs": False,
+                                   "maxOutputDerivativeOrder":0,
+                                   "canRunAsynchchronously":False,
+                                   "canBeInstantiatedOnlyOncePerProcess":False,
+                                   "canNotUseMemoryManagementFunctions":False,
+                                   "canGetAndSetFMUstate":False,
+                                   "canSerializeFMUstate":False,
+                                   "providesDirectionalDerivative":False,
+                                   }.items():
+                if flag in flags and flags[flag] != default and isinstance( flags[flag], type(default)):
+                    _flags.update( {flag : flags[flag]})
         return _flags
 
     def vars_iter(self, key=None):
@@ -840,3 +779,40 @@ def make_OSP_system_structure(
     tree = ET.ElementTree(osp)
     ET.indent(tree, space="   ", level=0)
     tree.write(name + ".xml", encoding="utf-8")
+    
+def model_from_fmu( fmu:str|Path, provideMsg:bool=False, sep='.'):
+    """Generat a ComponentModel from an FMU (excluding the inner working functions like 'do_step'.
+    Still this is useful for convenient access to model information like variables
+    Note: structured variables with name: <name>.i, with otherwise equal causality, variability, initial and consecutive index and valueReference are stored as VariableNP
+    .. ToDo:: <UnitDefinitions>, <LogCategories>
+    
+    Args:
+        fmu (str, Path): the FMU file which is to be read. can be the full FMU zipfile, the modelDescription.xml or a equivalent string
+        provideMsg (bool): Optional possibility to provide messages during the process (for debugging purposes)
+        sep (str)='.': separation used for structured variables (both for sub-systems and variable names)
+    Returns:
+        Model object
+    """
+       
+    el = read_model_description(fmu)
+    dE = el.find('.//DefaultExperiment')
+    dE = {} if dE is None else dE.attrib
+    flags = el.find('.//CoSimulation')
+    flags = {} if flags is None else { key : xml_to_python_val(val) for key,val in flags.attrib.items()}
+    model = Model( name = el.attrib['modelName'],
+                   description = el.get('description', f"Component model object generated from {fmu}"),
+                   author = el.get('author', "anonymous"),
+                   version = el.get('version', "0.1"),
+                   unitSystem="SI",
+                   license = el.get( 'license', None),
+                   copyright = el.get( 'copyright', None),
+                   guid = el.get( 'guid', None),
+                   defaultExperiment = {'start_time':float( dE.get('startTime',0.0)),
+                                        'stop_time':float(  dE['stopTime']) if 'stopTime' in dE else None,
+                                        'step_size':float(  dE['stepSize']) if 'stepSize' in dE else None,
+                                        'tolerance':float(  dE['tolerance']) if 'tolerance' in dE else None}, 
+                   nonDefaultFlags = flags,                           
+                 )
+    variables_from_fmu( model, el.find('.//ModelVariables'), sep=sep)
+    return( model)
+

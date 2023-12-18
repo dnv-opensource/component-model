@@ -32,60 +32,24 @@ class BouncingBallFMU(Model):
         description="Simple bouncing ball test FMU",
         author="DNV, SEACo project",
         version="0.1",
+        defaultExperiment = {'start_time':0.0, 'step_size':0.1, 'stop_time':10.0, 'tolerance':0.001},
         **kwargs,
     ):
         super().__init__(
-            name=name, description=description, author=author, version=version, **kwargs
+            name=name, description=description, author=author, version=version, defaultExperiment=defaultExperiment, **kwargs
         )
-        self.x = Variable_NP(
-            self,
-            initialVal=(0.0, 0.0),
-            name="x",
-            description="""Position of ball (x,z) at time.""",
-            causality="output",
-            variability="continuous",
-            on_step=None,
-        )  # lambda t, dT: self.boom0.rotate( axis=self.craneAngularVelocity.value) if np.any(self.craneAngularVelocity.value!=0) else None,
-        self.v = Variable_NP(
-            self,
-            initialVal=(1.0, 1.0),
-            name="v",
-            description="speed at time as (x,z) vector",
-            causality="output",
-            variability="continuous",
-        )
-        self.bounceFactor = Variable(
-            self,
-            initialVal=0.95,
-            name="bounceFactor",
-            description="factor on speed when bouncing",
-            causality="parameter",
-            variability="fixed",
-        )
-        self.drag = Variable(
-            self,
-            initialVal=0.0,
-            name="drag",
-            description="drag decelleration factor defined as a = self.drag* v^2 with dimension 1/m",
-            causality="parameter",
-            variability="fixed",
-        )
-        self.energy = Variable(
-            self,
-            initialVal=0.0,
-            name="energy",
-            description="Total energy of ball in J",
-            causality="output",
-            variability="continuous",
-        )
-        self.period = Variable(
-            self,
-            initialVal=0.0,
-            name="period",
-            description="Bouncing period of ball",
-            causality="output",
-            variability="continuous",
-        )
+        self.x = Variable_NP( self, initialVal=(0.0, 0.0), name="x", description="""Position of ball (x,z) at time.""",
+                              causality="output", variability="continuous", initial="exact")
+        self.v = Variable_NP( self, initialVal=(1.0, 1.0),  name="v", description="speed at time as (x,z) vector",
+                             causality="output", variability="continuous", initial="exact")
+        self.bounceFactor = Variable( self, initialVal=0.95, name="bounceFactor", description="factor on speed when bouncing",
+                                      causality="parameter", variability="fixed")
+        self.drag = Variable( self, initialVal=0.0, name="drag", description="drag decelleration factor defined as a = self.drag* v^2 with dimension 1/m",
+                              causality="parameter", variability="fixed")
+        self.energy = Variable( self, initialVal=0.0, name="energy", description="Total energy of ball in J",
+                                causality="output", variability="continuous")
+        self.period = Variable( self, initialVal=0.0, name="period", description="Bouncing period of ball",
+                                causality="output", variability="continuous")
 
     #        self.register_variable( String("mdShort", causality=Fmi2Causality.local))
 
