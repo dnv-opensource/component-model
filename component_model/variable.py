@@ -358,8 +358,8 @@ class Variable(ScalarVariable):
         v = self.variability
         msg = ""
         if v == Variability.constant or c == Causality.parameter:  # case (A) of page 51 of FMI 2.0.4
-            if v == Variability.constant and c not in ( Causality.output, Causaility.input):
-                msg = f"For variability 'constant', the causality shall be 'input' or 'output'. Found: {c.name}"
+            if v == Variability.constant and c not in ( Causality.output, Causality.local):
+                msg = f"For variability 'constant', the causality shall be 'output' or 'local'. Found: {c.name}"
             elif c == Causality.parameter and v not in ( Variability.fixed, Variability.tunable):
                 msg = f"For causality 'parameter', the variability shall be 'fixed' or 'tunable'. Found: {v.name}"
             else:  # allowed combination A
@@ -758,7 +758,7 @@ def variables_from_fmu( model, el, sep='.'):
         var = el[ idx]
         base,sub = rsplit_sep( var.attrib['name'])
         length = 1
-        _causality, _variability, _initial = var.attrib['causality'], var.attrib['variability'], var.get('initial', None)
+        _causality, _variability, _initial = var.get('causality', 'local'), var.get('variability', 'continuous'), var.get('initial', None)
         _typ = xml_to_python_val( var[0].tag)
         if len( base) and len(sub) and sub.isnumeric() and int(sub)==0: # assume the first element of a compound variable
             for i in range( idx+1, len( el)): # collect the other elements of this compound variable
