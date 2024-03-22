@@ -566,7 +566,7 @@ class Variable_NP(Variable):
 
         Args:
             model (obj): The model object where this variable relates to. Use model.add_variable( name, ...) to define variables
-            name (str): Variable name, unique for whole FMU. The array components get names <name>.0,...
+            name (str): Variable name, unique for whole FMU. The array components get names <name>[0],...
             description (str) = None: Optional description of variable. Array components get empty descriptions
             causality (str) = 'parameter': The causality setting as string. Same for whole array
             variability (str) = 'fixed': The variability setting as string. Same for whole array
@@ -661,7 +661,7 @@ class Variable_NP(Variable):
         scalarVars = []
         for i in range(len(self)):
             dU = None if self.displayUnit is None else self.displayUnit[i]
-            scalarVars.append( super().to_xml( typ=float, name=self.name + "." + str(i), valueReference=self.valueReference + i,
+            scalarVars.append( super().to_xml( typ=float, name=f"{self.name}[{i}]", valueReference=self.valueReference + i,
                                                initialVal=self.initialVal[i], range=self.range[i], unit=self.unit[i],
                                                displayUnit=(self.unit[i], 1.0) if dU is None else dU))
         return scalarVars
@@ -737,7 +737,7 @@ def quantity_direction(
     n = np.linalg.norm(direction)  # normalize
     return quantityDirection[0] / n * direction
 
-def variables_from_fmu( model, el, sep='.'):
+def variables_from_fmu( model, el, sep='['):
     """From the supplied model object and the <ModelVariables> el subtree identify and define all variables
     .. toDo:: implement unit and displayUnit handling + <UnitDefinitions>
     """
@@ -750,8 +750,14 @@ def variables_from_fmu( model, el, sep='.'):
         else:
             raise VariableInitError(f"Invalid combination of attributes with respect to variable range. Type:{el.tag}, attributes: {el.attrib}")
     def rsplit_sep( txt, sep=sep):
-        if '.' in txt:  return( txt.rsplit( sep, maxsplit=1))
-        else:           return( txt, '')
+        if sep in txt:
+            base,sub = txt.rsplit( sep, maxsplit=1)
+            if sep == '[': sub = sub.rsplit(']', maxsplit=1)[0]
+            elif sep == '(': sub = sub.rsplit(')', maxsplit=1)[0]
+            elif sep == '{': sub = sub.rsplit('}', maxsplit=1)[0]
+            return (base, sub)
+        else:
+            return (txt, '')
         
     idx = 0
     while True:

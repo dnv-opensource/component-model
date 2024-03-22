@@ -47,16 +47,8 @@ class InputTable(Model):
         self.times = np.array(
             list(row[0] for row in table), dtype="float64"
         )  # this is only internally defined, not as Variable
-        if not all(
-            self.times[i - 1] < self.times[i] for i in range(1, len(self.times))
-        ):
-            raise ModelInitError(
-                "The times in the input table are not properly sorted in ascending order"
-            )
-        if not self.times[0] == 0.0:
-            raise ModelInitError(
-                "The initial output values are not defined. The first time point should be at zero"
-            )
+        assert all( self.times[i - 1] < self.times[i] for i in range(1, len(self.times))), "The times in the input table are not properly sorted in ascending order"
+        assert self.times[0] == 0.0, "The initial output values are not defined. The first time point should be at zero"
         self.outputs = np.array(
             list(row[1:] for row in table), dtype="float64"
         )  # this is only internally defined, not as Variable
@@ -82,10 +74,10 @@ class InputTable(Model):
         )
         self.time_iter = self.time_iterator()
 
-    def do_step(self, currentTime, stepSize):
-        """Do a simulation step of size 'stepSize at time 'currentTime"""
-        # super().do_step( currentTime, stepSize) # this is not called here, because there are no on_set and other general issues
-        self.set_values(currentTime)
+    def do_step(self, time, stepSize):
+        """Do a simulation step of size 'stepSize at time 'time"""
+        # super().do_step( time, stepSize) # this is not called here, because there are no on_set and other general issues
+        self.set_values(time)
         return True
 
     def time_iterator(self):
@@ -93,6 +85,8 @@ class InputTable(Model):
         for self.row in range(self._rows - 1):
             self.tInterval = (self.times[self.row], self.times[self.row + 1])
             yield self.row, self.tInterval
+        self.tInterval = (self.times[-1], float('inf'))
+        self.row = self._rows-1 
         yield self.row, self.tInterval  # stop at the last interval
 
     def set_values(self, time):
@@ -101,34 +95,31 @@ class InputTable(Model):
             raise ModelOperationError(
                 f"set_values: Search time is before the current interval starting at {self.tInterval[0]}"
             )
-        if time >= self.times[-1]:  # extrapolation
-            print("COMPONENT_FMU 0", time, self.row, self.tInterval)
-            self.tInterval = (self.times[-2], self.times[-1])
-            self.row = self._rows - 2
-        else:
-            while (
-                not self.tInterval[0] <= time < self.tInterval[1]
-            ):  # move to the correct interval
-                next(self.time_iter)
-        print("COMPONENT_FMU", time, self.row, self.tInterval)
-        if (
-            not self.interpolate.value
-        ):  # discrete values. Set the output values to the row values
-            self.outs.value = self.outputs[self.row]
-        else:
-            dT = self.tInterval[1] - self.tInterval[0]
-            for c in range(self._cols):
-                dY = self.outputs[self.row + 1][c] - self.outputs[self.row][c]
-                self.outs.value[c] = self.outputs[self.row][c] + dY / dT * (
-                    time - self.tInterval[0]
-                )
+        # move to the right interval (also covering extrapolation)
+        while not self.tInterval[0] <= time < self.tInterval[1]:
+            next(self.time_iter)
 
-    #        print("COMPONENT_FMU", time, self.outs.value[0], self.outs.value[1], self.outs.value[2])
+        # discrete values. Set the output values to the row values
+        if not self.interpolate.value or time in self.tInterval:
+            self.outs.value = self.outputs[self.row]
+        else: # interpolate
+            if self.tInterval[1] < float('inf'):
+                dT = self.tInterval[1] - self.tInterval[0]
+                row = self.row
+                t0 = self.tInterval[0]
+            else:
+                dT = self.times[-1] - self.times[-2]
+                row = len( self.outputs)-2
+                t0 = self.times[-2]
+            for c in range(self._cols):
+                dY = self.outputs[row + 1][c] - self.outputs[row][c]
+                self.outs.value[c] = self.outputs[row][c] + dY / dT * (time - t0)
 
     def enter_initialization_mode(self):
         """Set the output values according to the start time. Ensure that always outputs are available for connected FMUs"""
         next(self.time_iter)  # move to row 0
         self.set_values(self.startTime)
+#        print(f"SimpleTable with interpolate={self.interpolate.value}, times:{self.times}, outputs:{self.outputs}")
 
     def get_ranges(self, tbl):
         """Calculate ranges of variables from the provided input table (min,max) per column"""

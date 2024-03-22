@@ -450,35 +450,15 @@ class Model(Fmi2Slave):
                 attrib["tolerance"] = str(self.default_experiment.tolerance)
             ET.SubElement(root, "DefaultExperiment", attrib)
 
-        variables = self.xml_variables()
+        variables = self._xml_modelvariables()
         root.append(variables)  # append <ModelVariables>
 
         structure = ET.SubElement(root, "ModelStructure")
-        outputs = list(
-            filter(
-                lambda v: v is not None and v.causality == Causality.output,
-                self.vars.values(),
-            )
-        )
-        if outputs:
-            outputs_node = ET.SubElement(structure, "Outputs")
-            for v in outputs:
-                if len(v) == 1:
-                    ET.SubElement(
-                        outputs_node,
-                        "Unknown",
-                        attrib=dict(index=str(v.valueReference + 1)),
-                    )
-                else:
-                    for i in range(len(v)):
-                        ET.SubElement(
-                            outputs_node,
-                            "Unknown",
-                            attrib=dict(index=str(v.valueReference + i + 1)),
-                        )
+        structure.append( self._xml_structure_outputs())
+        structure.append( self._xml_structure_initialunknowns())
         return root
 
-    def xml_variables(self):
+    def _xml_modelvariables(self):
         """Generate the FMI2 modelDescription.xml sub-tree <ModelVariables>"""
         mv = ET.Element("ModelVariables")
         for var in self.vars_iter():
@@ -488,6 +468,46 @@ class Model(Fmi2Slave):
             else:
                 mv.append(et)
         return mv
+    
+    def _xml_structure_outputs(self):
+        """Generate the FMI2 modelDescription.xml sub-tree <ModelStructure><Outputs>.
+        Exactly all variables with causality='output' must be in this list.
+        ToDo: implement support for variable dependencies and add as attribute here.
+        """
+        out = ET.Element( 'Outputs')
+        
+        for v in filter( lambda v: v is not None and v.causality == Causality.output, self.vars.values()):
+            if len(v) == 1:
+               out.append( ET.Element( "Unknown", {'index':str(v.valueReference + 1)}))
+            else:
+                for i in range(len(v)):
+                    out.append( ET.Element( "Unknown", {'index':str(v.valueReference + i + 1)}))
+        return out
+                        
+    def _xml_structure_initialunknowns(self):
+        """Generate the FMI2 modelDescription.xml sub-tree <ModelStructure><InitialUnknowns>.
+        Ordered list of all exposed Unknowns in Initialization mode. All variables with (see page 60 FMI2 spec)
+        
+        * causality = 'output' and initial = 'approx' or 'calculated'
+        * causality = 'calculatedParameter'
+        * all continuous-time states and all state derivatives with initial = 'approx' or 'calculated'
+        
+        ToDo: implement support for states and derivatives and add as attribute here.
+        ToDo: implement support for variable dependencies and add as attribute here.
+        """
+        init = ET.Element( 'InitialUnknowns')
+        
+        for v in filter( lambda v: v is not None and
+                         ((v.causality==Causality.output and v.initial in (Initial.approx, Initial.calculated)) or
+                          (v.causality==Causality.calculatedParameter)),
+                         self.vars.values()):
+            if len(v) == 1:
+               init.append( ET.Element( "Unknown", {'index':str(v.valueReference + 1)}))
+            else:
+                for i in range(len(v)):
+                    init.append( ET.Element( "Unknown", {'index':str(v.valueReference + i + 1)}))
+        return init
+            
 
     @staticmethod
     def check_flags( flags:dict|None):
