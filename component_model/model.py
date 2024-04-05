@@ -314,8 +314,7 @@ class Model(Fmi2Slave):
         return base + "_" + "0" if not len(ext) else str(sorted(ext)[-1] + 1)
 
     def check_and_register_instance_name(self, iName):
-        if any(name == iName for name in Model.instances):
-            raise ModelInitError(f"The instance name {iName} is not unique")
+        assert all(name != iName for name in Model.instances), f"The instance name {iName} is not unique"
         Model.instances.append(iName)
 
     def make_copyright_license(self, copyright=None, license=None):
@@ -455,7 +454,9 @@ class Model(Fmi2Slave):
 
         structure = ET.SubElement(root, "ModelStructure")
         structure.append( self._xml_structure_outputs())
-        structure.append( self._xml_structure_initialunknowns())
+        initialunknowns = self._xml_structure_initialunknowns()
+        if len( initialunknowns):
+            structure.append( initialunknowns)
         return root
 
     def _xml_modelvariables(self):
@@ -759,10 +760,10 @@ def make_OSP_system_structure(
             initialValues = ET.SubElement(simulator, "InitialValues")
             for prop, value in props.items():
                 if prop not in ("source", "stepSize"):
-                    initialValues.append(make_initial_value(prop, value))
+                    initialValues.append( make_initial_value(prop, value))
             simulators.append(simulator)
-            print(f"Model {m}: {simulator}. Length {len(simulators)}")
-            ET.ElementTree(simulators).write("Test.xml")
+#            print(f"Model {m}: {simulator}. Length {len(simulators)}")
+#            ET.ElementTree(simulators).write("Test.xml")
         return simulators
 
     def make_connections():
@@ -786,7 +787,7 @@ def make_OSP_system_structure(
                 cons.append(con)
         return cons
 
-    print("CON", connections)
+#    print("CON", connections)
     osp = ET.Element(
         "OspSystemStructure",
         {

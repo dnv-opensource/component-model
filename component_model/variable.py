@@ -141,7 +141,7 @@ class Variable(ScalarVariable):
         return self._initialVal
 
     def initialVal_setter(self, val, rng, _type):
-        """Do checks (units, range, type) and set initialVal is during instantiation.
+        """Do checks (units, range, type) and set initialVal during instantiation.
         The initialVal is not meant to be changed!
         The initialVal can be used to inform variable units. These may or may not be explicitly used during the simulation run
         """

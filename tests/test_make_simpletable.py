@@ -88,17 +88,20 @@ def test_make_simpletable( interpolate = False):
     check_expected( et.attrib['fmiVersion'], '2.0', "FMI Version") # similarly other critical issues of the modelDescription can be checked
     check_expected( et.attrib['variableNamingConvention'], 'structured', "Variable naming convention. => use [i] for arrays")
 #    print(et.attrib)
+    val = validate_fmu("SimpleTable.fmu")
+    assert not len(val), f"Validation of the modelDescription of {asBuilt.name} was not successful. Errors: {val}"
+
+def test_use_fmu( interpolate = True):
     result = simulate_fmu(
-        asBuilt.name,
+        "SimpleTable.fmu",
         stop_time=10.0,
         step_size=0.1,
+        validate=True,
         solver="Euler",
         debug_logging=True,
         logger=print,  # fmi_call_logger=print,
         start_values={"interpolate": interpolate},
     )
-    val = validate_fmu("SimpleTable.fmu")
-    assert not len(val), f"Validation of the modelDescription of {asBuilt.name} was not successful. Errors: {val}"
 #    plot_result(result)
     if not interpolate:
         for t, x,y,z in result:
@@ -122,4 +125,5 @@ if __name__ == "__main__":
     test_inputtable_class( interpolate=False)
     test_inputtable_class( interpolate=True)
     test_make_simpletable( interpolate=True)
+    test_use_fmu( interpolate=True)
 
