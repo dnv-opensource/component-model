@@ -1,35 +1,36 @@
-""" This module implements bespoke logging functions for use in the other modules
+"""Bespoke logging functions for use in the other modules.
 
-    * color settings for debug (blue), info (green), warning (orange), error (red) and critical (red background) messages (works currently for Idle and Thonny)
-    * counting of warnings and errors
+* color settings for debug (blue), info (green), warning (orange), error (red) and critical (red background) messages (works currently for Idle and Thonny)
+* counting of warnings and errors
 
-    The module should be used in the following way in a module:
-    
-    .. code:: python
+The module should be used in the following way in a module:
 
-       import Logger
-       logger = Logger.get_module_logger(__name__, level=0) # In the call of the application module, set the level to the desired logging.xyz, e.g. logging.DEBUG, which then sets the log level on all sub-modules
+.. code:: python
 
-    To access error counting results use e.g.
-    
-    .. code:: python
+import Logger
+logger = Logger.get_module_logger(__name__, level=0) # In the call of the application module, set the level to the desired logging.xyz,
+  e.g. logging.DEBUG, which then sets the log level on all sub-modules
 
-       print("Count:", logger.handlers[0].get_count( ["ERROR"]))
+To access error counting results use e.g.
 
-    To write a logger warning use
+.. code:: python
 
-    .. code:: python
+print("Count:", logger.handlers[0].get_count( ["ERROR"]))
 
-       logger.warning("A message string. Note that only string concatenation with + works")
-       # logger.info, logger.debug, logger.error and logger.critical work similarly
+To write a logger warning use
+
+.. code:: python
+
+logger.warning("A message string. Note that only string concatenation with + works")
+# logger.info, logger.debug, logger.error and logger.critical work similarly
 """
+
 import logging
 import sys
-import os
 
 
 class MsgCounterHandler(logging.StreamHandler):
-    levelCounter = None
+    levelcount: dict[str, int] = {}
 
     def __init__(self, logger, *args, **kwargs):
         self.logger = logger
@@ -38,10 +39,10 @@ class MsgCounterHandler(logging.StreamHandler):
         except AttributeError:
             try:
                 self._out = sys.stdout
-            except:
+            except Exception:
                 self._out = sys.stderr
         super(MsgCounterHandler, self).__init__(*args, **kwargs)
-        self.levelCounter = {"DEBUG": 0, "INFO": 0, "WARNING": 0, "ERROR": 0}
+        self.levelcount = {"DEBUG": 0, "INFO": 0, "WARNING": 0, "ERROR": 0}
         self.ideType = None
         if "idlelib.run" in sys.modules.keys():  ## if idlelib.run exists
             self.ideType = "Idle"
@@ -65,11 +66,11 @@ class MsgCounterHandler(logging.StreamHandler):
             }  # red background, white text
             # all colors: 30:black, 31:red, 32:green, 33:yellow, 34:blue, 35:magenta, 36:cyan, 37: white. Similar: 4x:Background, 9x:bright foreground, 10x:bright background
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord):
         level = record.levelname
-        if level not in self.levelCounter:
-            self.levelCounter[level] = 0
-        self.levelCounter[level] += 1
+        if level not in self.levelcount:
+            self.levelcount[level] = 0
+        self.levelcount[level] += 1
         # print( record.__dict__) #super().emit( record)
         fullMsg = (
             record.__dict__["filename"].partition(".")[0]
@@ -80,39 +81,38 @@ class MsgCounterHandler(logging.StreamHandler):
             + "\n"
         )
         if self.ideType == "Idle":
-            num = self._out.write(fullMsg, self.levelColor[level])
+            self._out.write(fullMsg, self.levelColor[level])
         elif self.ideType == "Thonny":
-            num = self._out.write(self.levelColor[level] + fullMsg + "\033[m")
+            self._out.write(self.levelColor[level] + fullMsg + "\033[m")
         else:
-            num = self._out.write(
-                fullMsg
-            )  ## TextIOWrapper.write() takes one argument hence self.levelColor[l] removed from the argument
+            ## TextIOWrapper.write() takes one argument hence self.levelColor[l] removed from the argument
+            self._out.write(fullMsg)
 
-    def get_count(self, levels=["WARNING", "ERROR"], pretty_print=False):
+    def get_count(self, levels: tuple = ("WARNING", "ERROR"), pretty_print: bool = False):
         if pretty_print:  # return a message string
             msg = "Logger counts"
-            for i, l in enumerate(levels):
+            for i, level in enumerate(levels):
                 if i == 0:
                     msg += ". "
                 else:
                     msg += ", "
-                if l in self.levelCounter:
-                    msg += l + "s:" + str(self.levelCounter[l])
+                if level in self.levelcount:
+                    msg += level + "s:" + str(self.levelcount[level])
             return msg
         elif len(levels) > 1:  # return the raw numbers as dictionary
-            return self.levelCounter
+            return self.levelcount
         elif len(levels) == 1:  # return only the requested number
-            return self.levelCounter[levels[0]]
+            return self.levelcount[levels[0]]
 
 
-def get_module_logger(mod_name, level=logging.DEBUG):
+def get_module_logger(mod_name: str, level: int = logging.DEBUG):
     #    print("Installing logger " +mod_name +" on level " +str(level))
     logger = logging.getLogger(mod_name)
     logger.setLevel(level)
     if len(logger.handlers) == 0:
         handler = MsgCounterHandler(logger)
         handler.setLevel(level)
-        filename = os.path.basename(__file__).partition(".")[0]
+        # filename = os.path.basename(__file__).partition(".")[0]
         formatter = logging.Formatter(
             "%(name)s. %(levelname)s - %(message)s",
         )
