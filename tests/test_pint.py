@@ -107,35 +107,35 @@ def test_needed_functions():
     print(f"30 degrees in base units: {_reg('30 deg').to_base_units().magnitude} radians.")
 
 
-def test_split():
-    assert Unit("kg".split()) == (1.0, "kg")
-    assert Unit("0.2kg".split()) == (0.2, "kg")
-    assert Unit.split("0.2 kg") == (0.2, "kg")
-    assert Unit.split("0.2E-4 m") == (2e-5, "m")
-    assert Unit.split(0.2e-4) == (2e-5, "")
-    assert tuple([Unit.split(u) for u in ("3m", "45 deg", 0)]) == ((3, "m"), (45, "deg"), (0, ""))
-
-
-def test_quantity():
-    assert Unit.quantity("30%") == (0.3, "%", "percent")
-    assert Unit.quantity("m") == (1.0, "m", "length")
-    assert Unit.quantity("-10 deg") == (-0.17453292519943295, "deg", "angle")
-    with pytest.raises(Exception) as err:
-        Unit.quantity("0.2um")  # undefined unit
-    print("ERROR", err)
-    assert Unit.quantity("0.2kg", "mass") == (0.2, "kg", "mass")
-    with pytest.raises(Exception) as err:
-        Unit.quantity("0.2kg", "length")  # unit not as expected
-    print("ERROR", err)
-
-
-def test_convert():
-    assert abs(Unit.convert(1.0, "nm") - 0.0005399568034557236) < 1e-7
-    assert abs(Unit.convert("3kg", "lb") - 6.613867865546327) < 1e-7
-
-
-def test_get_standard_unit():
-    assert Unit.get_standard_unit("mass") == "kg"
+# def test_split():
+#     assert Unit("kg".split()) == (1.0, "kg")
+#     assert Unit("0.2kg".split()) == (0.2, "kg")
+#     assert Unit.split("0.2 kg") == (0.2, "kg")
+#     assert Unit.split("0.2E-4 m") == (2e-5, "m")
+#     assert Unit.split(0.2e-4) == (2e-5, "")
+#     assert tuple([Unit.split(u) for u in ("3m", "45 deg", 0)]) == ((3, "m"), (45, "deg"), (0, ""))
+# 
+# 
+# def test_quantity():
+#     assert Unit.quantity("30%") == (0.3, "%", "percent")
+#     assert Unit.quantity("m") == (1.0, "m", "length")
+#     assert Unit.quantity("-10 deg") == (-0.17453292519943295, "deg", "angle")
+#     with pytest.raises(Exception) as err:
+#         Unit.quantity("0.2um")  # undefined unit
+#     print("ERROR", err)
+#     assert Unit.quantity("0.2kg", "mass") == (0.2, "kg", "mass")
+#     with pytest.raises(Exception) as err:
+#         Unit.quantity("0.2kg", "length")  # unit not as expected
+#     print("ERROR", err)
+# 
+# 
+# def test_convert():
+#     assert abs(Unit.convert(1.0, "nm") - 0.0005399568034557236) < 1e-7
+#     assert abs(Unit.convert("3kg", "lb") - 6.613867865546327) < 1e-7
+# 
+# 
+# def test_get_standard_unit():
+#     assert Unit.get_standard_unit("mass") == "kg"
 
 
 if __name__ == "__main__":

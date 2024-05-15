@@ -111,16 +111,13 @@ def test_inputtable_class(interpolate=False):
 
 
 def test_make_simpletable(interpolate=False):
-    asBuilt = Model.build("test_make_simpletable.py", project_files=[])  #'../component_model', ])
+    asBuilt = Model.build(__file__)  #'../component_model', ])
     info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
     et = _to_et(asBuilt.name)
-    check_expected(
-        et.attrib["fmiVersion"], "2.0", "FMI Version"
-    )  # similarly other critical issues of the modelDescription can be checked
-    check_expected(
-        et.attrib["variableNamingConvention"], "structured", "Variable naming convention. => use [i] for arrays"
-    )
+    assert et.attrib["fmiVersion"]=="2.0", "FMI Version"
+    # similarly other critical issues of the modelDescription can be checked
+    assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu("SimpleTable.fmu")
     assert not len(val), f"Validation of the modelDescription of {asBuilt.name} was not successful. Errors: {val}"

@@ -182,7 +182,7 @@ def test_model_description():
 
 
 def test_make_fmu():
-    built = Model.build("test_BouncingBallFMU.py")
+    built = Model.build(__file__) #"test_BouncingBallFMU.py")
     dump(built)
     return built
 
@@ -212,7 +212,7 @@ def test_run_osp():
     print("SLAVE", bb, sim.status())
 
 
-# fails here!     ibb = sim.add_local_slave( bb)
+#    ibb = sim.add_local_slave( bb)
 #     assert ibb==0, f"local slave number {ibb}"
 #     sim_status = sim.status()
 #     assert sim_status.current_time==0
