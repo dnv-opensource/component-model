@@ -1,5 +1,5 @@
 Metadata-Version: 2.1
-Name: component-model
+Name: component_model
 Version: 0.0.1
 Summary: Constructs a Functional Mockup Interface component model from a python script (fulfilling some requirements)
 Author-email: Siegfried Eisinger <Siegfried.Eisinger@DNV.com>
