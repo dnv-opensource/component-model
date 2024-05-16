@@ -110,7 +110,7 @@ class Model(Fmi2Slave):
         )
         self.name = name
         if "instance_name" not in kwargs:
-            kwargs["instance_name"] = self.name # make_instancename(__name__)
+            kwargs["instance_name"] = self.name  # make_instancename(__name__)
         # self.check_and_register_instance_name(kwargs["instance_name"])
         if "resources" not in kwargs:
             kwargs["resources"] = None
@@ -122,7 +122,7 @@ class Model(Fmi2Slave):
         if guid is not None:
             self.guid = guid
         # use a common UnitRegistry for all variables:
-        self.ureg = UnitRegistry( system=unit_system, autoconvert_offset_to_baseunit=True)
+        self.ureg = UnitRegistry(system=unit_system, autoconvert_offset_to_baseunit=True)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         ##        self.default_experiment = (DefaultExperiment(None, None, None, None) if default_experiment is None else DefaultExperiment(**default_experiment))
         self.guid = guid if guid is not None else uuid.uuid4().hex
@@ -133,7 +133,7 @@ class Model(Fmi2Slave):
         self.currentTime = 0  # keeping track of time when dynamic calculations are performed
         self._events: list[tuple] = []  # optional list of events activated on time during a simulation
         # Events consist of tuples of (time, changedVariable)
-    
+
     def setup_experiment(self, start: float):
         """Minimum version of setup_experiment, just setting the start_time. In derived models this may not be enough."""
         self.start_time = start
@@ -345,8 +345,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if "radian" in str(
-                ubase.units
+            if (
+                "radian" in str(ubase.units)
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
@@ -375,7 +375,7 @@ class Model(Fmi2Slave):
         assert all(name != iName for name in Model.instances), f"The instance name {iName} is not unique"
         Model.instances.append(iName)
 
-    def make_copyright_license(self, copyright:str|None=None, license:str|None=None):
+    def make_copyright_license(self, copyright: str | None = None, license: str | None = None):
         """Prepare a copyright notice (one line) and a license text (without copyright line).
         If license is None, the license text of the component_model package is used (BSD-3-Clause).
         If copyright is None, a copyright text is construced from self.author and the file date.
@@ -401,15 +401,15 @@ class Model(Fmi2Slave):
             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
             SOFTWARE."""
-        license = "".join( line.strip()+'\n' for line in license.split('\n')) # remove whitespace in lines
-        if license.partition('\n')[0].lower().startswith("copyright"):
-            copyright1 = license.partition('\n')[0].strip()
-            license = license.partition('\n')[2].strip()
+        license = "".join(line.strip() + "\n" for line in license.split("\n"))  # remove whitespace in lines
+        if license.partition("\n")[0].lower().startswith("copyright"):
+            copyright1 = license.partition("\n")[0].strip()
+            license = license.partition("\n")[2].strip()
         else:
             copyright1 = None
-            
+
         if copyright is None:
-            if copyright1 is None: # make a new one
+            if copyright1 is None:  # make a new one
                 copyright = (
                     "Copyright (c) "
                     + str(datetime.datetime.fromtimestamp(os.path.getatime(__file__)).year)

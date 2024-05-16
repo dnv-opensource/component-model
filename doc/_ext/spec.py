@@ -26,7 +26,6 @@ def depart_spec_node(self, node):
 
 
 class SpeclistDirective(Directive):
-
     def run(self):
         return [SpecList("")]
 

@@ -3,29 +3,13 @@ from zipfile import ZipFile
 
 import numpy as np
 from component_model.component_fmus import InputTable  # type: ignore
-from component_model.model import Model # type: ignore
+from component_model.model import Model  # type: ignore
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
-
-
-class SimpleTable(InputTable):
-    """This denotes the concrete table turned into an FMU.
-    Exposed interface variables are 'outs' (array) and 'interpolate'"""
-
-    def __init__(self, **kwargs):
-        #        print("SimpleTable init", kwargs)
-        super().__init__(
-            name="TestTable",
-            description="my description",
-            author="Siegfried Eisinger",
-            version="0.1",
-            table=((0.0, 1, 2, 3), (1.0, 4, 5, 6), (3.0, 7, 8, 9), (7.0, 8, 7, 6)),
-            defaultExperiment={"start_time": 0.0, "stop_time": 10.0, "step_size": 0.1},
-            outputNames=("x", "y", "z"),
-            interpolate=False,
-            **kwargs,
-        )
+from libcosimpy.CosimExecution import CosimExecution
+from libcosimpy.CosimSlave import CosimLocalSlave
+from libcosimpy.CosimEnums import CosimExecutionState
 
 
 def check_expected(value, expected, feature: str):
@@ -111,7 +95,7 @@ def test_inputtable_class(interpolate=False):
 
 
 def test_make_simpletable(interpolate=False):
-    asBuilt = Model.build(__file__)  #'../component_model', ])
+    asBuilt = Model.build("./models/SimpleTable.py", project_files=[])  #'../component_model', ])
     info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
     et = _to_et(asBuilt.name)
@@ -159,8 +143,32 @@ def test_use_fmu(interpolate=True):
             tt = t
 
 
+def test_run_osp(interpolate=True):
+    sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos
+    st = CosimLocalSlave(fmu_path="./SimpleTable.fmu", instance_name="st")
+    print("SLAVE", st, sim.status())
+
+    ist = sim.add_local_slave(st)
+    assert ist == 0, f"local slave number {ist}"
+
+    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ist)}
+
+    # Set initial values
+    sim.boolean_initial_value(ist, reference_dict["interpolate"], interpolate)
+
+    sim_status = sim.status()
+    assert sim_status.current_time == 0
+    assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
+    infos = sim.slave_infos()
+    print("INFOS", infos)
+
+    # Simulate for 1 second
+    sim.simulate_until(target_time=15e9)
+
+
 if __name__ == "__main__":
-    test_make_simpletable(interpolate=True)
-    test_inputtable_class(interpolate=False)
-    test_inputtable_class(interpolate=True)
-    test_use_fmu(interpolate=True)
+    # test_make_simpletable(interpolate=True)
+    # test_inputtable_class(interpolate=False)
+    # test_inputtable_class(interpolate=True)
+    # test_use_fmu(interpolate=True)
+    test_run_osp()

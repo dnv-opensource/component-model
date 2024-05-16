@@ -3,9 +3,9 @@ import math
 
 import numpy as np
 import pytest
-from component_model.logger import get_module_logger # type: ignore
-from component_model.model import Model # type: ignore
-from component_model.variable import ( # type: ignore
+from component_model.logger import get_module_logger  # type: ignore
+from component_model.model import Model  # type: ignore
+from component_model.variable import (  # type: ignore
     VarCheck,
     Variable,
     VariableInitError,
