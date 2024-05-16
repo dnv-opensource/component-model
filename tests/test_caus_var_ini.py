@@ -1,4 +1,4 @@
-import component_model.caus_var_ini as cvi
+import component_model.caus_var_ini as cvi # type: ignore
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore

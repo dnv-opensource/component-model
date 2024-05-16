@@ -2,8 +2,8 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from zipfile import ZipFile
 
 import numpy as np
-from component_model.component_fmus import InputTable  # Note: needed even if only running the FMU!
-from component_model.model import Model
+from component_model.component_fmus import InputTable  # type: ignore
+from component_model.model import Model # type: ignore
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
@@ -115,7 +115,7 @@ def test_make_simpletable(interpolate=False):
     info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
     et = _to_et(asBuilt.name)
-    assert et.attrib["fmiVersion"]=="2.0", "FMI Version"
+    assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
     # similarly other critical issues of the modelDescription can be checked
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)

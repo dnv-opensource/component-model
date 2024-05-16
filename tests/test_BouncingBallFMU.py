@@ -1,12 +1,12 @@
 from math import sqrt
 
 import numpy as np
-from component_model.logger import get_module_logger
-from component_model.model import Model
-from component_model.variable import Variable, VariableNP
+from component_model.logger import get_module_logger # type: ignore
+from component_model.model import Model # type: ignore
+from component_model.variable import Variable, VariableNP # type: ignore
 from fmpy import dump, plot_result, simulate_fmu  # type: ignore
-from libcosimpy.CosimExecution import CosimExecution
-from libcosimpy.CosimSlave import CosimLocalSlave
+from libcosimpy.CosimExecution import CosimExecution # type: ignore
+from libcosimpy.CosimSlave import CosimLocalSlave # type: ignore
 
 
 class BouncingBallFMU(Model):
@@ -182,7 +182,7 @@ def test_model_description():
 
 
 def test_make_fmu():
-    built = Model.build(__file__) #"test_BouncingBallFMU.py")
+    built = Model.build(__file__)  # "test_BouncingBallFMU.py")
     dump(built)
     return built
 

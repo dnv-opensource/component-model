@@ -5,10 +5,10 @@ from multiprocessing import Process, Queue
 from typing import Any, List, Tuple
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.axes3d import Axes3D # type: ignore
 import numpy as np
-from libcosimpy.CosimExecution import CosimExecution # type: ignore
-from libcosimpy.CosimObserver import CosimObserver # type: ignore
+from libcosimpy.CosimExecution import CosimExecution  # type: ignore
+from libcosimpy.CosimObserver import CosimObserver  # type: ignore
+from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
 
 
 class SimulatorStatus(Enum):
@@ -140,9 +140,9 @@ class VisualSimulator:
             osp_xml (str): Path to OSP system structure file.
     """
 
-    def run_simulation(self, message_queue: Queue,
-                       points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]],
-                       osp_xml: str = ""):
+    def run_simulation(
+        self, message_queue: Queue, points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]], osp_xml: str = ""
+    ):
         cosim_execution = CosimExecution.from_osp_config_file(osp_path=osp_xml)
         observer = CosimObserver.create_last_value()
         cosim_execution.add_observer(observer)
@@ -170,8 +170,8 @@ class VisualSimulator:
     def update_plot(self, queue: Queue):
         plt.ion()
         fig = plt.figure(figsize=(9, 9), layout="constrained")
-        ax = Axes3D( fig=fig)
-        #ax = plt.Axes(projection="3d")
+        ax = Axes3D(fig=fig)
+        # ax = plt.Axes(projection="3d")
         ax.set_xlim(-10, 10)
         ax.set_ylim(-10, 10)
         ax.set_zlim(0, 10)
@@ -203,7 +203,7 @@ class VisualSimulator:
     """
 
     def start(self, osp_system_structure: str, points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]]):
-        message_queue : Queue = Queue(maxsize=5)
+        message_queue: Queue = Queue(maxsize=5)
         simulation_process = Process(target=self.run_simulation, args=(message_queue, points_3d, osp_system_structure))
         plot_process = Process(target=self.update_plot, args=(message_queue,))
 

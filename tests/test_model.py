@@ -1,9 +1,8 @@
 import logging
-from pathlib import Path
 import time
 
-from component_model.logger import get_module_logger
-from component_model.model import Model, make_osp_system_structure, model_from_fmu
+from component_model.logger import get_module_logger # type: ignore
+from component_model.model import Model, make_osp_system_structure # type: ignore
 
 logger = get_module_logger(__name__, level=logging.INFO)
 

@@ -2,9 +2,8 @@
 
 import logging
 
-import pytest
-from component_model.logger import get_module_logger
-from pint import Unit, UnitRegistry
+from component_model.logger import get_module_logger # type: ignore
+from pint import UnitRegistry
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
@@ -114,8 +113,8 @@ def test_needed_functions():
 #     assert Unit.split("0.2E-4 m") == (2e-5, "m")
 #     assert Unit.split(0.2e-4) == (2e-5, "")
 #     assert tuple([Unit.split(u) for u in ("3m", "45 deg", 0)]) == ((3, "m"), (45, "deg"), (0, ""))
-# 
-# 
+#
+#
 # def test_quantity():
 #     assert Unit.quantity("30%") == (0.3, "%", "percent")
 #     assert Unit.quantity("m") == (1.0, "m", "length")
@@ -127,13 +126,13 @@ def test_needed_functions():
 #     with pytest.raises(Exception) as err:
 #         Unit.quantity("0.2kg", "length")  # unit not as expected
 #     print("ERROR", err)
-# 
-# 
+#
+#
 # def test_convert():
 #     assert abs(Unit.convert(1.0, "nm") - 0.0005399568034557236) < 1e-7
 #     assert abs(Unit.convert("3kg", "lb") - 6.613867865546327) < 1e-7
-# 
-# 
+#
+#
 # def test_get_standard_unit():
 #     assert Unit.get_standard_unit("mass") == "kg"
 
