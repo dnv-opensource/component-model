@@ -108,22 +108,21 @@ class Model(Fmi2Slave):
                 ),
             }
         )
+        self.name = name
         if "instance_name" not in kwargs:
-            kwargs["instance_name"] = self.make_instancename(__name__)
-        self.check_and_register_instance_name(kwargs["instance_name"])
+            kwargs["instance_name"] = self.name  # make_instancename(__name__)
+        # self.check_and_register_instance_name(kwargs["instance_name"])
         if "resources" not in kwargs:
             kwargs["resources"] = None
         super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
         # Additional variables which are hidden here: .vars,
-        self.name = name
         self.description = description
         self.author = author
         self.version = version
         if guid is not None:
             self.guid = guid
-        self.ureg = UnitRegistry(
-            system=unit_system, autoconvert_offset_to_baseunit=True
-        )  # use a common UnitRegistry for all variables
+        # use a common UnitRegistry for all variables:
+        self.ureg = UnitRegistry(system=unit_system, autoconvert_offset_to_baseunit=True)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         ##        self.default_experiment = (DefaultExperiment(None, None, None, None) if default_experiment is None else DefaultExperiment(**default_experiment))
         self.guid = guid if guid is not None else uuid.uuid4().hex
@@ -346,8 +345,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if "radian" in str(
-                ubase.units
+            if (
+                "radian" in str(ubase.units)
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
@@ -376,33 +375,49 @@ class Model(Fmi2Slave):
         assert all(name != iName for name in Model.instances), f"The instance name {iName} is not unique"
         Model.instances.append(iName)
 
-    def make_copyright_license(self, copyright=None, license=None):
+    def make_copyright_license(self, copyright: str | None = None, license: str | None = None):
         """Prepare a copyright notice (one line) and a license text (without copyright line).
         If license is None, the license text of the component_model package is used (BSD-3-Clause).
         If copyright is None, a copyright text is construced from self.author and the file date.
         """
         import datetime
-        import inspect
         import os
 
-        pkgPath = inspect.getfile(Model).split(os.path.sep + "component_model" + os.path.sep + "model.py")[0]
         if license is None:
-            with open(pkgPath + os.path.sep + "LICENSE", "r") as f:
-                license = f.read()
-            license = license.split("\n", 2)[2]  # Note: the copyright line of component_model cannot be used
-        elif license.startswith("Copyright"):
-            [c, license] = license.split("\n", 1)
-            license = license.strip()
-            if copyright is None:
-                copyright = c
+            license = """Permission is hereby granted, free of charge, to any person obtaining a copy
+            of this software and associated documentation files (the "Software"), to deal
+            in the Software without restriction, including without limitation the rights
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+            copies of the Software, and to permit persons to whom the Software is
+            furnished to do so, subject to the following conditions:
+
+            The above copyright notice and this permission notice shall be included in all
+            copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+            SOFTWARE."""
+        license = "".join(line.strip() + "\n" for line in license.split("\n"))  # remove whitespace in lines
+        if license.partition("\n")[0].lower().startswith("copyright"):
+            copyright1 = license.partition("\n")[0].strip()
+            license = license.partition("\n")[2].strip()
+        else:
+            copyright1 = None
 
         if copyright is None:
-            copyright = (
-                "Copyright (c) "
-                + str(datetime.datetime.fromtimestamp(os.path.getatime(__file__)).year)
-                + " "
-                + self.author
-            )
+            if copyright1 is None:  # make a new one
+                copyright = (
+                    "Copyright (c) "
+                    + str(datetime.datetime.fromtimestamp(os.path.getatime(__file__)).year)
+                    + " "
+                    + self.author
+                )
+            else:
+                copyright = copyright1
 
         return (copyright, license)
 
@@ -642,32 +657,6 @@ class Model(Fmi2Slave):
             else:  # found the base of the variable
                 return (var, vr - _vr)
 
-    def _dummy_(self, vrs: list[int]):
-        """Convert a list of value_reference integers into a variable object iterator.
-        Take also compound variables into account:
-          If all variables are listed, include the compound object in the result.
-          Otherwise include the compound object and an index.
-        """
-        it = enumerate(vrs.__iter__())  # get an enumerated iterator over vrs
-        while True:
-            sub = None
-            try:
-                i, vr = next(it)
-            except StopIteration:
-                raise StopIteration from None
-            assert vr < len(self.vars), f"Variable with valueReference={vr} does not exist in model {self.name}"
-            var = self.vars[vr]
-            if var is None:  # isolated element(s) of compound variable
-                var, sub = self.ref_to_var(vr)
-            # At this point we should have a variable object
-            print("SUB", vr, var, sub, i, len(vrs))
-            if (
-                isinstance(var, VariableNP) and i + len(var) <= len(vrs) and vr + len(var) - 1 == vrs[i + len(var) - 1]
-            ):  # compound variable and all elements included
-                for _ in range(len(var) - 1):  # spool to the last element
-                    i, vr = next(it)
-            yield (var, sub)
-
     def _var_iter(self, vrs: list[int]):
         """Convert a list of value_reference integers into a variable object iterator.
         Take also compound variables into account:
@@ -894,7 +883,7 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep="."):
 
     el = read_model_description(fmu)
     defaultexperiment = el.find(".//DefaultExperiment")
-    e = {} if defaultexperiment is None else defaultexperiment.attrib
+    de = {} if defaultexperiment is None else defaultexperiment.attrib
     co_flags = el.find(".//CoSimulation")
     flags = {} if co_flags is None else {key: xml_to_python_val(val) for key, val in co_flags.attrib.items()}
     model = Model(
@@ -907,10 +896,10 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep="."):
         copyright=el.get("copyright", None),
         guid=el.get("guid", None),
         default_experiment={
-            "start_time": float(e.get("start", 0.0)),
-            "stop_time": float(e["stopTime"]) if "stopTime" in e else None,
-            "step_size": float(e["stepSize"]) if "stepSize" in e else None,
-            "tolerance": float(e["tolerance"]) if "tolerance" in e else None,
+            "start_time": float(de.get("start", 0.0)),
+            "stop_time": float(de["stopTime"]) if "stopTime" in de else None,
+            "step_size": float(de["stepSize"]) if "stepSize" in de else None,
+            "tolerance": float(de["tolerance"]) if "tolerance" in de else None,
         },
         flags=flags,
     )

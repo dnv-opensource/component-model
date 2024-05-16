@@ -1,5 +1,6 @@
 from component_model.component_fmus import InputTable  # Note: needed even if only running the FMU!
 
+
 class SimpleTable(InputTable):
     """This denotes the concrete table turned into an FMU.
     Exposed interface variables are 'outs' (array) and 'interpolate'"""

@@ -369,8 +369,8 @@ class Variable(ScalarVariable):
                 else:
                     q, u, du = self.disect_unit(r)
                     if (
-                        q == 0 or q == float("inf") or q == float("-inf")
-                    ) and u == "dimensionless":  # we accept that no explicit unit is supplied when the quantity is 0 or inf
+                        (q == 0 or q == float("inf") or q == float("-inf")) and u == "dimensionless"
+                    ):  # we accept that no explicit unit is supplied when the quantity is 0 or inf
                         u = unit
                     elif len(unit) and len(u) and unit != u:
                         raise VariableInitError(

@@ -3,11 +3,9 @@ import math
 
 import numpy as np
 import pytest
-from component_model.logger import get_module_logger
-
-# import component_model.model
-from component_model.model import Model
-from component_model.variable import (
+from component_model.logger import get_module_logger  # type: ignore
+from component_model.model import Model  # type: ignore
+from component_model.variable import (  # type: ignore
     VarCheck,
     Variable,
     VariableInitError,
@@ -299,7 +297,7 @@ def test_variable_np():
         value0=("5.0 m", "-90 deg", "0deg"),
         rng=(None, ("-180deg", "180deg"), None),
     )
-    assert boom.value0[0]==5.0, "Boom length"
+    assert boom.value0[0] == 5.0, "Boom length"
 
 
 def test_dirty():

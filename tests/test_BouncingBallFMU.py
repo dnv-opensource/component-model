@@ -1,14 +1,15 @@
 from math import sqrt
 
 import numpy as np
-from component_model.logger import get_module_logger
-from component_model.model import Model
-from component_model.variable import Variable, VariableNP
+from component_model.logger import get_module_logger  # type: ignore
+from component_model.model import Model  # type: ignore
+from component_model.variable import Variable, VariableNP  # type: ignore
 from fmpy import dump, plot_result, simulate_fmu  # type: ignore
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
 from libcosimpy.CosimEnums import CosimExecutionState
 from models.BouncingBall import BouncingBallFMU
+
 
 def test_model_description():
     mod = BouncingBallFMU()
@@ -45,26 +46,24 @@ def test_run_osp():
     bb = CosimLocalSlave(fmu_path="./BouncingBallFMU.fmu", instance_name="bb")
     print("SLAVE", bb, sim.status())
 
-
     ibb = sim.add_local_slave(bb)
-    assert ibb==0, f"local slave number {ibb}"
+    assert ibb == 0, f"local slave number {ibb}"
     sim_status = sim.status()
-    assert sim_status.current_time==0
+    assert sim_status.current_time == 0
     assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
     infos = sim.slave_infos()
     print("INFOS", infos)
-    reference_dict = {
-        var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ibb)
-    }
-    #Set initial values
+    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ibb)}
+    # Set initial values
     sim.real_initial_value(ibb, reference_dict["v0[0]"], 2.0)
     sim.real_initial_value(ibb, reference_dict["v0[1]"], 3.0)
 
-    #Simulate for 15 seconds
+    # Simulate for 15 seconds
     sim.simulate_until(target_time=15e9)
 
+
 if __name__ == "__main__":
-    #logger = get_module_logger(__name__, level=1)  # 0:>0Warning, 1:all,
+    # logger = get_module_logger(__name__, level=1)  # 0:>0Warning, 1:all,
     test_model_description()
     test_make_fmu()
     test_run_fmpy()

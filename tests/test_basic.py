@@ -13,7 +13,6 @@ from pythonfmu import (  # type: ignore
 
 
 class PythonSlave(Fmi2Slave):
-
     author = "John Doe"
     description = "A simple description"
 

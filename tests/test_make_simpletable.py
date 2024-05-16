@@ -2,14 +2,15 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from zipfile import ZipFile
 
 import numpy as np
-from component_model.component_fmus import InputTable  # Note: needed even if only running the FMU!
-from component_model.model import Model
+from component_model.component_fmus import InputTable  # type: ignore
+from component_model.model import Model  # type: ignore
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
 from libcosimpy.CosimEnums import CosimExecutionState
+
 
 def check_expected(value, expected, feature: str):
     if isinstance(expected, float):
@@ -98,12 +99,9 @@ def test_make_simpletable(interpolate=False):
     info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
     et = _to_et(asBuilt.name)
-    check_expected(
-        et.attrib["fmiVersion"], "2.0", "FMI Version"
-    )  # similarly other critical issues of the modelDescription can be checked
-    check_expected(
-        et.attrib["variableNamingConvention"], "structured", "Variable naming convention. => use [i] for arrays"
-    )
+    assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
+    # similarly other critical issues of the modelDescription can be checked
+    assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu("SimpleTable.fmu")
     assert not len(val), f"Validation of the modelDescription of {asBuilt.name} was not successful. Errors: {val}"
@@ -144,25 +142,22 @@ def test_use_fmu(interpolate=True):
             check_expected(_linear(tt, _t, _z), z, f"Linear interpolated z at t={tt}")
             tt = t
 
-def test_run_osp(interpolate=True):
 
+def test_run_osp(interpolate=True):
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos
     st = CosimLocalSlave(fmu_path="./SimpleTable.fmu", instance_name="st")
     print("SLAVE", st, sim.status())
 
-
     ist = sim.add_local_slave(st)
-    assert ist==0, f"local slave number {ist}"
+    assert ist == 0, f"local slave number {ist}"
 
-    reference_dict = {
-        var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ist)
-    }
+    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ist)}
 
     # Set initial values
     sim.boolean_initial_value(ist, reference_dict["interpolate"], interpolate)
 
     sim_status = sim.status()
-    assert sim_status.current_time==0
+    assert sim_status.current_time == 0
     assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
     infos = sim.slave_infos()
     print("INFOS", infos)
@@ -172,8 +167,8 @@ def test_run_osp(interpolate=True):
 
 
 if __name__ == "__main__":
-    #test_make_simpletable(interpolate=True)
-    #test_inputtable_class(interpolate=False)
-    #test_inputtable_class(interpolate=True)
-    #test_use_fmu(interpolate=True)
+    # test_make_simpletable(interpolate=True)
+    # test_inputtable_class(interpolate=False)
+    # test_inputtable_class(interpolate=True)
+    # test_use_fmu(interpolate=True)
     test_run_osp()
