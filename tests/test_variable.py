@@ -315,12 +315,12 @@ def test_dirty():
     assert myNP._type == np.float64, f"NP _type {myNP._type}"
     myNP.setter((2, 1, 4))
     assert list(myNP.getter()) == [1, math.radians(2), 3], "Vector should be unchanged"
-    assert isinstance(mod.get_from_dirty(myNP), np.ndarray)
-    assert list(mod.get_from_dirty(myNP)) == [2, 1, 4], f"Staged changed value: {mod.get_from_dirty(myNP)}"
+    assert isinstance(mod.dirty_get(myNP), np.ndarray)
+    assert list(mod.dirty_get(myNP)) == [2, 1, 4], f"Staged changed value: {mod.dirty_get(myNP)}"
     mod.dirty_do()
     assert list(myNP.getter()) == [2, 1, 4], f"Changed value: {myNP.getter()}"
     myNP.setter(2.5, idx=0)
-    myNP.on_set(mod.get_from_dirty(myNP))
+    myNP.on_set(mod.dirty_get(myNP))
     assert list(myNP.getter()) == [2.5, 1, 4], "Vector changed"
 
 

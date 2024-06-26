@@ -253,11 +253,13 @@ class Variable(ScalarVariable):
                 val = self.unit_convert(val, tobase=False)
         return val
 
-    def _setter(self, val: PyType | np.ndarray | tuple, idx: int | None = None):
+    def _setter(self, val: PyType | np.ndarray | tuple, idx: int | None = None, initial:bool=False):
         """Set variable value through model (which owns the value).
         This includes range and type checking + unit conversion as required in self._value_check.
         For these singel-valued variables on_set is run immediatelly (if set). Not registered in model._dirty'.
+        The optional `initial` argument allows static initial settings within on_set().
         """
+#        traceback.print_stack(file=sys.stdout)
         assert not isinstance(val, (np.ndarray, tuple)), f"Calling Variable._setter with value {val}"
         if VarCheck.u_all in self._value_check:  # expect quantity as displayUnit and convert to base units (SE)
             val = self.unit_convert(val)
@@ -266,7 +268,7 @@ class Variable(ScalarVariable):
             assert self.check_range(
                 val
             ), f"Range violation in variable {self.name}, value {val}. Should be in range {self._range}"
-        setattr(self.model, self.local_name, val if self.on_set is None else self.on_set(val))  # model is owner!
+        setattr(self.model, self.local_name, val if self.on_set is None else self.on_set(val, initial))  # model is owner!
 
     def auto_type(self, exampleVal: PyType):
         """Determine the Variable type from a provided example value.
@@ -647,7 +649,7 @@ class VariableNP(Variable):
         typ=None,
         getter: Callable | None = None,
         on_step: Callable | None = None,
-        on_set: Callable | None = lambda v: v,
+        on_set: Callable | None = lambda v,i: v,
     ):
         self.fullInit = False  # when calling super, the initialization is stopped where the array becomes relevant
         super().__init__(
@@ -691,13 +693,15 @@ class VariableNP(Variable):
     def type(self):
         return type(np.array(0, dtype=self._type).tolist())  # translate to the native python type
 
-    def _setter(self, val: PyType | np.ndarray | tuple, idx: int | None = None):
+    def _setter(self, val: PyType | np.ndarray | tuple, idx: int | None = None, initial:bool=False):
         """Set variable value through model (which owns the value).
         This includes range and type checking + unit conversion as required in self._value_check.
         We cannot set the value itself just here, because partial array changes can create problems.
         Therefore the changes are collected in the 'dirty' dict of the model
         and are effectuated as first action of 'do_step', including on_set().
+        The optional argument `initial` allows static initial settings within on_set().
         """
+        print(f"VARIABLE.setter {self.name}, {val}")
         if hasattr(val, "__iter__"):  # the whole whole array
             assert isinstance(val, (np.ndarray, tuple, list)), f"Erroneous VariableNP value {val} in {self.name}"
             assert len(self) == len(val), f"Erroneous dimension in {val} of variable {self.name}. Expected {len(self)}"
@@ -708,8 +712,8 @@ class VariableNP(Variable):
                 for i in range(self._len):
                     msg = f"Range violation in variable {self.name}[{i}], value {val[i]}. Should be in {self._range[i]}"
                     assert self.check_range(val[i], rng=self._range[i]), msg
-            self.model.ensure_dirty(self, np.array(val, dtype=self._type))  # register the new value
-        #            setattr(self.model, self.local_name, val) # model is owner!
+            #self.model.dirty_ensure(self, np.array(val, dtype=self._type))  # register the new value
+            setattr(self, self.local_name, val if self.on_set is None else self.on_set(val, initial))
 
         else:
             assert idx is not None, "Integer idx needed in this case"
@@ -721,7 +725,8 @@ class VariableNP(Variable):
             if VarCheck.r_check in self._value_check:  # range is provided and checked:
                 msg = f"Range violation in variable {self.name}[{idx}], value {val}. Should be in {self._range[idx]}"
                 assert self.check_range(val, rng=self._range[idx]), msg
-            self.model.ensure_dirty(self, val, idx)
+            print(f"VARIABLE.dirty_ensure {self.name}[{idx}]={val}. Initial:{initial}")
+            self.model.dirty_ensure(self, val, idx)
 
 
 # Utility functions for handling special variable types

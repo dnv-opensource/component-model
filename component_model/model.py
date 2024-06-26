@@ -129,7 +129,7 @@ class Model(Fmi2Slave):
         #        print("FLAGS", flags)
         self._units: dict[str, list] = {}  # def units and displayUnits (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
-        self._dirty: dict[Variable, Any] = {}  # dirty compound variables. Used (set) during do_step()
+        self._dirty: dict = {'initial':True}  # dirty compound variables. Used by (set) during do_step()
         self.currentTime = 0  # keeping track of time when dynamic calculations are performed
         self._events: list[tuple] = []  # optional list of events activated on time during a simulation
         # Events consist of tuples of (time, changedVariable)
@@ -137,6 +137,7 @@ class Model(Fmi2Slave):
     def setup_experiment(self, start: float):
         """Minimum version of setup_experiment, just setting the start_time. In derived models this may not be enough."""
         self.start_time = start
+        self._dirty['initial'] = True # is set to False after first dirty_do()
 
     ## Other functions which can e overridden are
     # def enter_initialization_mode(self):
@@ -215,18 +216,26 @@ class Model(Fmi2Slave):
         if isinstance(var, VariableNP):
             for i in range(1, len(var)):
                 self.vars[var.value_reference + i] = None  # marking that this is a sub-element
-        if value0 is not None:
-            var.setter(value0, None)
+#        if value0 is not None:
+#            var.setter(value0, None)
         self._ensure_unit_registered(var)
 
-    def ensure_dirty(self, var: Variable, value: Value | tuple[Value] | np.ndarray, idx: int | None = None):
+    def dirty_ensure(self,
+                     var: Variable|str,
+                     value: Value | tuple[Value] | np.ndarray,
+                     idx: int | None = None):
         """Ensure that the variable var is registered in self._dirty
         and that the (new) value is listed there.
         Either single elements or a whole array can be set/overwritten.
         Scalar variable values are stored as list of a single value.
+        Through `var=initial`, the `initial` key of _dirty can be set.
         """
         is_scalar = not isinstance(var, VariableNP)
-        if var in self._dirty:
+        if isinstance(var,str):
+            assert var=='initial', f"Unknown key {var} in _dirty dict"
+            self._dirty['initial'] = value
+            
+        elif var in self._dirty:
             if is_scalar:  # already registered scalar
                 assert idx is None, f"The variable {var.name} has no indices. Found {idx}."
                 self._dirty[var] = value
@@ -254,20 +263,24 @@ class Model(Fmi2Slave):
                     self._dirty.update({var: getattr(self, var.local_name)})  # start with current value
                     self._dirty[var][idx] = value
 
-    def is_dirty(self, var: Variable):
+    def dirty(self, var: Variable|str):
         """Check whether the variable var is listed in self._dirty."""
         return var in self._dirty
 
-    def get_from_dirty(self, var: Variable):
+    def dirty_get(self, var: Variable|str):
         """Get the 'staged' value from the dirty dict."""
         assert var in self._dirty, f"Variable {var.name} not found in _dirty, as ecpected"
         return self._dirty[var]
 
     def dirty_do(self):
         """Run on_set on all dirty variables."""
+        initial = self._dirty['initial']
         for v, val in self._dirty.items():
-            setattr(self, v.local_name, val if v.on_set is None else v.on_set(val))
-        self._dirty = {}
+            if isinstance(v,Variable):
+                print(f"MODEL.dirty_do. initial:{initial}. Variable {v.local_name}->{val}")
+                setattr(self, v.local_name, val if v.on_set is None else v.on_set(val, initial))
+        self._dirty = {'initial':False}
+        print(f"MODEL.dirty_do. Done all") 
 
     @property
     def units(self):
@@ -698,7 +711,6 @@ class Model(Fmi2Slave):
                     values.append(val[sub])
             else:
                 values.append(val)
-        #            print(f"_GET {var.name}[{sub}], type:{type(var)}, values:{values}")
         return values
 
     def get_integer(self, vrs):
@@ -735,6 +747,7 @@ class Model(Fmi2Slave):
         self._set(vrs, values, int)
 
     def set_real(self, vrs: list, values: list):
+        print(f"MODEL.set_real. Variables {vrs}. Values {values}")
         self._set(vrs, values, float)
 
     def set_boolean(self, vrs: list, values: list):
@@ -760,13 +773,6 @@ class Model(Fmi2Slave):
         for name, value in state.items():
             #            if var is None:  # not previously registered (seems to be allowed!?)
             setattr(self, name, value)
-
-
-#             elif var.on_set is None or var.causality == Causality.output:
-#                 var.value = value
-#             else:
-#                 var.value = var.on_set(value)
-
 
 # ==========================================
 # Open Simulation Platform related functions
