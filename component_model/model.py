@@ -425,7 +425,7 @@ class Model(Fmi2Slave):
             if copyright1 is None:  # make a new one
                 copyright = (
                     "Copyright (c) "
-                    + str(datetime.datetime.fromtimestamp(os.path.getatime(__file__)).year)
+                    + str(datetime.datetime.now().year)
                     + " "
                     + self.author
                 )
