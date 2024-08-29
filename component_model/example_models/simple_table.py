@@ -1,9 +1,10 @@
-from component_model.component_fmus import InputTable  # Note: needed even if only running the FMU!
+from component_model.example_models.input_table import InputTable
 
 
 class SimpleTable(InputTable):
-    """This denotes the concrete table turned into an FMU.
-    Exposed interface variables are 'outs' (array) and 'interpolate'"""
+    """Implementation of a simple, concrete table for use as FMU.
+    Exposed interface variables are 'outs' (array) and 'interpolate'.
+    """
 
     def __init__(self, **kwargs):
         #        print("SimpleTable init", kwargs)

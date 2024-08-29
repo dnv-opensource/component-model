@@ -1,14 +1,15 @@
 from math import sqrt
 
 import numpy as np
+
 from component_model.model import Model
-from component_model.variable import Variable, VariableNP
+from component_model.variable import Variable
 
 
 class BouncingBallFMU(Model):
     """Fmi2Slave implementation of a model made in Python, performing the FMU 'packaging', implements the pythonfmu.Fmi2Slave and runs buildFMU, i.e.
           * prepare the modeldescription.xml
-          * implement the FMI2 C interface for the present platform (as .dll, .so, ...)
+          * implement the FMI2 C interface for the present platform (as .dll, .so, ...).
 
        The following is expected of any valid Python model:
           * a complete list of variables including meta information, the model.variables dictionary contains that
@@ -48,27 +49,27 @@ class BouncingBallFMU(Model):
             **kwargs,
         )
         self.v_min = v_min
-        VariableNP(
+        Variable(
             self,
-            value0=(0.0, 0.0),
+            start=(0.0, 0.0),
             name="x",
             description="""Position of ball (x,z) at time.""",
             causality="output",
             variability="continuous",
             initial="exact",
         )
-        VariableNP(
+        Variable(
             self,
-            value0=(1.0, 1.0),
+            start=(1.0, 1.0),
             name="v",
             description="speed at time as (x,z) vector",
             causality="output",
             variability="continuous",
             initial="exact",
         )
-        VariableNP(
+        Variable(
             self,
-            value0=(1.0, 1.0),
+            start=(1.0, 1.0),
             name="v0",
             description="speed at time=0 as (x,z) vector",
             causality="parameter",
@@ -77,7 +78,7 @@ class BouncingBallFMU(Model):
         )
         Variable(
             self,
-            value0=0.95,
+            start=0.95,
             name="bounceFactor",
             description="factor on speed when bouncing",
             causality="parameter",
@@ -85,7 +86,7 @@ class BouncingBallFMU(Model):
         )
         Variable(
             self,
-            value0=0.0,
+            start=0.0,
             name="drag",
             description="drag decelleration factor defined as a = self.drag* v^2 with dimension 1/m",
             causality="parameter",
@@ -93,7 +94,7 @@ class BouncingBallFMU(Model):
         )
         Variable(
             self,
-            value0=0.0,
+            start=0.0,
             name="energy",
             description="Total energy of ball in J",
             causality="output",
@@ -101,7 +102,7 @@ class BouncingBallFMU(Model):
         )
         Variable(
             self,
-            value0=0.0,
+            start=0.0,
             name="period",
             description="Bouncing period of ball",
             causality="output",

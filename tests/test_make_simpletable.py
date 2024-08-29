@@ -1,10 +1,11 @@
+import pytest
 import xml.etree.ElementTree as ET  # noqa: N817
 from zipfile import ZipFile
 
 from ctypes import Structure, c_int64, POINTER, c_int, c_uint32, c_size_t, c_double, c_bool, c_char_p
 import numpy as np
-from component_model.component_fmus import InputTable  # type: ignore
 from component_model.model import Model  # type: ignore
+from component_model.example_models.input_table import InputTable  # type: ignore
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
@@ -60,8 +61,8 @@ def test_inputtable_class(interpolate=False):
         )
     if not interpolate:
         assert all(
-            tbl._outs.range[0][c] == (1, 8)[c] for c in range(2)
-        ), f"Error in expected range of outputs, row 0. Found {tbl.ranges[0]}"
+            tbl._outs.range[0][c] == (float("-inf"), float("inf"))[c] for c in range(2)
+        ), f"Error in expected range of outputs, row 0. Found {tbl._outs.range[0]}"
     assert all(
         tbl.outs[c] == (1, 2, 3)[c] for c in range(tbl._cols)
     ), f"Error in expected outs (row 0). Found {tbl.outs}"
@@ -99,7 +100,7 @@ def test_inputtable_class(interpolate=False):
 
 
 def test_make_simpletable(interpolate=False):
-    asBuilt = Model.build("./models/SimpleTable.py", project_files=[])  #'../component_model', ])
+    asBuilt = Model.build("../component_model/example_models/simple_table.py", project_files=[])
     info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
     et = _to_et(asBuilt.name)
@@ -122,7 +123,7 @@ def test_use_fmu(interpolate=True):
         logger=print,  # fmi_call_logger=print,
         start_values={"interpolate": interpolate},
     )
-    #plot_result(result)
+    plot_result(result)
     if not interpolate:
         for t, x, y, z in result:
             if t > 7:
@@ -204,9 +205,10 @@ def test_run_osp_system_structure():
             assert values == [7.475, 7.525, 7.574999999999999]
         
 if __name__ == "__main__":
-    test_make_simpletable(interpolate=True)
-    test_inputtable_class(interpolate=False)
-    test_inputtable_class(interpolate=True)
-    test_use_fmu(interpolate=True)
+#    retcode = pytest.main(["-rA", "-v", __file__])
+#    assert retcode == 0, f"Non-zero return code {retcode}"
+    test_inputtable_class()
+    test_make_simpletable()
+    test_use_fmu()
     test_run_osp()
     test_run_osp_system_structure()

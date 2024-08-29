@@ -1,12 +1,7 @@
-"""Contains a few example FMU classes which can be build through this package.
-Note that they all need instantiation through derived classes with all arguments specified.
-"""
-
-# from math import radians
 import numpy as np
 
-from .model import Model
-from .variable import Variable, VariableNP
+from component_model.model import Model
+from component_model.variable import Variable
 
 
 class InputTable(Model):
@@ -55,13 +50,13 @@ class InputTable(Model):
             list(row[1:] for row in table), dtype="float64"
         )  # this is only internally defined, not as Variable
         self.outputName = outputName
-        self._outs = VariableNP(
+        self._outs = Variable(
             self,
             name="outs",
             description="Output connector providing new outputs at every communication point (interpolation) or after the time of the next row is reached",
             causality="output",
             variability="continuous",
-            value0=table[0][1:],
+            start=table[0][1:],
             typ=float,
         )
         #        self.set_ranges( interpolate) # set the range separately, since it might change if 'interpolate' is changed
@@ -72,7 +67,7 @@ class InputTable(Model):
             causality="parameter",
             variability="fixed",
             typ=bool,
-            value0=interpolate,
+            start=interpolate,
             on_set=self.set_ranges,  # need to adapt ranges when 'interpolate' changes
         )
 

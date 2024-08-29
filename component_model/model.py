@@ -5,11 +5,11 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
 from math import log
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 import numpy as np
 from pint import UnitRegistry
-from pythonfmu import DefaultExperiment, Fmi2Slave, FmuBuilder  # type: ignore
+from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore
 from pythonfmu import __version__ as pythonfmu_version
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
@@ -18,7 +18,7 @@ from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from .logger import get_module_logger
 from .utils import read_model_description, xml_to_python_val
-from .variable import Variable, VariableNP, variables_from_fmu
+from .variable import Variable, variables_from_fmu
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -56,10 +56,10 @@ class Model(Fmi2Slave):
     The following FMI concepts are (so far) not implemented:
 
     * TypeDefinitions. Instead of defining SimpleType variables, ScalarVariable variables are always based on the pre-defined types and details provided there
-    * DisplayUnit. Variable units contain a Unit (the unit as used for inputs and outputs) and BaseUnit (the unit as used in internal model calculations, i.e. based on SI units).
-      Additional DisplayUnit(s) are so far not defined/used. Unit is used for that purpose.
+    * display. Variable units contain a Unit (the unit as used for inputs and outputs) and BaseUnit (the unit as used in internal model calculations, i.e. based on SI units).
+      Additional display(s) are so far not defined/used. Unit is used for that purpose.
     * Explicit <Derivatives> (see <ModelStructure>) are so far not implemented. This could be done as an additional (optional) property in Variable.
-      Need to check how this could be done with VariableNP
+      Need to check how this could be done with compound variables
     * <InitialUnknowns> (see <ModelStructure>) are so far not implemented.
       Does overriding of setup_experiment(), enter_initialization_mode(), exit_initialization_mode() provide the necessary functionality?
 
@@ -101,11 +101,6 @@ class Model(Fmi2Slave):
                 "copyright": copyright,
                 "license": license,
                 "guid": guid,
-                "default_experiment": (
-                    DefaultExperiment(None, None, None, None)
-                    if default_experiment is None
-                    else DefaultExperiment(**default_experiment)
-                ),
             }
         )
         self.name = name
@@ -122,14 +117,17 @@ class Model(Fmi2Slave):
         if guid is not None:
             self.guid = guid
         # use a common UnitRegistry for all variables:
-        self.ureg = UnitRegistry(system=unit_system, autoconvert_offset_to_baseunit=True)
+        self.ureg = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
-        ##        self.default_experiment = (DefaultExperiment(None, None, None, None) if default_experiment is None else DefaultExperiment(**default_experiment))
+        if default_experiment is None:  # PythonFMU.DefaultExperiment not used!
+            self.default_experiment = {"startTime": 0, "stopTime": 1.0, "stepSize": 0.01}
+        else:
+            self.default_experiment = default_experiment
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
-        self._units: dict[str, list] = {}  # def units and displayUnits (unitName:conversionFactor). => UnitDefinitions
+        self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
-        self._dirty: dict = {'initial':True}  # dirty compound variables. Used by (set) during do_step()
+        self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
         self.currentTime = 0  # keeping track of time when dynamic calculations are performed
         self._events: list[tuple] = []  # optional list of events activated on time during a simulation
         # Events consist of tuples of (time, changedVariable)
@@ -137,7 +135,6 @@ class Model(Fmi2Slave):
     def setup_experiment(self, start: float):
         """Minimum version of setup_experiment, just setting the start_time. In derived models this may not be enough."""
         self.start_time = start
-        self._dirty['initial'] = True # is set to False after first dirty_do()
 
     ## Other functions which can e overridden are
     # def enter_initialization_mode(self):
@@ -151,6 +148,7 @@ class Model(Fmi2Slave):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         """
+        self.currentTime = currentTime
         while len(self._events):  # Check whether any event is pending and set the respective variables
             (t0, (var, val)) = self._events[-1]
             if t0 <= currentTime:
@@ -165,29 +163,28 @@ class Model(Fmi2Slave):
                 var.on_step(currentTime, step_size)
         return True
 
-    def _ensure_unit_registered(self, candidate: Variable):
-        """Ensure that the displayUnit of a variable is registered.
+    def _unit_ensure_registered(self, candidate: Variable):
+        """Ensure that the display of a variable is registered.
         To register the units of a compound variable, the whole variable is entered
-        and a recursive call to the underlying displayUnits is made.
+        and a recursive call to the underlying display units is made.
         """
         unit_display = []
-        if isinstance(candidate, VariableNP):
-            for i in range(len(candidate)):  # recursive call to the components
-                if candidate.displayUnit is None:
-                    unit_display.append((candidate.unit[i], None))
-                else:
-                    unit_display.append((candidate.unit[i], candidate.displayUnit[i]))
-        elif isinstance(candidate, Variable):
-            unit_display.append((candidate.unit, candidate.displayUnit))
+        for i in range(len(candidate)):
+            if candidate.display[i] is None:
+                unit_display.append((candidate.unit[i], None))
+            else:
+                unit_display.append((candidate.unit[i], candidate.display[i]))
         # here the actual work is done
         for u, du in unit_display:
             if u not in self._units:  # the main unit is not yet registered
                 self._units[u] = []  # main unit has no factor
-            if du is not None:  # displayUnits are defined
-                if du not in self._units[u]:
+            if du is not None:  # displays are defined
+                if not len(self._units[u]) or all(
+                    du[0] not in self._units[u][i][0] for i in range(len(self._units[u]))
+                ):
                     self._units[u].append(du)
 
-    def register_variable(self, var: Variable, value0: Value | np.ndarray):
+    def register_variable(self, var: Variable, start: tuple | list | np.ndarray):
         """Register the variable 'var' as model variable. Set the initial value and add the unit if not yet used.
         Perform some checks and register the value_reference). The following should be noted.
 
@@ -197,90 +194,35 @@ class Model(Fmi2Slave):
         #. The call to super()... sets the value_reference, getter and setter of the variable
         """
         for idx, v in self.vars.items():
-            msg = f"Variable name {var.name} is not unique in model {self.name}. Already used as reference {idx}"
-            assert v is None or v.name != var.name, msg
-        setattr(self, var.name, value0)  # ensure that the model has the value as attribute
-        #        super().register_variable(var)
+            check = v is None or v.name != var.name
+            assert check, f"Variable name {var.name} already used as index {idx} in model {self.name}"
+        # ensure that the model has the value as attribute:
+        setattr(self, var.name, np.array(start, var.type) if len(var) > 1 else start[0])
         variable_reference = len(self.vars)
         self.vars[variable_reference] = var
         var.value_reference = variable_reference  # Set the unique value reference
-        if var.getter is None:
-            var.getter = lambda: getattr(self, var.local_name)
-        if var.setter is None and hasattr(self, var.local_name) and var.variability != Variability.constant:
-            if isinstance(var, VariableNP):
-                var.setter = lambda v: setattr(self, var.local_name, np.array(v, dtype=var.type))
-            else:
-                var.setter = lambda v: setattr(self, var.local_name, v)
+        # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
+        for i in range(1, len(var)):
+            self.vars[var.value_reference + i] = None  # marking that this is a sub-element
+        self._unit_ensure_registered(var)
 
-        logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
-        if isinstance(var, VariableNP):
-            for i in range(1, len(var)):
-                self.vars[var.value_reference + i] = None  # marking that this is a sub-element
-#        if value0 is not None:
-#            var.setter(value0, None)
-        self._ensure_unit_registered(var)
-
-    def dirty_ensure(self,
-                     var: Variable|str,
-                     value: Value | tuple[Value] | np.ndarray,
-                     idx: int | None = None):
-        """Ensure that the variable var is registered in self._dirty
-        and that the (new) value is listed there.
-        Either single elements or a whole array can be set/overwritten.
-        Scalar variable values are stored as list of a single value.
-        Through `var=initial`, the `initial` key of _dirty can be set.
+    def dirty_ensure(self, var: Variable):
+        """Ensure that the variable var is registered in self._dirty.
+        The (new) value(s) are set as normal, but on_set is only run when all required values are set.
         """
-        is_scalar = not isinstance(var, VariableNP)
-        if isinstance(var,str):
-            assert var=='initial', f"Unknown key {var} in _dirty dict"
-            self._dirty['initial'] = value
-            
-        elif var in self._dirty:
-            if is_scalar:  # already registered scalar
-                assert idx is None, f"The variable {var.name} has no indices. Found {idx}."
-                self._dirty[var] = value
-            else:
-                if idx is None:  # already registered vector. All elements
-                    msg = f"Value {value} should be vector of length {len(var)}."
-                    assert isinstance(value, (tuple, np.ndarray)) and len(var) == len(value), msg
-                    self._dirty[var] = value
-                else:  # already registered vector. Single element
-                    msg = f"Erroneous index {idx} or value {value} setting a vector element of {var.name}."
-                    assert isinstance(value, (str, int, float, bool, Enum)) and 0 <= idx < len(var), msg
-                    self._dirty[var][idx] = value
-        else:
-            if is_scalar:  # new dirty scalar
-                assert idx is None, f"The new variable {var.name} has no indices. Found {idx}."
-                self._dirty.update({var: value})
-            else:
-                if idx is None:  # new vector. All elements
-                    msg = f"Value {value} should be vector of length {len(var)}."
-                    assert isinstance(value, (tuple, np.ndarray)) and len(var) == len(value), msg
-                    self._dirty.update({var: value})
-                else:  # new vector. Single element
-                    msg = f"Erroneous index {idx} or value {value} setting a vector element of {var.name}."
-                    assert isinstance(value, (str, int, float, bool, Enum)) and 0 <= idx < len(var), msg
-                    self._dirty.update({var: getattr(self, var.local_name)})  # start with current value
-                    self._dirty[var][idx] = value
+        if var not in self._dirty:
+            self._dirty.append(var)
 
-    def dirty(self, var: Variable|str):
-        """Check whether the variable var is listed in self._dirty."""
-        return var in self._dirty
-
-    def dirty_get(self, var: Variable|str):
-        """Get the 'staged' value from the dirty dict."""
-        assert var in self._dirty, f"Variable {var.name} not found in _dirty, as ecpected"
-        return self._dirty[var]
+    @property
+    def dirty(self):
+        return self._dirty
 
     def dirty_do(self):
         """Run on_set on all dirty variables."""
-        initial = self._dirty['initial']
-        for v, val in self._dirty.items():
-            if isinstance(v,Variable):
-                print(f"MODEL.dirty_do. initial:{initial}. Variable {v.local_name}->{val}")
-                setattr(self, v.local_name, val if v.on_set is None else v.on_set(val, initial))
-        self._dirty = {'initial':False}
-        print(f"MODEL.dirty_do. Done all") 
+        for var in self._dirty:
+            if var.on_set is not None:
+                setattr(self, var.local_name, var.on_set(getattr(self, var.local_name)))
+        self._dirty = []
 
     @property
     def units(self):
@@ -333,48 +275,12 @@ class Model(Fmi2Slave):
             raise ModelInitError(msg)
         return None
 
-    def variable_by_value(self, value):
-        """Get the variable object from the current value (which is owned by the model)."""
-        for var in self.vars.values():
-            if id(var.getter()) == id(value):
-                return var
-        return None
-
-    def xml_unit_definitions(self):
-        """Make the xml element for the unit definitions used in the model. See FMI 2.0.4 specification 2.2.2."""
-        defs = ET.Element("UnitDefinitions")
-        for u in self._units:
-            ubase = self.ureg(u).to_base_units()
-            dim = ubase.dimensionality
-            exponents = {}
-            for key, value in {
-                "mass": "kg",
-                "length": "m",
-                "time": "s",
-                "current": "A",
-                "temperature": "K",
-                "substance": "mol",
-                "luminosity": "cd",
-            }.items():
-                if "[" + key + "]" in dim:
-                    exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if (
-                "radian" in str(ubase.units)
-            ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
-                # udeg = str(ubase.units).replace("radian", "degree")
-                # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
-                exponents.update(
-                    {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
-                )
-
-            unit = ET.Element("Unit", {"name": u})
-            base = ET.Element("BaseUnit", exponents)
-            base.attrib.update({"factor": str(self.ureg(u).to_base_units().magnitude)})
-            unit.append(base)
-            for dU in self._units[u]:  # list also the displayUnits (if defined)
-                unit.append(ET.Element("DisplayUnit", {"name": dU[0], "factor": str(dU[1])}))
-            defs.append(unit)
-        return defs
+    #     def variable_by_value(self, value):
+    #         """Get the variable object from the current value (which is owned by the model)."""
+    #         for var in self.vars.values():
+    #             if id(var.getter()) == id(value):
+    #                 return var
+    #         return None
 
     def make_instancename(self, base):
         """Make a new (unique) instance name, using 'base_#."""
@@ -394,7 +300,6 @@ class Model(Fmi2Slave):
         If copyright is None, a copyright text is construced from self.author and the file date.
         """
         import datetime
-        import os
 
         if license is None:
             license = """Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -423,12 +328,7 @@ class Model(Fmi2Slave):
 
         if copyright is None:
             if copyright1 is None:  # make a new one
-                copyright = (
-                    "Copyright (c) "
-                    + str(datetime.datetime.now().year)
-                    + " "
-                    + self.author
-                )
+                copyright = "Copyright (c) " + str(datetime.datetime.now().year) + " " + self.author
             else:
                 copyright = copyright1
 
@@ -524,16 +424,9 @@ class Model(Fmi2Slave):
                     )
                 )
         if self.default_experiment is not None:
-            attrib = dict()
-            for a, e in [
-                ("start_time", "startTime"),
-                ("stop_time", "stopTime"),
-                ("step_size", "step_size"),
-                ("tolerance", "tolerance"),
-            ]:
-                if getattr(self.default_experiment, a, None) is not None:
-                    attrib[e] = str(getattr(self.default_experiment, a))
-            ET.SubElement(root, "DefaultExperiment", attrib)
+            for a in self.default_experiment:  # check the dict
+                assert a in ("startTime", "stopTime", "stepSize", "tolerance"), f"DefaultExperiment key {a} unknown"
+            ET.SubElement(root, "DefaultExperiment", {k: str(v) for k, v in self.default_experiment.items()})
 
         variables = self._xml_modelvariables()
         root.append(variables)  # append <ModelVariables>
@@ -545,11 +438,51 @@ class Model(Fmi2Slave):
             structure.append(initialunknowns)
         return root
 
+    def xml_unit_definitions(self):
+        """Make the xml element for the unit definitions used in the model. See FMI 2.0.4 specification 2.2.2."""
+        defs = ET.Element("UnitDefinitions")
+        for u in self._units:
+            ubase = self.ureg(u).to_base_units()
+            dim = ubase.dimensionality
+            exponents = {}
+            for key, value in {
+                "mass": "kg",
+                "length": "m",
+                "time": "s",
+                "current": "A",
+                "temperature": "K",
+                "substance": "mol",
+                "luminosity": "cd",
+            }.items():
+                if "[" + key + "]" in dim:
+                    exponents.update({value: str(int(dim["[" + key + "]"]))})
+            if "radian" in str(
+                ubase.units
+            ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
+                # udeg = str(ubase.units).replace("radian", "degree")
+                # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
+                exponents.update(
+                    {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
+                )
+
+            unit = ET.Element("Unit", {"name": u})
+            base = ET.Element("BaseUnit", exponents)
+            base.attrib.update({"factor": str(self.ureg(u).to_base_units().magnitude)})
+            unit.append(base)
+            for du in self._units[u]:  # list also the displays (if defined)
+                unit.append(
+                    ET.Element("DisplayUnit", {"name": du[0], "factor": str(du[1](1.0)), "offset": str(du[1](0.0))})
+                )
+            defs.append(unit)
+        return defs
+
     def _xml_modelvariables(self):
         """Generate the FMI2 modelDescription.xml sub-tree <ModelVariables>."""
         mv = ET.Element("ModelVariables")
         for var in self.vars_iter():
-            var.xml_scalarvariables(mv)
+            els = var.xml_scalarvariables()
+            for el in els:
+                mv.append(el)
         return mv
 
     def _xml_structure_outputs(self):
@@ -658,8 +591,6 @@ class Model(Fmi2Slave):
         else:
             raise KeyError(f"Unknown iteration key {key} in 'vars_iter'")
 
-    # ================
-    # Need to over-write the get_ and set_ variable access functions, since we need to deal with compound variables
     def ref_to_var(self, vr: int):
         """Find Variable and sub-index (for compound variable), based on a valueReference value."""
         _vr = vr
@@ -676,24 +607,27 @@ class Model(Fmi2Slave):
           If all variables are listed, include the compound object in the result.
           Otherwise include the compound object and an index.
         """
-        it = enumerate(vrs.__iter__())  # get an enumerated iterator over vrs
-        for i, vr in it:
+        it = enumerate(vrs.__iter__())  # used also below!
+        for i, vr in it:  # get an enumerated iterator over vrs
             sub = None
-            assert vr < len(self.vars), f"Variable with valueReference={vr} does not exist in model {self.name}"
+            assert vr in self.vars, f"Variable with valueReference={vr} does not exist in model {self.name}"
             var = self.vars[vr]
-            if var is None:  # isolated element(s) of compound variable
+            if var is None:  # element of compound variable
                 var, sub = self.ref_to_var(vr)
-            elif isinstance(var, VariableNP):
+            elif isinstance(var, Variable) and len(var) > 1:
                 sub = 0
             # At this point we should have a variable object
             if (
-                isinstance(var, VariableNP) and i + len(var) <= len(vrs) and vr + len(var) - 1 == vrs[i + len(var) - 1]
+                isinstance(var, Variable)
+                and len(var) > 1
+                and i + len(var) <= len(vrs)
+                and vr + len(var) - 1 == vrs[i + len(var) - 1]
             ):  # compound variable and all elements included
                 for _ in range(len(var) - 1):  # spool to the last element
                     i, vr = next(it)
                 sub = None
-            #                print(f"VAR_ITER whole {var.name} at {vr}")
-            #            print(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
+            # print(f"VAR_ITER whole {var.name} at {vr}")
+            # print(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
             yield (var, sub)
 
     def _get(self, vrs: list, typ: type) -> list:
@@ -702,9 +636,10 @@ class Model(Fmi2Slave):
         """
         values = list()
         for var, sub in self._var_iter(vrs):
-            assert var.type == typ, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.type}"
+            check = var.type == typ or (typ == int and issubclass(var.type, Enum))
+            assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.type}"
             val = var.getter()
-            if isinstance(var, VariableNP):
+            if var is not None and len(var) > 1:
                 if sub is None:
                     values.extend(val)
                 else:
@@ -732,8 +667,9 @@ class Model(Fmi2Slave):
         """
         idx = 0
         for var, sub in self._var_iter(vrs):
-            assert var.type == typ, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.type}"
-            if isinstance(var, VariableNP):
+            check = var.type == typ or (typ == int and issubclass(var.type, Enum))
+            assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.type}"
+            if var is not None and len(var) > 1:
                 if sub is None:  # set the whole vector
                     var.setter(values[idx : idx + len(var)], idx=None)
                     idx += len(var) - 1
@@ -747,7 +683,6 @@ class Model(Fmi2Slave):
         self._set(vrs, values, int)
 
     def set_real(self, vrs: list, values: list):
-        print(f"MODEL.set_real. Variables {vrs}. Values {values}")
         self._set(vrs, values, float)
 
     def set_boolean(self, vrs: list, values: list):
@@ -773,6 +708,7 @@ class Model(Fmi2Slave):
         for name, value in state.items():
             #            if var is None:  # not previously registered (seems to be allowed!?)
             setattr(self, name, value)
+
 
 # ==========================================
 # Open Simulation Platform related functions
@@ -839,7 +775,7 @@ def make_osp_system_structure(
         """Make the <connections> element from the provided con."""
         cons = ET.Element("Connections")
         m1, v1, m2, v2 = connections
-        if isinstance(v1, (tuple, list)):  # group connection (e.g. a VariableNP)
+        if isinstance(v1, (tuple, list)):  # group connection (e.g. a compound Variable)
             if not isinstance(v2, (tuple, list)) or len(v2) != len(v1):
                 raise ModelInitError(
                     f"Something wrong with the vector connection between {m1} and {m2}. Variable vectors do not match."
@@ -874,7 +810,7 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep="."):
     """Generate a ComponentModel from an FMU (excluding the inner working functions like 'do_step'.
     Still this is useful for convenient access to model information like variables.
     Note: structured variables with name: <name>.i, with otherwise equal causality, variability, initial
-    and consecutive index and valueReference are stored as VariableNP.
+    and consecutive index and valueReference are stored as Variable.
     .. ToDo:: <UnitDefinitions>, <LogCategories>.
 
     Args:
