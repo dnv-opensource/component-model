@@ -1,20 +1,19 @@
-import pytest
 import xml.etree.ElementTree as ET  # noqa: N817
+from pathlib import Path
 from zipfile import ZipFile
 
-from ctypes import Structure, c_int64, POINTER, c_int, c_uint32, c_size_t, c_double, c_bool, c_char_p
 import numpy as np
-from component_model.model import Model  # type: ignore
+import pytest
 from component_model.example_models.input_table import InputTable  # type: ignore
+from component_model.model import Model  # type: ignore
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
-from libcosimpy.CosimExecution import CosimExecution
-from libcosimpy.CosimSlave import CosimLocalSlave
 from libcosimpy.CosimEnums import CosimExecutionState
+from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
-from pathlib import Path
+from libcosimpy.CosimSlave import CosimLocalSlave
 
 
 def check_expected(value, expected, feature: str):
@@ -170,6 +169,7 @@ def test_run_osp(interpolate=True):
     # Simulate for 1 second
     sim.simulate_until(target_time=15e9)
 
+
 def test_run_osp_system_structure():
     "Run an OSP simulation in the same way as the SimulatorInterface of case_study is implemented"
     sysconfig = Path("SimpleTableSystemStructure.xml")
@@ -179,36 +179,43 @@ def test_run_osp_system_structure():
     for comp in list(simulator.slave_infos()):
         name = comp.name.decode()
         comps.append(name)
-    assert comps == ['tab'], f"Components: {comps}"
+    assert comps == ["tab"], f"Components: {comps}"
     variables = {}
     for idx in range(simulator.num_slave_variables(0)):
         struct = simulator.slave_variables(0)[idx]
-        variables.update({ struct.name.decode(): {"reference": struct.reference,
-                                                  "type": struct.type,
-                                                  "causality": struct.causality,
-                                                  "variability": struct.variability}})
-    assert variables['outs[0]'] == {'reference': 0, 'type': 0, 'causality': 2, 'variability': 4} # similar: [1],[2]
-    assert variables['interpolate'] == {'reference': 3, 'type': 3, 'causality': 1, 'variability': 1}
-    
+        variables.update(
+            {
+                struct.name.decode(): {
+                    "reference": struct.reference,
+                    "type": struct.type,
+                    "causality": struct.causality,
+                    "variability": struct.variability,
+                }
+            }
+        )
+    assert variables["outs[0]"] == {"reference": 0, "type": 0, "causality": 2, "variability": 4}  # similar: [1],[2]
+    assert variables["interpolate"] == {"reference": 3, "type": 3, "causality": 1, "variability": 1}
+
     # Instantiate a suitable manipulator for changing variables.
     manipulator = CosimManipulator.create_override()
     simulator.add_manipulator(manipulator=manipulator)
-    simulator.boolean_initial_value( 0, 3, True)
+    simulator.boolean_initial_value(0, 3, True)
     # Instantiate a suitable observer for collecting results.
     observer = CosimObserver.create_last_value()
     simulator.add_observer(observer=observer)
     for time in range(1, 10):
-        simulator.simulate_until( time*1e9)
-        values = observer.last_real_values( 0, [0,1,2])
+        simulator.simulate_until(time * 1e9)
+        values = observer.last_real_values(0, [0, 1, 2])
         print(f"Time {time/1e9}: {values}")
-        if time==5:
+        if time == 5:
             assert values == [7.475, 7.525, 7.574999999999999]
-        
+
+
 if __name__ == "__main__":
-#    retcode = pytest.main(["-rA", "-v", __file__])
-#    assert retcode == 0, f"Non-zero return code {retcode}"
-    test_inputtable_class()
-    test_make_simpletable()
-    test_use_fmu()
-    test_run_osp()
-    test_run_osp_system_structure()
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_inputtable_class()
+    # test_make_simpletable()
+    # test_use_fmu()
+    # test_run_osp()
+    # test_run_osp_system_structure()

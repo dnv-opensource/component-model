@@ -2,6 +2,7 @@
 
 import logging
 
+import pytest
 from component_model.logger import get_module_logger  # type: ignore
 from pint import UnitRegistry
 
@@ -138,7 +139,9 @@ def test_needed_functions():
 
 
 if __name__ == "__main__":
-    test_needed_functions()
+    retcode = pytest.main(["-rP -s -v", __file__])
+    assert retcode == 0, f"Return code {retcode}"
+    # test_needed_functions()
 # The rest does not work and it is unclear how this ever worked. Changes in pint?
 #    test_split()
 #    test_quantity()

@@ -1,3 +1,4 @@
+import pytest
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from pythonfmu import (  # type: ignore
     Boolean,
@@ -84,8 +85,7 @@ def test_make_fmu():
         dest=".",
     )  # , xFunc=None)
     assert str(model) == "PythonSlave.fmu"
-    #    print("MODEL", model, type(model))
-    return model
+    # print("MODEL", model, type(model))
 
 
 def test_use_fmu():
@@ -103,5 +103,7 @@ def test_use_fmu():
 
 
 if __name__ == "__main__":
-    test_make_fmu()
-    test_use_fmu()
+    retcode = pytest.main(["-rP -s -v", __file__])
+    assert retcode == 0, f"Return code {retcode}"
+    # test_make_fmu()
+    # test_use_fmu()

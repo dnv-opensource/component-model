@@ -1,11 +1,11 @@
 import logging
 import time
-
-from component_model.logger import get_module_logger  # type: ignore
-from component_model.model import Model, make_osp_system_structure  # type: ignore
-from component_model.variable import Variable, Check
 import xml.etree.ElementTree as ET  # noqa: N817
 
+import pytest
+from component_model.logger import get_module_logger  # type: ignore
+from component_model.model import Model, make_osp_system_structure  # type: ignore
+from component_model.variable import Check, Variable
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
@@ -40,10 +40,11 @@ def test_osp_structure():
         connections=("simpleTable", "outputs.0", "mobileCrane", "pedestal.angularVelocity"),
     )
 
+
 def test_xml():
     Model.instances = []  # reset
     mod = Model("MyModel")
-    myNP2 = Variable(
+    _ = Variable(
         mod,
         "Test9",
         description="A NP variable with units included in initial values and partially fixed range",
@@ -52,7 +53,7 @@ def test_xml():
         start=("1m", "2deg", "3 deg"),
         rng=((0, "3m"), None, None),
     )
-    myInt = Variable(
+    _ = Variable(
         mod,
         "myInt",
         description="A integer variable",
@@ -66,33 +67,41 @@ def test_xml():
     el = mod._xml_modelvariables()
     assert el.tag == "ModelVariables"
     assert len(el) == 4
-    assert el[0].tag == 'ScalarVariable' and el[0].get('name')=='Test9[0]'
-    assert el[3].tag == 'ScalarVariable' and el[3].get('name')=='myInt'
+    assert el[0].tag == "ScalarVariable" and el[0].get("name") == "Test9[0]"
+    assert el[3].tag == "ScalarVariable" and el[3].get("name") == "myInt"
     el = mod._xml_structure_outputs()
     assert ET.tostring(el) == b'<Outputs><Unknown index="1" /><Unknown index="2" /><Unknown index="3" /></Outputs>'
     el = mod._xml_structure_initialunknowns()
-    assert ET.tostring(el) == b'<InitialUnknowns><Unknown index="1" /><Unknown index="2" /><Unknown index="3" /></InitialUnknowns>'
+    assert (
+        ET.tostring(el)
+        == b'<InitialUnknowns><Unknown index="1" /><Unknown index="2" /><Unknown index="3" /></InitialUnknowns>'
+    )
     el = mod.xml_unit_definitions()
-    assert el.tag == 'UnitDefinitions'
-    assert len(el)==3
-    #assert ET.tostring(el[0]) == b'<Unit name="dimensionless" />'
+    assert el.tag == "UnitDefinitions"
+    assert len(el) == 3
+    # assert ET.tostring(el[0]) == b'<Unit name="dimensionless" />'
     assert ET.tostring(el[0]) == b'<Unit name="meter"><BaseUnit m="1" factor="1" /></Unit>'
-    assert ET.tostring(el[1]) == b'<Unit name="radian"><BaseUnit rad="0" factor="1" /><display name="degree" factor="0.017453292519943292" offset="0.0" /></Unit>'
-    assert ET.tostring(el[2]) == b'<Unit name="dimensionless"><BaseUnit factor="1" /><display name="percent" factor="0.01" offset="0.0" /></Unit>'
+    expected = b'<Unit name="radian"><BaseUnit rad="0" factor="1" /><DisplayUnit name="degree" factor="0.017453292519943292" offset="0.0" /></Unit>'
+    assert ET.tostring(el[1]) == expected, f"Found {ET.tostring(el[1])}"
+    expected = b'<Unit name="dimensionless"><BaseUnit factor="1" /><DisplayUnit name="percent" factor="0.01" offset="0.0" /></Unit>'
+    assert ET.tostring(el[2]) == expected, f"Found {ET.tostring(el[2])}"
 
     et = mod.to_xml()
     # check that all expected elements are in ModelDescription
-    assert et.tag == 'fmiModelDescription'
-    assert et.find('.//UnitDefinitions') is not None
-    assert et.find('.//UnitDefinitions').find('.//Unit') is not None
-    assert et.find('.//LogCategories') is not None
-    assert et.find('.//DefaultExperiment') is not None
-    assert ET.tostring(et.find('.//DefaultExperiment'))==b'<DefaultExperiment startTime="0" stopTime="1.0" stepSize="0.01" />'
-    assert et.find('.//ModelVariables') is not None
-    assert et.find('.//ModelVariables').find('.//ScalarVariable') is not None
-    assert et.find('.//ModelStructure') is not None
-    #print( ET.tostring(et))
-    
+    assert et.tag == "fmiModelDescription"
+    assert et.find(".//UnitDefinitions") is not None
+    assert et.find(".//UnitDefinitions").find(".//Unit") is not None
+    assert et.find(".//LogCategories") is not None
+    assert et.find(".//DefaultExperiment") is not None
+    assert (
+        ET.tostring(et.find(".//DefaultExperiment"))
+        == b'<DefaultExperiment startTime="0" stopTime="1.0" stepSize="0.01" />'
+    )
+    assert et.find(".//ModelVariables") is not None
+    assert et.find(".//ModelVariables").find(".//ScalarVariable") is not None
+    assert et.find(".//ModelStructure") is not None
+    # print( ET.tostring(et))
+
 
 # def test_from_fmu():
 #     path = Path( Path(__file__).parent, "BouncingBallFMU.fmu")
@@ -126,7 +135,9 @@ def test_xml():
 
 
 if __name__ == "__main__":
-    test_license()
-    test_osp_structure()
-    test_xml()
-#    test_from_fmu() # not yet finished and tested
+    retcode = pytest.main(["-rP -s -v", __file__])
+    assert retcode == 0, f"Return code {retcode}"
+    # test_license()
+    # test_osp_structure()
+    # test_xml()
+    # test_from_fmu() # not yet finished and tested

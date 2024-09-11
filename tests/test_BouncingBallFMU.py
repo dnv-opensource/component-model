@@ -1,14 +1,12 @@
-from math import sqrt
+from pathlib import Path
 
-import numpy as np
-from component_model.logger import get_module_logger  # type: ignore
+import pytest
+from component_model.example_models.bouncing_ball2 import BouncingBallFMU
 from component_model.model import Model  # type: ignore
-from component_model.variable import Variable, VariableNP  # type: ignore
 from fmpy import dump, plot_result, simulate_fmu  # type: ignore
+from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
-from libcosimpy.CosimEnums import CosimExecutionState
-from models.BouncingBall import BouncingBallFMU
 
 
 def test_model_description():
@@ -17,7 +15,7 @@ def test_model_description():
 
 
 def test_make_fmu():
-    built = Model.build("./models/BouncingBall.py")
+    built = Model.build(Path(Path(__file__).parent.parent, "component_model", "example_models", "bouncing_ball2.py"))
     dump(built)
     return built
 
@@ -63,8 +61,9 @@ def test_run_osp():
 
 
 if __name__ == "__main__":
-    # logger = get_module_logger(__name__, level=1)  # 0:>0Warning, 1:all,
-    test_model_description()
-    test_make_fmu()
-    test_run_fmpy()
-    test_run_osp()
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_model_description()
+    # test_make_fmu()
+    # test_run_fmpy()
+    # test_run_osp()

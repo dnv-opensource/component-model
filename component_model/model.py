@@ -197,7 +197,7 @@ class Model(Fmi2Slave):
             check = v is None or v.name != var.name
             assert check, f"Variable name {var.name} already used as index {idx} in model {self.name}"
         # ensure that the model has the value as attribute:
-        setattr(self, var.name, np.array(start, var.type) if len(var) > 1 else start[0])
+        setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
         variable_reference = len(self.vars)
         self.vars[variable_reference] = var
         var.value_reference = variable_reference  # Set the unique value reference
@@ -221,7 +221,7 @@ class Model(Fmi2Slave):
         """Run on_set on all dirty variables."""
         for var in self._dirty:
             if var.on_set is not None:
-                setattr(self, var.local_name, var.on_set(getattr(self, var.local_name)))
+                setattr(var.owner, var.local_name, var.on_set(getattr(var.owner, var.local_name)))
         self._dirty = []
 
     @property
@@ -573,7 +573,7 @@ class Model(Fmi2Slave):
                     yield v
         elif isinstance(key, type):  # variable type iterator
             for v in self.vars.values():
-                if v is not None and v.type == key:
+                if v is not None and v.typ == key:
                     yield v
         elif isinstance(key, Causality):
             for v in self.vars.values():
@@ -636,8 +636,8 @@ class Model(Fmi2Slave):
         """
         values = list()
         for var, sub in self._var_iter(vrs):
-            check = var.type == typ or (typ == int and issubclass(var.type, Enum))
-            assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.type}"
+            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
             val = var.getter()
             if var is not None and len(var) > 1:
                 if sub is None:
@@ -667,8 +667,8 @@ class Model(Fmi2Slave):
         """
         idx = 0
         for var, sub in self._var_iter(vrs):
-            check = var.type == typ or (typ == int and issubclass(var.type, Enum))
-            assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.type}"
+            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.typ}"
             if var is not None and len(var) > 1:
                 if sub is None:  # set the whole vector
                     var.setter(values[idx : idx + len(var)], idx=None)
