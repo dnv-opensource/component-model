@@ -71,7 +71,7 @@ def test_use_fmu():
         solver="Euler",
         debug_logging=True,
         logger=print,  # fmi_call_logger=print,
-        # start_values={"pos[2]": 2},
+        start_values={"pos[2]": 2},
     )
     plot_result(result)
 
@@ -79,7 +79,7 @@ def test_use_fmu():
 def test_run_osp():
     sim = CosimExecution.from_step_size(step_size=1e7)  # empty execution object with fixed time step in nanos
     bb = CosimLocalSlave(fmu_path="./BouncingBall.fmu", instance_name="bb")
-    return
+
     print("SLAVE", bb, sim.status())
 
     ibb = sim.add_local_slave(bb)
@@ -88,7 +88,7 @@ def test_run_osp():
     reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ibb)}
 
     # Set initial values
-    sim.boolean_initial_value(ibb, reference_dict["pos[2]", 10.0])
+    sim.real_initial_value(ibb, reference_dict["pos[2]"], 2.0)
 
     sim_status = sim.status()
     assert sim_status.current_time == 0
