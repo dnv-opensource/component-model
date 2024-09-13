@@ -18,8 +18,8 @@ Getting Started
 A new model can consist of any python code. To turn the python code into an FMU the following is necessary
 
 #. The model code is wrapped into a Python class which inherits from `Model`
-#. The exposed interface variables (model parameters, input, output) are defined as `Variable` objects
-#. The `Model.do_step( time, dt)` function of the model class is extended with model internal code,
+#. The exposed interface variables (model parameters, input- and output connectors) are defined as `Variable` objects
+#. The `(model).do_step( time, dt)` function of the model class is extended with model internal code,
    i.e. model evolves from `time` to `time+dt`.
 #. Calling the method `Model.build()` will then compile the FMU and package it into a suitable FMU file.
 
@@ -29,7 +29,7 @@ and the second file demonstrates the process of making the FMU and using it with
 
 
 1.	Install the `component_model` package: ``pip install component_model``
-2.	Software dependencies: PythonFMU, numpy, pint, uuid, ElementTree 
+2.	Software dependencies: `PythonFMU`, `numpy`, `pint`, `uuid`, `ElementTree`
 3.	Latest releases: Version 0.1, based on PythonFMU 0.64
 
 Usage example
@@ -138,7 +138,7 @@ This is another BouncingBall example, using 3D vectors and units.
             )
 
         def do_step(self, time, dt):
-            """Perform a simulation step of size dt."""
+            """Perform a simulation step from `time` to `time + dt`."""
             if not super().do_step(time, dt):
                 return False
             self.t_bounce, self.p_bounce = self.next_bounce()
@@ -175,6 +175,7 @@ This is another BouncingBall example, using 3D vectors and units.
                 return (t_bounce, p_bounce)
 
         def setup_experiment(self, start: float):
+            """Set initial (non-interface) variables."""
             super().setup_experiment(start)
             self.stopped = False
 
@@ -222,7 +223,7 @@ The model can then be run using `fmpy <https://pypi.org/project/FMPy/>`_
    plot_result(result)
 
 Similarly, the model can be run using `OSP <https://opensimulationplatform.com/>`_ 
-(or rather `libcosimpy <https://pypi.org/project/libcosimpy/>`_, OSP wrapped into python):
+(or rather `libcosimpy <https://pypi.org/project/libcosimpy/>`_ - OSP wrapped into Python):
 
 .. code-block:: Python
 

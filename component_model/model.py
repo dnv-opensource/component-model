@@ -17,8 +17,7 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from .logger import get_module_logger
-from .utils import read_model_description, xml_to_python_val
-from .variable import Variable, variables_from_fmu
+from .variable import Variable
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -43,35 +42,45 @@ class ModelAnimationError(Exception):
 
 
 class Model(Fmi2Slave):
-    """Defines a model including some common model concepts, like variables and units.
-    The model interface and the inner working of the model is missing here and must be defined in a given application.
+    """Defines a model complying to the `FMI standard <https://fmi-standard.org/>`_,
+    including some common model concepts, like variables and units.
+    The package extends the `PythonFMU package <https://github.com/NTNU-IHB/PythonFMU>`_.
 
-    For a fully defined model instance shall:
+    The model interface and the inner working of the model is missing here
+    and must be defined in a given application, extending `Model`.
 
-    * define a full set of interface variables
-    * set the current variable values
-    * run the model in isolation for a time interval
-    * retrieve updated variable values
+    A fully defined model shall at least:
+
+    * Define a full set of interface variables, including default start values, setter and getter functions.
+      See `variable`module.
+    * Extend the `do_step(time, dt)` member function, running the application model in isolation for a time interval.
+      Make sure that `super().do_step(time, dt)` is always called first in the extended function.
+    * Optionally extend any other fmi2 function, i.e.
+
+       - def setup_experiment(self, start)
+       - def enter_initialization_mode(self):
+       - def exit_initialization_mode(self):
+       - def terminate(self):
+
 
     The following FMI concepts are (so far) not implemented:
 
-    * TypeDefinitions. Instead of defining SimpleType variables, ScalarVariable variables are always based on the pre-defined types and details provided there
-    * display. Variable units contain a Unit (the unit as used for inputs and outputs) and BaseUnit (the unit as used in internal model calculations, i.e. based on SI units).
-      Additional display(s) are so far not defined/used. Unit is used for that purpose.
-    * Explicit <Derivatives> (see <ModelStructure>) are so far not implemented. This could be done as an additional (optional) property in Variable.
-      Need to check how this could be done with compound variables
-    * <InitialUnknowns> (see <ModelStructure>) are so far not implemented.
-      Does overriding of setup_experiment(), enter_initialization_mode(), exit_initialization_mode() provide the necessary functionality?
+    * TypeDefinitions. Instead of defining SimpleType variables,
+      ScalarVariable variables are always based on the pre-defined types and details provided there.
+    * Explicit <Derivatives> (see <ModelStructure>) are so far not implemented.
+      This could be done as an additional (optional) property in Variable.
 
     Args:
-        name (str): name of the model, a valid modelDescription.xml or a fmu file
+        name (str): name of the model. The name is also used to construct the FMU file name.
         author (str) = 'anonymous': The author of the model
         version (str) = '0.1': The version number of the model
-        unit_system (str)='SI': The unit system to be used. self.ureg.default_system contains this information for all variables
+        unit_system (str)='SI': The unit system to be used.
+          `self.ureg.default_system` contains this information for all variables
         license (str)=None: License text or file name (relative to source files).
           If None, the BSD-3-Clause license as also used in the component_model package is used, with a modified copyright line
         copyright (str)=None: Copyright line for use in full license text. If None, an automatic copyright line is constructed from the author name and the file date.
-        default_experiment (dict) = None: key/value dictionary for the default experiment setup (start_time,stop_time,step_size,tolerance)
+        default_experiment (dict) = None: key/value dictionary for the default experiment setup.
+          Valid keys: start_time,stop_time,step_size,tolerance
         guid (str)=None: Unique identifier of the model (supplied or automatically generated)
         flags (dict)=None: Any of the defined FMI flags with a non-default value (see FMI 2.0.4, Section 4.3.1)
     """
@@ -106,7 +115,6 @@ class Model(Fmi2Slave):
         self.name = name
         if "instance_name" not in kwargs:
             kwargs["instance_name"] = self.name  # make_instancename(__name__)
-        # self.check_and_register_instance_name(kwargs["instance_name"])
         if "resources" not in kwargs:
             kwargs["resources"] = None
         super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
@@ -133,25 +141,17 @@ class Model(Fmi2Slave):
         # Events consist of tuples of (time, changedVariable)
 
     def setup_experiment(self, start: float):
-        """Minimum version of setup_experiment, just setting the start_time. In derived models this may not be enough."""
+        """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
         self.start_time = start
 
-    ## Other functions which can e overridden are
-    # def enter_initialization_mode(self):
-    #    def exit_initialization_mode(self):
-    #        super().exit_initialization_mode()
-    #        self.dirty_do() # run on_set on all dirty variables
-
-    # def terminate(self):
-
-    def do_step(self, currentTime, step_size):
+    def do_step(self, time, dt):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         """
-        self.currentTime = currentTime
+        self.currentTime = time
         while len(self._events):  # Check whether any event is pending and set the respective variables
             (t0, (var, val)) = self._events[-1]
-            if t0 <= currentTime:
+            if t0 <= time:
                 var.value = val
                 self._events.pop()
             else:
@@ -160,7 +160,7 @@ class Model(Fmi2Slave):
 
         for var in self.vars.values():
             if var is not None and var.on_step is not None:
-                var.on_step(currentTime, step_size)
+                var.on_step(time, dt)
         return True
 
     def _unit_ensure_registered(self, candidate: Variable):
@@ -184,13 +184,13 @@ class Model(Fmi2Slave):
                 ):
                     self._units[u].append(du)
 
-    def register_variable(self, var: Variable, start: tuple | list | np.ndarray):
+    def register_variable(self, var: Variable, start: tuple | list | np.ndarray, valueReference: int | None = None):
         """Register the variable 'var' as model variable. Set the initial value and add the unit if not yet used.
-        Perform some checks and register the value_reference). The following should be noted.
+        Perform some checks and register the value_reference. The following should be noted.
 
         #. Only the first element of compound variables includes the variable reference,
            while the following sub-elements contain None, so that a (ScalarVariable) index is reserved.
-        #. The variable var.name and var._unit must be set before calling this function.
+        #. The variable var.name and var.unit must be set before calling this function.
         #. The call to super()... sets the value_reference, getter and setter of the variable
         """
         for idx, v in self.vars.items():
@@ -198,9 +198,12 @@ class Model(Fmi2Slave):
             assert check, f"Variable name {var.name} already used as index {idx} in model {self.name}"
         # ensure that the model has the value as attribute:
         setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
-        variable_reference = len(self.vars)
-        self.vars[variable_reference] = var
-        var.value_reference = variable_reference  # Set the unique value reference
+        if valueReference is None:  # automatic valueReference
+            vref = len(self.vars)
+        else:
+            vref = valueReference
+        self.vars[vref] = var
+        var.value_reference = vref  # Set the unique value reference
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
         for i in range(1, len(var)):
             self.vars[var.value_reference + i] = None  # marking that this is a sub-element
@@ -208,7 +211,9 @@ class Model(Fmi2Slave):
 
     def dirty_ensure(self, var: Variable):
         """Ensure that the variable var is registered in self._dirty.
-        The (new) value(s) are set as normal, but on_set is only run when all required values are set.
+
+        The `dirty` mechanism is used when elements of compound variables are changed
+        and a `on_set` function is defined, such that on_set() is run exactly once and when all elements are changed.
         """
         if var not in self._dirty:
             self._dirty.append(var)
@@ -229,35 +234,16 @@ class Model(Fmi2Slave):
         return self._units
 
     def add_variable(self, *args, **kwargs):
-        """Add a variable, automatically including the owner model in the instantiation call."""
-        return Variable(self, *args, **kwargs)
-
-    def add_event(self, time: float | None = None, event: tuple | None = None):
-        """Register a new event to the event list. Ensure that the list is sorted.
-        Note that the event mechanism is mainly used for model testing, since normally events are initiated by input variable changes.
-
-        Args:
-            time (float): the time at which the event shall be issued. If None, the event shall happen immediatelly
-            event (tuple): tuple of the variable (by name or object) and its changed value
+        """Add a variable, automatically including the owner model in the instantiation call.
+        The function represents an alternative method for defining interface variables
+        automatically adding the mandatory first `model` argument.
         """
-        if event is None:
-            return  # no action
-        var = event[0] if isinstance(event[0], Variable) else self.variable_by_name(event[0])
-        assert var is not None, "Trying to add event related to unknown variable " + str(event[0]) + ". Ignored."
-        if time is None:
-            self._events.append((-1, (var, event[1])))  # sorted wrt. decending time negative times denote 'immediate'
-        else:
-            if not len(self._events):
-                self._events.append((time, (var, event[1])))
-            else:
-                for i, (t, _) in enumerate(self._events):
-                    if t < time:
-                        self._events.insert(i, (time, (var, event[1])))
-                        break
+        return Variable(self, *args, **kwargs)
 
     def variable_by_name(self, name: str, msg: str | None = None):
         """Return Variable object related to name, or None, if not found.
-        For compound variables, the parent variable is returned irrespective of whether the '.#' is included or not
+        For compound variables, the parent variable is returned
+        irrespective of whether an index (`[#]`) is included or not
         If msg is not None, an error is raised and the message provided.
         """
         for var in self.vars.values():
@@ -265,34 +251,17 @@ class Model(Fmi2Slave):
                 if len(name) == len(var.name):  # identical (single compound variable)
                     return var
                 else:
-                    try:
-                        sub = int(name[len(var.name) + 1 :])
-                        if sub < len(var):
-                            return var
-                    except Exception:
-                        pass
+                    ext = name[len(var.name) :]
+                    if ext[0] == "[" and ext[-1] == "]":
+                        try:
+                            sub = int(ext[1:-1])
+                            if 0 <= sub < len(var):
+                                return var
+                        except Exception:
+                            pass
         if msg is not None:
             raise ModelInitError(msg)
         return None
-
-    #     def variable_by_value(self, value):
-    #         """Get the variable object from the current value (which is owned by the model)."""
-    #         for var in self.vars.values():
-    #             if id(var.getter()) == id(value):
-    #                 return var
-    #         return None
-
-    def make_instancename(self, base):
-        """Make a new (unique) instance name, using 'base_#."""
-        ext = []
-        for name in Model.instances:
-            if name.startswith(base + "_") and name[len(base) + 1 :].isnumeric():
-                ext.append(int(name[len(base) + 1 :]))
-        return base + "_" + "0" if not len(ext) else str(sorted(ext)[-1] + 1)
-
-    def check_and_register_instance_name(self, iName):
-        assert all(name != iName for name in Model.instances), f"The instance name {iName} is not unique"
-        Model.instances.append(iName)
 
     def make_copyright_license(self, copyright: str | None = None, license: str | None = None):
         """Prepare a copyright notice (one line) and a license text (without copyright line).
@@ -339,16 +308,24 @@ class Model(Fmi2Slave):
     # =====================
     @staticmethod
     def build(
-        scriptFile: str | None = None,
+        script: str = "",
         project_files: list | None = None,
         dest: str = ".",
         documentation_folder: Path | None = None,
     ):
-        """!!Note: Since the build process is linked to the scriptFile and not to the class,
+        """Build the FMU, resulting in the model-name.fmu file.
+
+        !!Note: Since the build process is linked to the script and not to the class,
         it is currently not possible to define several FMUs in one script. Max 1 per file.
+
+        Args:
+           script (str) = "": The scriptfile (xxx.py) in which the model class is defined. This file if ""
+           project_files (list): Optional list of additional files to include in the build (relative to script)
+           dest (str) = '.': Optional destination folder for the FMU.
+           documentation_folder (Path): Optional folder with additional model documentation files.
         """
-        if scriptFile is None:
-            scriptFile = __file__
+        if script is None:
+            script = __file__
         if project_files is None:
             project_files = []
         project_files.append(Path(__file__).parents[0])
@@ -360,7 +337,7 @@ class Model(Fmi2Slave):
             index_file = doc_dir / "index.html"
             index_file.write_text("dummy index")
             asBuilt = FmuBuilder.build_FMU(
-                scriptFile,
+                script,
                 project_files=project_files,
                 dest=dest,
                 documentation_folder=doc_dir,
@@ -368,10 +345,10 @@ class Model(Fmi2Slave):
             return asBuilt
 
     def to_xml(self, model_options: dict | None = None) -> ET.Element:
-        """Build the XML FMI2 modelDescription.xml tree. (adapted from Fmi2Slave.to_xml()).
+        """Build the XML FMI2 modelDescription.xml tree. (adapted from PythonFMU).
 
         Args:
-            model_options ({str, str}) : FMU model options
+            model_options ({str, str}) : Dict of FMU model options
 
         Returns
         -------
@@ -558,14 +535,13 @@ class Model(Fmi2Slave):
         Args:
             key: filter for returned variables. The following possibilities exist:
 
-            * None: All variables are returned
-            * type: A type designator (int, float, bool, Enum, str), returning only variables matching on this type
-            * causality: A Causality value, returning only one causality type, e.g. Causality.input
-            * variability: A Variability value, returning only one variability type, e.g. Variability.fixed
-            * callable: Any bool function of model variable object
+                * None: All variables are returned
+                * type: A type designator (int, float, bool, Enum, str), returning only variables matching on this type
+                * causality: A Causality value, returning only one causality type, e.g. Causality.input
+                * variability: A Variability value, returning only one variability type, e.g. Variability.fixed
+                * callable: Any bool function of model variable object
 
-        If typ and causality are None, all variables are included, otherwise only the specified type/causality.
-        The returned list can be indexed to retrieve given valueReference variables.
+        The iterator yields variable objects
         """
         if key is None:  # all variables
             for v in self.vars.values():
@@ -708,142 +684,3 @@ class Model(Fmi2Slave):
         for name, value in state.items():
             #            if var is None:  # not previously registered (seems to be allowed!?)
             setattr(self, name, value)
-
-
-# ==========================================
-# Open Simulation Platform related functions
-# ==========================================
-def make_osp_system_structure(
-    name: str = "OspSystemStructure",
-    models: dict | None = None,
-    connections: tuple = (),
-    version: str = "0.1",
-    start: float = 0.0,
-    base_step: float = 0.01,
-    algorithm: str = "fixedStep",
-):
-    """Prepare a OspSystemStructure xml file according to `OSP configuration specification <https://open-simulation-platform.github.io/libcosim/configuration>`_.
-
-    Args:
-        name (str)='OspSystemStructure': the name of the system model, used also as file name
-        models (dict)={}: dict of models (in OSP called 'simulators'). A model is represented by a dict element modelName : {property:prop, variable:value, ...}
-        connections (tuple)=(): tuple of model connections. Each connection is defined through a tuple of (model, variable, model, variable), where variable can be a tuple defining a variable group
-        version (str)='0.1': The version of the system model
-        start (float)=0.0: The simulation start time
-        base_step (float)=0.01: The base stepSize of the simulation. The exact usage depends on the algorithm chosen
-        algorithm (str)='fixedStep': The name of the algorithm
-
-        ??ToDo: better stepSize control in dependence on algorithm selected, e.g. with fixedStep we should probably set all step sizes to the minimum of everything?
-    """
-
-    def make_simulators():
-        """Make the <simulators> element (list of component models)."""
-
-        def make_initial_value(var: str, val: bool | int | float | str):
-            """Make a <InitialValue> element from the provided var dict."""
-            _type = {bool: "Boolean", int: "Integer", float: "Real", str: "String"}[type(val)]
-            initial = ET.Element("InitialValue", {"variable": var})
-            ET.SubElement(
-                initial,
-                _type,
-                {"value": ("true" if val else "false") if isinstance(val, bool) else str(val)},
-            )
-            return initial
-
-        simulators = ET.Element("Simulators")
-        if len(models):
-            for m, props in models.items():
-                # Note: instantiated model names might be small, but FMUs are based on class names and are therefore capitalized
-                simulator = ET.Element(
-                    "Simulator",
-                    {
-                        "name": m,
-                        "source": props.get("source", m[0].upper() + m[1:] + ".fmu"),
-                        "stepSize": str(props.get("stepSize", base_step)),
-                    },
-                )
-                initial = ET.SubElement(simulator, "InitialValues")
-                for prop, value in props.items():
-                    if prop not in ("source", "stepSize"):
-                        initial.append(make_initial_value(prop, value))
-                simulators.append(simulator)
-            #            print(f"Model {m}: {simulator}. Length {len(simulators)}")
-            #            ET.ElementTree(simulators).write("Test.xml")
-            return simulators
-
-    def make_connections():
-        """Make the <connections> element from the provided con."""
-        cons = ET.Element("Connections")
-        m1, v1, m2, v2 = connections
-        if isinstance(v1, (tuple, list)):  # group connection (e.g. a compound Variable)
-            if not isinstance(v2, (tuple, list)) or len(v2) != len(v1):
-                raise ModelInitError(
-                    f"Something wrong with the vector connection between {m1} and {m2}. Variable vectors do not match."
-                )
-            for i in range(len(v1)):
-                con = ET.Element("VariableConnection")
-                ET.SubElement(con, "Variable", {"simulator": m1, "name": v1[i]})
-                ET.SubElement(con, "Variable", {"simulator": m2, "name": v2[i]})
-                cons.append(con)
-        else:  # single connection
-            con = ET.Element("VariableConnection")
-            ET.SubElement(con, "Variable", {"simulator": m1, "name": v1})
-            ET.SubElement(con, "Variable", {"simulator": m2, "name": v2})
-            cons.append(con)
-        return cons
-
-    osp = ET.Element(
-        "OspSystemStructure",
-        {
-            "xmlns": "http://opensimulationplatform.com/MSMI/OSPSystemStructure",
-            "version": version,
-        },
-    )
-    osp.append(make_simulators())
-    osp.append(make_connections())
-    tree = ET.ElementTree(osp)
-    ET.indent(tree, space="   ", level=0)
-    tree.write(name + ".xml", encoding="utf-8")
-
-
-def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep="."):
-    """Generate a ComponentModel from an FMU (excluding the inner working functions like 'do_step'.
-    Still this is useful for convenient access to model information like variables.
-    Note: structured variables with name: <name>.i, with otherwise equal causality, variability, initial
-    and consecutive index and valueReference are stored as Variable.
-    .. ToDo:: <UnitDefinitions>, <LogCategories>.
-
-    Args:
-        fmu (str, Path): the FMU file which is to be read. can be the full FMU zipfile, the modelDescription.xml or a equivalent string
-        provideMsg (bool): Optional possibility to provide messages during the process (for debugging purposes)
-        sep (str)='.': separation used for structured variables (both for sub-systems and variable names)
-
-    Returns
-    -------
-        Model object
-    """
-
-    el = read_model_description(fmu)
-    defaultexperiment = el.find(".//DefaultExperiment")
-    de = {} if defaultexperiment is None else defaultexperiment.attrib
-    co_flags = el.find(".//CoSimulation")
-    flags = {} if co_flags is None else {key: xml_to_python_val(val) for key, val in co_flags.attrib.items()}
-    model = Model(
-        name=el.attrib["modelName"],
-        description=el.get("description", f"Component model object generated from {fmu}"),
-        author=el.get("author", "anonymous"),
-        version=el.get("version", "0.1"),
-        unit_system="SI",
-        license=el.get("license", None),
-        copyright=el.get("copyright", None),
-        guid=el.get("guid", None),
-        default_experiment={
-            "start_time": float(de.get("start", 0.0)),
-            "stop_time": float(de["stopTime"]) if "stopTime" in de else None,
-            "step_size": float(de["stepSize"]) if "stepSize" in de else None,
-            "tolerance": float(de["tolerance"]) if "tolerance" in de else None,
-        },
-        flags=flags,
-    )
-    variables_from_fmu(model, el.find(".//ModelVariables"), sep=sep)
-    return model

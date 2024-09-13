@@ -51,7 +51,7 @@ def test_bouncing_ball_class():
 
 def test_make_bouncing_ball():
     asBuilt = Model.build("../component_model/example_models/bouncing_ball.py", project_files=[])
-    info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
+    info = fmu_info(asBuilt.name)  # not necessary, but it lists essential properties of the FMU
     print(f"Info: {info}")
     et = _to_et(asBuilt.name)
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"

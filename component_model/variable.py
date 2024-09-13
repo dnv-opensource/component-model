@@ -15,7 +15,6 @@ from pythonfmu.variables import ScalarVariable  # type: ignore
 
 from .caus_var_ini import check_causality_variability_initial, use_start
 from .logger import get_module_logger
-from .utils import xml_to_python_val
 
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum
@@ -25,7 +24,7 @@ Compound: TypeAlias = tuple | list | np.ndarray
 
 class Check(IntFlag):
     """Flags to denote how variables should be checked with respect to units and range.
-    The aspects are indepent, but can be combined in the Enum through |.
+    The aspects are indepent, but can be combined in the Enum through | or &.
 
     * none:     neither units nor ranges are expected or checked.
     * unitNone: only numbers without units expected when new values are provided.
@@ -72,61 +71,82 @@ class VariableUseError(Exception):
 
 
 class Variable(ScalarVariable):
-    """Interface variable of an FMU. Can be a (python type) scalar variable. Extensions cover arrays (e.g. numpy array).
-    The class extends pythonfmu.ScalarVariable, not using the detailed types (Real, Integer, ...), as these are handled internally.
+    """Interface variable of an FMU. Can be a (python type) scalar variable or a numpy array.
+    The class extends pythonfmu.ScalarVariable, not using the detailed types (Real, Integer, ...),
+    as the type is handled internally (automatically or explicit, see below).
     The recommended way to instantiate a Variable is through string values (with units for start and rng),
     but also dimensionless quantities and explicit class types are accepted.
 
     For proper understanding and usage the following should be noted:
 
-    #. The Variable value is always owned by a model (see `self.model`).
-    #. The current value of the variable is only directly accessible by the model through an attribute with the same name as `self.name`.
-       Other access to the value is achieved through the `self.getter()` and the `self.setter( v)` + `self.on_set(v)` functions.
+    #. The Variable value is per default owned by the related model (see `self.model`).
+       Through the `owner` parameter this can be changes.
+       In structured models like the crane_fmu this might be adequate.
+    #. The current value of the variable directly accessible through the owner.
+       Direct value access assumes always internal units (per default: SI units) and range checking is not performed.
+    #. Other access to the value is achieved through the `self.getter()` and the `self.setter( v)` functions,
+       which are also used by the FMU getxxx and setxxx functions (external access).
+       Unit transformation and range checking is performed within getter() and setter(),
+       i.e. the setter function assumes a value in display units and transforms it into internal units and
+       the getter function assumes internal units and makes the value available as display units.
+       For example an angle variable might be defined as `degrees` (display units),
+       but will internally always be handled as `radians`.
     #. It is recommended to register the Variable object as _`self.name` within the owner (model or sub-object of model),
-       i.e. provide access as private object.
-       In addition the model has access through the OrderedDict `.vars` ( {value_reference : variable object, ...})
+       i.e. provide access as private object. In addition the model has access to the variable object
+       through the OrderedDict `.vars = {value_reference : variable object, ...}`.
     #. Compound variables (e.g. numpy arrays), should always allow setting of single elements.
-       Due to limitations in fmi2 all variables are translated to ScalarVariables.
-       The setter function therefore adds changed variables to a dirty dict and uses on_set on the fully changed array.
-       The on_set() method can be used to perform post-setting activities and are always performed on the whole 'vector'.
-    #. _display is set to None if it is equal to _unit or if dimensionless units are used,
-        as a quick signal that no conversion is needed.
+       Due to limitations in fmi2 all variables are translated to ScalarVariables, using the syntax `np-variable[idx]`.
+    #. For variables it is sometimes required to perform actions additional to the standard setter actions
+       (unit trnsformation and range checking). Such actions can be defined through the `self.on_set()` hook.
+       For compound variables `on_set` should only be run when all elements have received their new value.
+       This is ensured through the internal `dirty` mechanism.
+       `on_set()` should therefore always address the whole variable, not single elements.
+    #. For variables it is sometimes convenient to perform a fixed action at each step of the simulation.
+       This can be conveniently done through the on_step(time,dt) hook.
 
     Args:
         model (obj): The model object where this variable relates to. Use model.add_variable( name, ...) to define variables
-        name (str): Variable name, unique for whole FMU !!and registered in the model for direct value access!!
+        name (str): Variable name, unique for whole FMU.
         description (str) = None: Optional description of variable
         causality (str) = 'parameter': The causality setting as string
         variability (str) = 'fixed': The variability setting as string
-        initial (str) = None: Definition how the variable is initialized. Provide this explicitly if the default value is not suitable.
-        typ (type)=None: The type of variable to expect as start and value. Since initial values are often set with strings (with units, see below), this is set explicitly.
+        initial (str) = None: Optional definition how the variable is initialized. Provide this explicitly if the default value is not suitable.
+        typ (type)=None: Optional explicit type of variable to expect as start and value.
+           Since initial values are often set with strings (with units, see below), this is set explicitly.
            If None, _typ is set to Enum/str if derived from these after disection or float if a number. 'int' is not automatically detected.
         start (PyType): The initial value of the variable.
 
            Optionally, the unit can be included, providing the initial value as string, evaluating to quantity of type typ a display unit and base unit.
            Note that the quantities are always converted to standard units of the same type, while the display unit may be different, i.e. the preferred user communication.
-        rng (tuple) = (): Optional range of the variable in terms of a tuple of the same type as initial value. Can be specified with units (as string).
+        rng (tuple) = (): Optional range of the variable in terms of a tuple of the same type as initial value. Should be specified with units (as string).
 
            * If an empty tuple is specified, the range is automatically determined.
-             Note that it is thus not possible to automatically set single range elements (lower,upper) automatically
-           * If None is specified, the initial value is chosen, i.e. no range. Applies to whole range tuple or to single elements (lower,upper)
+             That is only possible float or enum type variables, where the former evaluates to (-inf, inf).
+             Maximum or minimum int values do not exist in Python, such that these always must be provided explicitly.
+             It is not possible to set only one of the elements of the tuple automatically.
+           * If None is specified, the initial value is chosen, i.e. no range.
+             `None` can be applied to the whole tuple or to single elements of the tuple.
+             E.g. (1,None) sets the range to (1, start)
            * For some variable types (e.g. str) no range is expected.
 
         annotations (dict) = None: Optional variable annotations provided as dict
-        value_check (VarCheck) = VarCheck=VarCheck.r_check|VarCheck.u_all: Setting for checking of units and range according to VarCheck.
-          The two aspects should be set with OR (|)
-        fullInit (bool) = True: Optional possibility to stop the initialization of single variables, where this does not make sense for derived, compound variables
-        on_step (callable) = None: Optonal possibility to register a function of (currentTime, dT) to be run during Model.do_step,
-           e.g. if the variable represents a speed, the object can be translated speed*dT, if |speed|>0
-        on_set (callable) = None: Optional possibility to specify a pre-processing function of (newVal) to be run when the variable is initialized or changed.
-           This is useful for conditioning of input variables, so that calculations can be done once after a value is changed and do not need to be repeated on every simulation step.
-           If given, the function shall apply to a value as expected by the variable (e.g. if there are components) and after unit conversion and range checking.
+        value_check (Check) = Check=Check.r_check|Check.u_all:
+          Setting for checking of units and range according to Check.
+          The two aspects should be set with OR (|),
+          e.g. `Check.units | Check.r_none` leads to only units transformations but no range checking.
+        on_step (callable) = None: Optional possibility to register a function of `(time, dt)` to be run during `.do_step`,
+           e.g. if the variable represents a speed, the object can be translated speed*dt, if |speed|>0
+        on_set (callable) = None: Optional possibility to specify a pre-processing function of (newval)
+           to be run when the variable is initialized or changed.
+           This is useful for conditioning of input variables, so that calculations can be done once after a value is changed
+           and do not need to be repeated on every simulation step.
+           If given, the function shall apply to the whole (vecor) variable,
+           and after unit conversion and range checking.
            The function is completely invisible by the user specifying inputs to the variable.
-
-    .. todo:: Warnings on used default values which should be provided explicitly to conform to RP-0513
-    .. limitation:: Limitation test
-    .. assumption:: Assumption test
-    .. requirement:: Requirement test
+        owner = None: Optional possibility to overwrite the default value owner (the related model).
+           This is convenient for structured models, like a crane, where the model is the crane itself,
+           consisting of booms, where the boom variables (length, angle,...) should be directly accessible by the boom
+           - the crane itself needs only to relate to the first boom.
     """
 
     def __init__(
@@ -145,6 +165,7 @@ class Variable(ScalarVariable):
         on_step: Callable | None = None,
         on_set: Callable | None = None,
         owner: Any | None = None,
+        valueReference: int | None = None,
     ):
         self.model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
@@ -153,7 +174,7 @@ class Variable(ScalarVariable):
         assert all(
             x is not None for x in (self._causality, self._variability, self._initial)
         ), f"Combination causality {self._causality}, variability {self._variability}, initial {self._initial} is not allowed"
-        super().__init__(name=name, getter=self.getter, setter=self.setter)  # the other properties are done here!
+        super().__init__(name=name, description=description, getter=self.getter, setter=self.setter)
         self.local_name: str
         if owner is None:
             self.owner = self.model
@@ -194,9 +215,9 @@ class Variable(ScalarVariable):
                 self._start = tuple(self._typ(self._start[i]) for i in range(self._len))
             self.range = self._init_range(rng)
 
-        if not self.check_range(self._start):  # range checks of initial value
+        if not self.check_range(self._start, disp=False):  # range checks of initial value
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
-        self.model.register_variable(self, self.start)  # register in model and return index
+        self.model.register_variable(self, self.start, valueReference)  # register in model and return index
         # disable super() functions and properties which are not in use here
         self.to_xml = None
 
@@ -274,19 +295,12 @@ class Variable(ScalarVariable):
     def initial(self) -> Initial:
         return self._initial
 
-    #     def __repr__(self):
-    #         if self._len == 1:
-    #             return f"Variable {self.name}. Initial: {self._start[0]}. Current {self.getter()} [{self.unit[0]}]."
-    #         else:
-    #             return f"Variable {self.name}. Initial: {self._start}. Current {self.getter()} [{self.unit}]."
-
     def setter(self, value: PyType | Compound, idx: int | None = None):
         """Set the value (input to model from outside), including range checking and unit conversion.
 
-        For compound values, the whole 'array' must be provided,
+        For compound values, the whole 'array' should be provided,
         but elements which remain unchanged can be replaced by None.
-
-        Alternatively, the index of compound variables can be provided explicitly.
+        Alternatively, single elements can be set by providing the index explicitly.
         """
         assert self._typ is not None, "Need a proper type at this stage"
         if self._len == 1 and not isinstance(value, (tuple, list, np.ndarray)):
@@ -296,6 +310,10 @@ class Variable(ScalarVariable):
         if issubclass(self._typ, Enum):  # Enum types are supplied as int. Convert
             for i in range(self._len):
                 value[i] = self._typ(value[i])  # type: ignore
+
+        if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
+            if not self.check_range(value, idx):
+                raise VariableRangeError(f"set(): Value {value} outside range.") from None
 
         if self._check & Check.units:  #'value' expected as displayUnit. Convert to unit
             if isinstance(idx, int):  # explicit index of single value
@@ -307,9 +325,6 @@ class Variable(ScalarVariable):
                 for i in range(self._len):
                     if value[i] is not None and self._display[i] is not None:  # type: ignore
                         value[i] = self.display[i][1](value[i])  # type: ignore
-        if self._check & Check.ranges:
-            if not self.check_range(value, idx):
-                raise VariableRangeError(f"set(): Value {value} outside range.") from None
 
         if self._len == 1:
             setattr(self.owner, self.local_name, value[0] if self.on_set is None else self.on_set(value[0]))  # type: ignore
@@ -323,6 +338,7 @@ class Variable(ScalarVariable):
 
     def getter(self):
         """Get the value (output a value from the model), including range checking and unit conversion.
+        The whole variable value is returned.
         The return value can be indexed/sliced to get elements of compound variables.
         """
         assert self._typ is not None, "Need a proper type at this stage"
@@ -362,8 +378,19 @@ class Variable(ScalarVariable):
         Args:
             rng (tuple): The tuple of range tuples.
               Always for the whole variable with scalar variables packed in a singleton
-
         """
+
+        def ensure_display_limits(val: PyType, idx: int, right: bool):
+            """Ensure that value is provided as display unit and that limits are included in range."""
+            if self._display[idx] is not None:  # Range in display units!
+                val = self._display[idx][2](val)
+            if isinstance(val, float) and abs(val) != float("inf") and int(val) != val:
+                if right:
+                    val += 1e-15
+                else:
+                    val -= 1e-15
+            return val
+
         assert hasattr(self, "_start") and hasattr(self, "_unit"), "Missing self._start / self._unit"
         assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
         # Configure input. Could be None, () or (min,max) of scalar
@@ -374,11 +401,16 @@ class Variable(ScalarVariable):
         for idx in range(self._len):  # go through all elements
             _rng = rng[idx]
             if _rng is None:  # => no range. Used for compound variables if not all elements have a range
-                _range.append((self._start[idx], self._start[idx]))  # no range
+                _range.append(
+                    (
+                        ensure_display_limits(self._start[idx], idx, right=False),
+                        ensure_display_limits(self._start[idx], idx, right=True),
+                    )
+                )  # no range
             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
                 _range.append(self._auto_extreme(self._start[idx]))
             elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
-                i_range = []  # collect range as list
+                i_range : list = []  # collect range as list
                 for r in _rng:
                     if r is None:  # no range => fixed to initial value
                         q = self._start[idx]
@@ -393,8 +425,7 @@ class Variable(ScalarVariable):
                             )
                         elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:
                             raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")
-                    if self._display[idx] is not None:  # Range in display units!
-                        q = self._display[idx][2](q)
+                    q = ensure_display_limits(q, idx, len(i_range)>0)
                     i_range.append(q)
 
                 try:  # check variable type
@@ -411,7 +442,7 @@ class Variable(ScalarVariable):
         """Check the provided 'value' with respect to the range.
 
         Args:
-            value (PyType|Compound): the value to check. Scalars may be wrapped as vector
+            value (PyType|Compound): the value to check. Scalars may be wrapped into a vector
             disp (bool) = True: denotes whether the value is expected in display units (default) or units
 
         Returns
@@ -425,7 +456,7 @@ class Variable(ScalarVariable):
             return self._typ == str
         elif self._len > 1 and idx is None:  # check all components
             assert isinstance(value, (tuple, list, np.ndarray)) and len(value) == self._len, f"{value} has no elements"
-            return all(self.check_range(value[i], i) for i in range(self._len))
+            return all(self.check_range(value[i], i, disp) for i in range(self._len))
         else:  # single component check
             assert idx is not None, "Need a proper idx here"
             if isinstance(value, (tuple, list, np.ndarray)):
@@ -455,7 +486,7 @@ class Variable(ScalarVariable):
                 raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
 
     def fmi_type_str(self, val: PyType) -> str:
-        """Translate the provided type to a proper fmi type and return as string.
+        """Translate the provided type to a proper fmi type and return it as string.
         See types defined in schema fmi2Unit.xsd.
         """
         if self._typ == bool:
@@ -507,7 +538,7 @@ class Variable(ScalarVariable):
 
     @classmethod
     def _auto_extreme(cls, var: PyType) -> tuple:
-        """Return the extreme value of the variable.
+        """Return the extreme values of the variable.
 
         Args:
             var: the variable for which to determine the extremes. Represented by an instantiated object
@@ -533,7 +564,8 @@ class Variable(ScalarVariable):
             quantity (PyType): the quantity to disect. Should be provided as string, but also the trivial cases (int,float,Enum) are allowed.
             A free string should not be used and leads to a warning
         Returns:
-            the magnitude in base units, the base unit and the unit as given together with the conversion factor (from display to baseUnit)
+            the magnitude in base units, the base unit and the unit as given (display units),
+            together with the conversion functions between the units.
         """
         if isinstance(quantity, (tuple, list, np.ndarray)):  # handle composit values
             _val, _ub, _disp = [], [], []
@@ -594,21 +626,14 @@ class Variable(ScalarVariable):
     def xml_scalarvariables(self):
         """Generate <ScalarVariable> XML code with respect to this variable and return xml element.
         For compound variables, all elements are included.
+
         Note that ScalarVariable attributes should all be listed in __attrs dictionary.
         Since we do not use the derived classes Real, ... we need to generate the detailed variable definitions here.
         The following attributes are so far not supported: declaredType, derivative, reinit.
 
-        Used properties:
-            * typ: the type can be explicitly provided (for derived variables), otherwise self._typ is used
-            * start: a start can be explicitly provided (for components of derived variables)
-            * valueReference: For compound variables this is provided explicitly for >0 elements.
-            * range: a range tuple can be explicitly provided
-            * unit: a unit can be explicitly provided
-            * display: a displayUnit can be explicitly provided
-
         Returns
         -------
-            List fo ScalarVariable xml elements
+            List of ScalarVariable xml elements
         """
 
         def substr(alt1: str, alti: str):
@@ -625,14 +650,15 @@ class Variable(ScalarVariable):
                 {
                     "name": self.name + substr("", f"[{i}]"),
                     "valueReference": str(self.value_reference + i),
+                    "description": "" if self.description is None else self.description,
                     "causality": self.causality.name,
                     "variability": self.variability.name,
                 },
             )
             if self._initial != Initial.none:  # none is not part of the FMI2 specification
                 sv.attrib.update({"initial": self.initial.name})
-            if self.description is not None:
-                sv.attrib.update({"description": self.description + substr("", f", [{i}]")})
+            # if self.description is not None:
+            #    sv.attrib.update({"description": self.description + substr("", f", [{i}]")})
             if self._annotations is not None and i == 0:
                 sv.append(ET.Element("annotations", self._annotations))
             #             if self.display is None or (self._len>1 and self.display[i] is None):
@@ -732,96 +758,3 @@ def quantity_direction(quantityDirection: tuple, asSpherical: bool = False, asDe
         direction = np.array(quantityDirection[1:], dtype="float")
     n = np.linalg.norm(direction)  # normalize
     return quantityDirection[0] / n * direction
-
-
-def variables_from_fmu(model, el: ET.Element | None, sep: str = "["):
-    """From the supplied model object and the <ModelVariables> el subtree identify and define all variables.
-    .. toDo:: implement unit and displayUnit handling + <UnitDefinitions>.
-    """
-
-    def range_from_fmu(el: ET.Element):
-        """From the variable type sub-element (e.g. <Real>) of <ScalarVariable> deduce the variable range of a ScalarVariable."""
-        if el.attrib.get("unbounded", "true"):
-            return tuple()
-        elif "min" in el.attrib and "max" in el.attrib:
-            return (el.attrib["min"], el.attrib["max"])
-        elif "min" in el.attrib and el.tag == "Real":
-            return (el.attrib["min"], float("inf"))
-        elif "max" in el.attrib and el.tag == "Real":
-            return (float("-inf"), el.attrib["max"])
-        else:
-            raise AssertionError(
-                f"Invalid combination of attributes with respect to variable range. Type:{el.tag}, attributes: {el.attrib}"
-            )
-
-    def rsplit_sep(txt: str, sep: str = sep):
-        if sep in txt:
-            base, sub = txt.rsplit(sep, maxsplit=1)
-            if sep == "[":
-                sub = sub.rsplit("]", maxsplit=1)[0]
-            elif sep == "(":
-                sub = sub.rsplit(")", maxsplit=1)[0]
-            elif sep == "{":
-                sub = sub.rsplit("}", maxsplit=1)[0]
-            return (base, sub)
-        else:
-            return (txt, "")
-
-    idx = 0
-    while True:
-        if el is None:
-            break
-        var = el[idx]
-        base, sub = rsplit_sep(var.attrib["name"])
-        length = 1
-        _causality, _variability, _initial = (
-            var.get("causality", "local"),
-            var.get("variability", "continuous"),
-            var.get("initial", None),
-        )
-        _typ = xml_to_python_val(var[0].tag)
-        if len(base) and len(sub) and sub.isnumeric() and int(sub) == 0:  # assume first element of a compound variable
-            for i in range(idx + 1, len(el)):  # collect the other elements of this compound variable
-                v = el[i]
-                b, s = rsplit_sep(v.attrib["name"])
-                if not (
-                    len(b)
-                    and len(s)
-                    and s.isnumeric()
-                    and b == base
-                    and int(s) == i - idx
-                    and v.attrib["causality"] == _causality
-                    and v.attrib["variability"] == _variability
-                    and v.get("initial", None) == _initial
-                    and v[0].tag == var[0].tag
-                ):  # this element does not fit in the compound variable
-                    length = i - idx
-                    break
-        #        if length == 1:  # a scalar
-        _var = Variable(
-            model,
-            base,
-            description=var.attrib["description"],
-            causality=_causality,
-            variability=_variability,
-            initial=_initial,
-            typ=_typ,
-            start=var[0].attrib.get("start", None),
-            rng=range_from_fmu(var[0]),
-        )
-
-        #         else:  # an array
-        #             _var = VariableNP(
-        #                 model,
-        #                 base,
-        #                 description=var.attrib["description"],
-        #                 causality=_causality,
-        #                 variability=_variability,
-        #                 initial=_initial,
-        #                 typ=_typ,
-        #                 start=tuple(v[0].attrib.get("start", None) for v in el[idx : idx + length]),
-        #                 rng=tuple(range_from_fmu(v[0]) for v in el[idx : idx + length]),
-        #             )
-        idx += length
-        if idx >= len(el):
-            break

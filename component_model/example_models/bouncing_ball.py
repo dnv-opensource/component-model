@@ -98,7 +98,7 @@ class BouncingBall(Model):
         )
 
     def do_step(self, time, dt):
-        """Perform a simulation step of size dt."""
+        """Perform a simulation step from `time` to `time + dt`."""
         if not super().do_step(time, dt):
             return False
         self.t_bounce, self.p_bounce = self.next_bounce()
@@ -135,5 +135,6 @@ class BouncingBall(Model):
             return (t_bounce, p_bounce)
 
     def setup_experiment(self, start: float):
+        """Set initial (non-interface) variables."""
         super().setup_experiment(start)
         self.stopped = False

@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 
 import pytest
 from component_model.logger import get_module_logger  # type: ignore
-from component_model.model import Model, make_osp_system_structure  # type: ignore
+from component_model.model import Model  # type: ignore
 from component_model.variable import Check, Variable
 
 logger = get_module_logger(__name__, level=logging.INFO)
@@ -26,19 +26,6 @@ of this software and a ..."""
     c, lic = mod.make_copyright_license("Copyleft (c) 3000 Nobody", _lic)
     assert c == "Copyleft (c) 3000 Nobody"
     assert lic.strip().startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-
-
-#    def test_model_description(self):
-def test_osp_structure():
-    make_osp_system_structure(
-        "systemModel",
-        version="0.1",
-        models={
-            "simpleTable": {"interpolate": True},
-            "mobileCrane": {"pedestal.pedestalMass": 5000.0, "boom.boom.0": 20.0},
-        },
-        connections=("simpleTable", "outputs.0", "mobileCrane", "pedestal.angularVelocity"),
-    )
 
 
 def test_xml():

@@ -30,6 +30,22 @@ def arrays_equal(arr1, arr2, dtype="float", eps=1e-7):
         assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
 
 
+def tuples_nearly_equal(tuple1: tuple, tuple2: tuple, eps=1e-10):
+    """Check whether the values in tuples (of any tuple-structure) are nearly equal"""
+    assert isinstance(tuple1, tuple), f"{tuple1} is not a tuple"
+    assert isinstance(tuple2, tuple), f"{tuple2} is not a tuple"
+    assert len(tuple1) == len(tuple2), f"Lenghts of tuples {tuple1}, {tuple2} not equal"
+    for t1, t2 in zip(tuple1, tuple2, strict=False):
+        if isinstance(t1, tuple):
+            assert isinstance(t2, tuple), f"Tuple expected. Found {t2}"
+            assert tuples_nearly_equal(t1, t2)
+        elif isinstance(t1, float) or isinstance(t2, float):
+            assert t1 == t2 or abs(t1 - t2) < eps, f"abs({t1} - {t2}) >= {eps}"
+        else:
+            assert t1 == t2, f"{t1} != {t2}"
+    return True
+
+
 def test_var_check():
     ck = Check.u_none | Check.r_none
     assert Check.r_none in ck, "'Check.u_none | Check.r_none' sets both unit and range checking to None"
@@ -110,6 +126,7 @@ def init_model_variables():
         mod,
         "myInt2",
         description="A integer variable without range checking",
+        valueReference=99,  # manual valueReference
         causality="input",
         variability="continuous",
         start=99,
@@ -157,7 +174,7 @@ def init_model_variables():
         causality="parameter",
         variability="fixed",
         start=("1.0m", "2deg", "3rad"),
-        rng=((0, "3m"), (0, float("inf")), (float("-inf"), "5rad")),
+        rng=((0, "3m"), ("1 deg", "5 deg"), (float("-inf"), "5rad")),
     )
     myNP2 = Variable(
         mod,
@@ -187,6 +204,7 @@ def test_init():
         myBool,
     ) = init_model_variables()
     assert myInt.typ == int
+    assert myInt.description == "A integer variable"
     assert myInt.causality == Causality.parameter
     assert myInt.variability == Variability.fixed
     assert myInt.initial == Initial.exact
@@ -301,13 +319,18 @@ def test_init():
     assert mod.get_string(((mod.variable_by_name("myStr").value_reference),)) == ["Hello"]
 
     assert myNP.typ == float
+    assert myNP == mod.variable_by_name("myNP")
+    assert myNP.description == "A NP variable"
+    assert mod.variable_by_name("myNP[1]") == mod.variable_by_name("myNP"), "Returns always the parent"
     assert myNP.causality == Causality.parameter
     assert myNP.variability == Variability.fixed
     assert myNP.initial == Initial.exact
     assert myNP.check == Check.all
     # internally packed into tuple:
     assert myNP.start == (1, math.radians(2), 3)
-    assert myNP.range == ((0, 3), (0, float("inf")), (float("-inf"), 5))
+    tuples_nearly_equal(myNP.range, ((0, 3), (1, 5), (float("-inf"), 5)))
+    assert not myNP.check_range(5.1, idx=1), "Checks performed on display units!"
+    assert not myNP.check_range(0.9, idx=1), "Checks performed on display units!"
     assert myNP.unit == ("meter", "radian", "radian"), f"Units: {myNP.unit}"
     assert myNP.display[0] is None
     assert myNP.display[1][0] == "degree"
@@ -428,14 +451,14 @@ def test_var_ref():
         myBool,
     ) = init_model_variables()
     # print(mod.vars)
-    assert mod.vars[1].name == "myInt2"
+    assert mod.vars[99].name == "myInt2"
     assert mod.vars[6].name == "myNP"
     assert mod.vars[7] is None, "a sub-element"
     var, sub = mod.ref_to_var(7)
     assert var.name == "myNP"
     assert sub == 1
     assert mod.variable_by_name("myInt2").name == "myInt2"
-    assert mod.variable_by_name("myInt2").value_reference == 1
+    assert mod.variable_by_name("myInt2").value_reference == 99
     # mod.variable_by_value(mod.myInt) deleted
 
 
@@ -477,11 +500,11 @@ def test_get():
         myBool,
     ) = init_model_variables()
     # print( "".join( str(i)+":"+mod.vars[i].name+", " for i in range( len(mod.vars)) if mod.vars[i] is not None))
-    assert mod._get([0, 1], int) == [99, 99]
-    assert mod.get_integer([0, 1]) == [99, 99]
-    assert mod.get_integer([0, 1]) == [99, 99]
+    assert mod._get([0, 99], int) == [99, 99]
+    assert mod.get_integer([0, 99]) == [99, 99]
+    assert mod.get_integer([0, 99]) == [99, 99]
     with pytest.raises(AssertionError) as err:
-        _ = mod.get_real([0, 1])
+        _ = mod.get_real([0, 99])
     assert str(err.value).startswith("Invalid type in 'get_")
     assert mod.get_real([2]) == [99.0], f"Got value {mod.get_real([2])} (converted to %)"
     assert mod.get_string([5])[0] == "Hello World!"
@@ -511,27 +534,25 @@ def test_set():
         myNP2,
         myBool,
     ) = init_model_variables()
-    # print( "".join( str(i)+":"+mod.vars[i].name+", " for i in range( len(mod.vars)) if mod.vars[i] is not None))
-    mod.set_real([6, 7], [2.0, 0.5])  # "30 deg"])
-
-    mod.set_integer([0, 1], [60, 61])
+    # print( "".join( str(i)+":"+mod.vars[i].name+", " for i in mod.vars if mod.vars[i] is not None))
+    mod.set_integer([0, 99], [60, 61])
     assert mod.vars[0].getter() == 60
     assert mod.myInt == 60
-    assert mod.vars[1].getter() == 61
+    assert mod.vars[99].getter() == 61
     with pytest.raises(AssertionError) as err:
         mod.set_integer([6, 7], [2.0, "30 deg"])
     assert str(err.value) == "Invalid type in 'set_<class 'int'>'. Found variable myNP with type <class 'float'>"
-    #    print(
-    mod.set_real([6, 7], [2.0, 0.5])  # "30 deg"])
+    mod.set_real([6, 7], [2.0, 3.0])  # "3 deg"])
 
 
+# @pytest.mark.skip()
 def test_xml():
     Model.instances = []  # reset
     mod = Model("MyModel")
     myNP2 = Variable(
         mod,
         "Test9",
-        description="A NP variable with units included in initial values and partially fixed range",
+        description="A NP variable ...",
         causality="input",
         variability="continuous",
         start=("1m", "2deg", "3 deg"),
@@ -539,11 +560,11 @@ def test_xml():
     )
     lst = myNP2.xml_scalarvariables()
     assert len(lst) == 3
-    expected = b'<ScalarVariable name="Test9[0]" valueReference="0" causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
+    expected = b'<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
     assert ET.tostring(lst[0]) == expected, f"{ET.tostring( lst[0])}"
-    expected = b'<ScalarVariable name="Test9[1]" valueReference="1" causality="input" variability="continuous"><Real start="0.03490658503988659" min="0.03490658503988659" max="0.03490658503988659" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    expected = b'<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="1.9999999999999993" max="2.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
     assert ET.tostring(lst[1]) == expected, f"{ET.tostring( lst[1])}"
-    expected = b'<ScalarVariable name="Test9[2]" valueReference="2" causality="input" variability="continuous"><Real start="0.05235987755982989" min="0.05235987755982989" max="0.05235987755982989" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    expected = b'<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="2.9999999999999996" max="3.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
     assert ET.tostring(lst[2]) == expected, f"{ET.tostring( lst[2])}"
 
     myInt = Variable(
@@ -558,7 +579,7 @@ def test_xml():
         value_check=Check.all,
     )
     lst = myInt.xml_scalarvariables()
-    expected = b'<ScalarVariable name="myInt" valueReference="3" causality="parameter" variability="fixed" initial="exact"><Real start="0.99" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
+    expected = b'<ScalarVariable name="myInt" valueReference="3" description="A integer variable" causality="parameter" variability="fixed" initial="exact"><Real start="0.99" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
     assert ET.tostring(lst[0]) == expected, ET.tostring(lst[0])
 
 

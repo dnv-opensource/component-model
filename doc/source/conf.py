@@ -15,7 +15,7 @@ import os, sys, shutil
 
 
 sys.path.insert(0, os.path.abspath("../_ext"))
-sys.path.insert(0, os.path.abspath("../../"))
+sys.path.insert(0, os.path.abspath("../../component_model"))
 print("PATH", sys.path)
 shutil.copyfile("../../README.rst", "readme.rst")
 
@@ -23,7 +23,7 @@ shutil.copyfile("../../README.rst", "readme.rst")
 # -- Project information -----------------------------------------------------
 
 project = "Component Model"
-copyright = "2023, DNV"
+copyright = "2024, DNV"
 author = "Siegfried Eisinger"
 
 # The full version, including alpha/beta/rc tags
