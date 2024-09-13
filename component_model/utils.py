@@ -188,7 +188,7 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
 
     co_flags = el.find(".//CoSimulation")
     flags = {} if co_flags is None else {key: xml_to_python_val(val) for key, val in co_flags.attrib.items()}
-    kwargs : dict[str,Any] = {}
+    kwargs: dict[str, Any] = {}
     kwargs["name"] = el.attrib["modelName"]
     kwargs["description"] = el.get("description", f"Component model object generated from {fmu}")
     kwargs["author"] = el.get("author", "anonymous")
@@ -258,7 +258,7 @@ def variables_from_fmu(el: ET.Element | None, sep: str = "["):
         return (kwa, sub)
 
     idx = 0
-    while el is not None and len(el) and idx < len(el) - 1: # type: ignore
+    while el is not None and len(el) and idx < len(el) - 1:  # type: ignore
         var = el[idx]
         kwargs, sub = get_basic_kwargs(var)
         start = [get_start(var[0], kwargs["_typ"])]

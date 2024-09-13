@@ -410,7 +410,7 @@ class Variable(ScalarVariable):
             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
                 _range.append(self._auto_extreme(self._start[idx]))
             elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
-                i_range : list = []  # collect range as list
+                i_range: list = []  # collect range as list
                 for r in _rng:
                     if r is None:  # no range => fixed to initial value
                         q = self._start[idx]
@@ -425,7 +425,7 @@ class Variable(ScalarVariable):
                             )
                         elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:
                             raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")
-                    q = ensure_display_limits(q, idx, len(i_range)>0)
+                    q = ensure_display_limits(q, idx, len(i_range) > 0)
                     i_range.append(q)
 
                 try:  # check variable type
