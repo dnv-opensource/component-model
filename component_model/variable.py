@@ -135,7 +135,7 @@ class Variable(ScalarVariable):
           The two aspects should be set with OR (|),
           e.g. `Check.units | Check.r_none` leads to only units transformations but no range checking.
         on_step (callable) = None: Optional possibility to register a function of `(time, dt)` to be run during `.do_step`,
-           e.g. if the variable represents a speed, the object can be translated speed*dt, if |speed|>0
+           e.g. if the variable represents a speed, the object can be translated `speed*dt, if |speed|>0`
         on_set (callable) = None: Optional possibility to specify a pre-processing function of (newval)
            to be run when the variable is initialized or changed.
            This is useful for conditioning of input variables, so that calculations can be done once after a value is changed
@@ -410,7 +410,7 @@ class Variable(ScalarVariable):
             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
                 _range.append(self._auto_extreme(self._start[idx]))
             elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
-                i_range : list = []  # collect range as list
+                i_range: list = []  # collect range as list
                 for r in _rng:
                     if r is None:  # no range => fixed to initial value
                         q = self._start[idx]
@@ -425,7 +425,7 @@ class Variable(ScalarVariable):
                             )
                         elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:
                             raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")
-                    q = ensure_display_limits(q, idx, len(i_range)>0)
+                    q = ensure_display_limits(q, idx, len(i_range) > 0)
                     i_range.append(q)
 
                 try:  # check variable type
