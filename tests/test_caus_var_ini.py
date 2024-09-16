@@ -1,9 +1,14 @@
+from enum import Enum
 import component_model.caus_var_ini as cvi  # type: ignore
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
+class Initial(Enum):
+    exact = 0
+    approx = 1
+    calculated = 2
+    none = 3 # additional value to allow for the cases when initial: --
 
 def test_combinations():
     assert (len(cvi.combinations), len(cvi.combinations[0])) == (5, 6)
