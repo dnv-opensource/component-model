@@ -4,7 +4,7 @@ from component_model.model import Model
 from component_model.utils import (
     make_osp_system_structure,
     model_from_fmu,
-    read_model_description,
+    read_xml,
     variables_from_fmu,
     xml_to_python_val,
 )
@@ -41,7 +41,7 @@ def test_xml_to_python_val():
 
 def test_model_description():
     fmu = ensure_bouncing_ball()
-    et = read_model_description(fmu)
+    et = read_xml(fmu)
     assert et is not None, "No Model Description"
     for a in (
         "fmiVersion",
@@ -145,7 +145,7 @@ def test_model_from_fmu():
 
 def test_variables_from_fmu():
     fmu = ensure_bouncing_ball()
-    et = read_model_description(fmu)
+    et = read_xml(fmu)
     mv = et.find(".//ModelVariables")
     collect = []
     for kwargs in variables_from_fmu(mv):

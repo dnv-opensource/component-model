@@ -1,3 +1,11 @@
+"""Miscelaneous functions, not generally needed to make a FMU model,
+but which can be useful to work with fmu files (e.g. retrieving and working with a modelDefinition.xml file),
+to make an OSP system structure file, or to reverse-engineer the interface of a model
+(e.g. when making a surrogate model).
+
+
+"""
+
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
 from pathlib import Path
@@ -23,41 +31,46 @@ def xml_to_python_val(val: str):
                 )
 
 
-def read_model_description(fmu: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
-    """Read FMU file and return as Element object.
-    fmu can be the full FMU zipfile, the modelDescription.xml or a equivalent string.
+def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
+    """Read xml file and return `sub` as Element object.
+
+    xml can be
+
+    * a zip file containing the xml file as `sub`
+    * a xml file (e.g. modelDescription.xml).
+    * a xml literal string. `sub` ignored in this case.
     """
-    path = Path(fmu)
+    path = Path(xml)
     el = None
     if path.exists():  # we have a zip file or an xml file
         if is_zipfile(path):
             assert len(sub), "Information on file within zip needed"
             try:
                 with ZipFile(path) as zp:
-                    fmu_string = zp.read(sub).decode()
+                    xml_string = zp.read(sub).decode()
             except Exception:
-                raise BadZipFile(f"Not able to read zip file {fmu} or {sub} not found in zipfile") from None
-            el = ET.fromstring(fmu_string)
+                raise BadZipFile(f"Not able to read zip file {xml} or {sub} not found in zipfile") from None
+            el = ET.fromstring(xml_string)
         else:
             try:
                 el = ET.parse(path).getroot()  # try to read the file directly, assuming a modelDescription.xml file
             except Exception:
                 raise AssertionError(f"Could not parse xml file {path}") from None
-    elif Path(path, sub).exists():  # unzipped fmu path was provided
+    elif Path(path, sub).exists():  # unzipped xml path was provided
         try:
             el = ET.parse(Path(path, sub)).getroot()
         except ET.ParseError:
             raise AssertionError(f"Could not parse xml file {Path(path,sub)}") from None
-    elif isinstance(fmu, str):
+    elif isinstance(xml, str):
         try:
-            el = ET.fromstring(fmu)  # try as literal string
+            el = ET.fromstring(xml)  # try as literal string
         except ET.ParseError as err:
             raise AssertionError(
-                f"Error when parsing {fmu} as xml file. Error code {err.code} at {err.position}"
+                f"Error when parsing {xml} as xml file. Error code {err.code} at {err.position}"
             ) from err
     else:
-        raise Exception(f"Not possible to read model description from {fmu}, {sub}") from None
-    assert el is not None, f"FMU {fmu} not found or {sub} could not be read"
+        raise Exception(f"Not possible to read model description from {xml}, {sub}") from None
+    assert el is not None, f"xml {xml} not found or {sub} could not be read"
     return el
 
 
@@ -77,14 +90,17 @@ def make_osp_system_structure(
 
     Args:
         name (str)='OspSystemStructure': the name of the system model, used also as file name
-        models (dict)={}: dict of models (in OSP called 'simulators'). A model is represented by a dict element modelName : {property:prop, variable:value, ...}
-        connections (tuple)=(): tuple of model connections. Each connection is defined through a tuple of (model, variable, model, variable), where variable can be a tuple defining a variable group
+        models (dict)={}: dict of models (in OSP called 'simulators').
+          A model is represented by a dict element modelName : {property:prop, variable:value, ...}
+        connections (tuple)=(): tuple of model connections.
+          Each connection is defined through a tuple of (model, variable, model, variable),
+          where variable can be a tuple defining a variable group
         version (str)='0.1': The version of the system model
         start (float)=0.0: The simulation start time
         base_step (float)=0.01: The base stepSize of the simulation. The exact usage depends on the algorithm chosen
         algorithm (str)='fixedStep': The name of the algorithm
 
-        ??ToDo: better stepSize control in dependence on algorithm selected, e.g. with fixedStep we should probably set all step sizes to the minimum of everything?
+        .. todo:: better stepSize control in dependence on algorithm selected, e.g. with fixedStep we should probably set all step sizes to the minimum of everything?
     """
 
     def make_simulators():
@@ -158,11 +174,14 @@ def make_osp_system_structure(
 
 
 def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
-    """Generate a Model from an FMU (excluding the inner working functions like 'do_step'.
-    Still this is useful for convenient access to model information like variables.
+    """Generate a Model from an FMU (excluding the inner working functions like `do_step()`),
+    i.e. partially reverse-engineering a FMU.
+    This can be useful for convenient access to model information like variables
+    or as starting point for surrogate models (e.g. speeding up models for optimisation studies
+    or when using continuous time models in discrete event simulations)
     Note: structured variables with name: <name>[i], with otherwise equal causality, variability, initial
-    and consecutive index and valueReference are stored as Variable.
-    .. ToDo:: <UnitDefinitions>, <LogCategories>.
+    and consecutive index and valueReference are stored as one Variable.
+    .. todo:: <UnitDefinitions>, <LogCategories>.
 
     Args:
         fmu (str, Path): the FMU file which is to be read. can be the full FMU zipfile, the modelDescription.xml or a equivalent string
@@ -171,10 +190,10 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
 
     Returns
     -------
-        Arguments of Model.__init__ as dict
+        Arguments of Model.__init__ as dict (**not** the model object itself)
     """
 
-    el = read_model_description(fmu)
+    el = read_xml(fmu)
     _de = el.find(".//DefaultExperiment")
     de = {}
     if _de is not None:
@@ -205,9 +224,12 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
 def variables_from_fmu(el: ET.Element | None, sep: str = "["):
     """From the supplied <ModelVariables> el subtree identify and define all variables.
     Return an iterator through variable arguments as dict,
-    so that variables can be added to model through .add_variable(**kwargs).
-
+    so that variables can be added to model through `.add_variable(**kwargs)`.
     .. toDo:: implement unit and displayUnit handling + <UnitDefinitions>.
+
+    Returns
+    -------
+        List of argument dicts, which then can be used to instantiate Variable objects `Variable(**kwargs)`
     """
 
     def range_from_fmu(el: ET.Element):

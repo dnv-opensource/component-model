@@ -135,7 +135,7 @@ class Variable(ScalarVariable):
           The two aspects should be set with OR (|),
           e.g. `Check.units | Check.r_none` leads to only units transformations but no range checking.
         on_step (callable) = None: Optional possibility to register a function of `(time, dt)` to be run during `.do_step`,
-           e.g. if the variable represents a speed, the object can be translated speed*dt, if |speed|>0
+           e.g. if the variable represents a speed, the object can be translated `speed*dt, if |speed|>0`
         on_set (callable) = None: Optional possibility to specify a pre-processing function of (newval)
            to be run when the variable is initialized or changed.
            This is useful for conditioning of input variables, so that calculations can be done once after a value is changed

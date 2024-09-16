@@ -52,7 +52,7 @@ class Model(Fmi2Slave):
     A fully defined model shall at least:
 
     * Define a full set of interface variables, including default start values, setter and getter functions.
-      See `variable`module.
+      See `variable` module.
     * Extend the `do_step(time, dt)` member function, running the application model in isolation for a time interval.
       Make sure that `super().do_step(time, dt)` is always called first in the extended function.
     * Optionally extend any other fmi2 function, i.e.
@@ -465,7 +465,7 @@ class Model(Fmi2Slave):
     def _xml_structure_outputs(self):
         """Generate the FMI2 modelDescription.xml sub-tree <ModelStructure><Outputs>.
         Exactly all variables with causality='output' must be in this list.
-        ToDo: implement support for variable dependencies and add as attribute here.
+        .. todo:: implement support for variable dependencies and add as attribute here.
         """
         out = ET.Element("Outputs")
 
@@ -485,8 +485,8 @@ class Model(Fmi2Slave):
         * causality = 'calculatedParameter'
         * all continuous-time states and all state derivatives with initial = 'approx' or 'calculated'
 
-        ToDo: implement support for states and derivatives and add as attribute here.
-        ToDo: implement support for variable dependencies and add as attribute here.
+        .. todo:: implement support for states and derivatives and add as attribute here.
+        .. todo:: implement support for variable dependencies and add as attribute here.
         """
         init = ET.Element("InitialUnknowns")
 
