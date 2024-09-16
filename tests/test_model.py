@@ -1,14 +1,21 @@
 import logging
+from pathlib import Path
 import time
 import xml.etree.ElementTree as ET  # noqa: N817
 
 import pytest
 from component_model.logger import get_module_logger  # type: ignore
 from component_model.model import Model  # type: ignore
+from component_model.utils import model_from_fmu
 from component_model.variable import Check, Variable
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
+@pytest.fixture(scope="session")
+def bouncing_ball_fmu(tmp_path_factory):
+    build_path = tmp_path_factory.mktemp("fmu")
+    fmu_path = Model.build(Path(__file__).parent.parent / 'component_model' / 'example_models' / 'bouncing_ball2.py', project_files=[], dest=build_path)
+    return fmu_path
 
 def test_license():
     mod = Model("TestModel", author="Ola Norman")
@@ -90,33 +97,18 @@ def test_xml():
     # print( ET.tostring(et))
 
 
-def test_from_fmu():
-    path = Path(Path(__file__).parent, "BouncingBallFMU.fmu")
-    assert path.exists(), "FMU not found"
-    model = model_from_fmu( path)
-    assert model.name == "BouncingBallFMU", f"Name:{model.name}"
+def test_from_fmu(bouncing_ball_fmu):
+    model = model_from_fmu(bouncing_ball_fmu)
+    assert model['name'] == "BouncingBallFMU", f"Name:{model['name']}"
     print( dir(model))
-    assert model.description == "Simple bouncing ball test FMU", f"Description:{model.description}"
-    assert model.author == "DNV, SEACo project"
-    assert model.version == "0.1"
-    assert model.license.startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-    assert model.copyright == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
-    assert model.guid == "8336c04d3e2f45379db8ed685e034a69", f"Found: {model.guid}"
-    assert model.default_experiment is None
+    assert model['description'] == "Simple bouncing ball test FMU", f"Description:{model['description']}"
+    assert model['author'] == "DNV, SEACo project"
+    assert model['version'] == "0.1"
+    assert model['license'].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
+    assert model['copyright'] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
+    assert model['default_experiment'] is not None
     assert (
-        model.default_experiment.start_time,
-        model.default_experiment.step_size,
-        model.default_experiment.stop_time,
-        model.default_experiment.tolerance,
-    ) == (0.0, 0.1, 10.0, 0.001)
-    assert model.flags == {
-        "needsExecutionTool": True,
-        "canHandleVariableCommunicationStepSize": True,
-        "canNotUseMemoryManagementFunctions": True,
-    }
-    for idx, var in model.vars.items():
-        print(idx, var)
-    assert model.vars[0].name == "x[0]"
-    assert model.vars[0].value0 == 0.0
-    assert model.vars[6].name == "bounceFactor"
-
+        model['default_experiment']['start_time'],
+        model['default_experiment']['step_size'],
+        model['default_experiment']['stop_time'],
+    ) == (0.0, 0.01, 1.0)

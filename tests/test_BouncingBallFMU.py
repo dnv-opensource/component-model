@@ -8,21 +8,19 @@ from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
 
+@pytest.fixture(scope="session")
+def bouncing_ball_fmu(tmp_path_factory):
+    build_path = tmp_path_factory.mktemp("fmu")
+    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball2.py"), project_files=[], dest=build_path)
+    return fmu_path
 
 def test_model_description():
     mod = BouncingBallFMU()
     mod.to_xml()
 
-
-def test_make_fmu():
-    built = Model.build(Path(Path(__file__).parent.parent, "component_model", "example_models", "bouncing_ball2.py"))
-    dump(built)
-    return built
-
-
-def test_run_fmpy():
-    result = simulate_fmu(
-        "BouncingBallFMU.fmu",
+def test_run_fmpy(bouncing_ball_fmu):
+    _ = simulate_fmu(
+        bouncing_ball_fmu,
         start_time=0.0,
         stop_time=6.5,  # 10.0,
         step_size=0.1,
@@ -36,12 +34,10 @@ def test_run_fmpy():
             "v0[1]": 3.0,
         },
     )
-    plot_result(result)
 
-
-def test_run_osp():
+def test_run_osp(bouncing_ball_fmu):
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos
-    bb = CosimLocalSlave(fmu_path="./BouncingBallFMU.fmu", instance_name="bb")
+    bb = CosimLocalSlave(fmu_path=(str(bouncing_ball_fmu.absolute())), instance_name="bb")
     print("SLAVE", bb, sim.status())
 
     ibb = sim.add_local_slave(bb)
@@ -58,12 +54,3 @@ def test_run_osp():
 
     # Simulate for 15 seconds
     sim.simulate_until(target_time=15e9)
-
-
-if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
-    assert retcode == 0, f"Non-zero return code {retcode}"
-    # test_model_description()
-    # test_make_fmu()
-    # test_run_fmpy()
-    # test_run_osp()

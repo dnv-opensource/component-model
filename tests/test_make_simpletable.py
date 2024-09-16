@@ -1,3 +1,4 @@
+import os
 import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 from zipfile import ZipFile
@@ -22,6 +23,23 @@ def check_expected(value, expected, feature: str):
     else:
         assert value == expected, f"Expected the {feature} '{expected}', but found the value {value}"
 
+@pytest.fixture(scope="session")
+def simple_table_fmu(tmp_path_factory):
+    build_path = tmp_path_factory.mktemp("fmu")
+    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "simple_table.py"), project_files=[], dest=build_path)
+    return fmu_path
+
+@pytest.fixture(scope="session")
+def simple_table_system_structure(tmp_path_factory, simple_table_fmu):
+    ET.register_namespace("", "http://opensimulationplatform.com/MSMI/OSPSystemStructure")
+    tree = ET.parse(Path(__file__).parent / 'resources' / 'SimpleTableSystemStructure.xml')
+    root = tree.getroot()
+    
+    root[0][0].attrib['source'] = f"../{os.path.basename(simple_table_fmu.parent)}/SimpleTable.fmu"
+
+    system_structure_path = tmp_path_factory.mktemp("fmu") / "SimpleTableSystemStructure.xml"
+    tree.write(system_structure_path)
+    return system_structure_path 
 
 def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
@@ -38,7 +56,6 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     with ZipFile(file) as zp:
         xml = zp.read(sub)
     return ET.fromstring(xml)
-
 
 def test_inputtable_class(interpolate=False):
     tbl = InputTable(
@@ -98,59 +115,66 @@ def test_inputtable_class(interpolate=False):
                         break
 
 
-def test_make_simpletable(interpolate=False):
-    asBuilt = Model.build("../component_model/example_models/simple_table.py", project_files=[])
-    info = fmu_info(asBuilt.name)  # this is a formatted string. Not easy to check
+def test_make_simpletable(simple_table_fmu):
+    info = fmu_info(simple_table_fmu)  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
-    et = _to_et(asBuilt.name)
+    et = _to_et(str(simple_table_fmu))
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
     # similarly other critical issues of the modelDescription can be checked
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
-    val = validate_fmu("SimpleTable.fmu")
-    assert not len(val), f"Validation of the modelDescription of {asBuilt.name} was not successful. Errors: {val}"
+    val = validate_fmu(str(simple_table_fmu))
+    assert not len(val), f"Validation of the modelDescription of {simple_table_fmu.name} was not successful. Errors: {val}"
 
 
-def test_use_fmu(interpolate=True):
+def test_use_fmu_interpolation(simple_table_fmu):
     result = simulate_fmu(
-        "SimpleTable.fmu",
+        simple_table_fmu,
         stop_time=10.0,
         step_size=0.1,
         validate=True,
         solver="Euler",
         debug_logging=True,
         logger=print,  # fmi_call_logger=print,
-        start_values={"interpolate": interpolate},
+        start_values={"interpolate": True},
     )
-    plot_result(result)
-    if not interpolate:
-        for t, x, y, z in result:
-            if t > 7:
-                assert x == 8 and y == 7 and z == 6, f"Values for t>7 wrong. Found ({x}, {y}, {z}) at t={t}"
-            elif t > 3:
-                assert x == 7 and y == 8 and z == 9, f"Values for t>3 wrong. Found ({x}, {y}, {z}) at t={t}"
-            elif t > 1:
-                assert x == 4 and y == 5 and z == 6, f"Values for t>1 wrong. Found ({x}, {y}, {z}) at t={t}"
-            elif t > 0:
-                assert x == 1 and y == 2 and z == 3, f"Values for t>0 wrong. Found ({x}, {y}, {z}) at t={t}"
-    else:
-        _t = (0.0, 1.0, 3.0, 7.0)
-        _x = (1, 4, 7, 8)
-        _y = (2, 5, 8, 7)
-        _z = (3, 6, 9, 6)
-        for t, x, y, z in result:
-            if t == 0:
-                tt = 0  #!! results are retrieved prior to the step, i.e. y_i+1 = f(y_i, ...)
-            check_expected(_linear(tt, _t, _x), x, f"Linear interpolated x at t={tt}")
-            check_expected(_linear(tt, _t, _y), y, f"Linear interpolated y at t={tt}")
-            check_expected(_linear(tt, _t, _z), z, f"Linear interpolated z at t={tt}")
-            tt = t
+    _t = (0.0, 1.0, 3.0, 7.0)
+    _x = (1, 4, 7, 8)
+    _y = (2, 5, 8, 7)
+    _z = (3, 6, 9, 6)
+    for t, x, y, z in result:
+        if t == 0:
+            tt = 0  #!! results are retrieved prior to the step, i.e. y_i+1 = f(y_i, ...)
+        check_expected(_linear(tt, _t, _x), x, f"Linear interpolated x at t={tt}")
+        check_expected(_linear(tt, _t, _y), y, f"Linear interpolated y at t={tt}")
+        check_expected(_linear(tt, _t, _z), z, f"Linear interpolated z at t={tt}")
+        tt = t
 
+def test_use_fmu_no_interpolation(simple_table_fmu):
+    result = simulate_fmu(
+        simple_table_fmu,
+        stop_time=10.0,
+        step_size=0.1,
+        validate=True,
+        solver="Euler",
+        debug_logging=True,
+        logger=print,  # fmi_call_logger=print,
+        start_values={"interpolate": False},
+    )
 
-def test_run_osp(interpolate=True):
+    for t, x, y, z in result:
+        if t > 7:
+            assert x == 8 and y == 7 and z == 6, f"Values for t>7 wrong. Found ({x}, {y}, {z}) at t={t}"
+        elif t > 3:
+            assert x == 7 and y == 8 and z == 9, f"Values for t>3 wrong. Found ({x}, {y}, {z}) at t={t}"
+        elif t > 1:
+            assert x == 4 and y == 5 and z == 6, f"Values for t>1 wrong. Found ({x}, {y}, {z}) at t={t}"
+        elif t > 0:
+            assert x == 1 and y == 2 and z == 3, f"Values for t>0 wrong. Found ({x}, {y}, {z}) at t={t}"
+
+def test_run_osp(simple_table_fmu):
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos
-    st = CosimLocalSlave(fmu_path="./SimpleTable.fmu", instance_name="st")
-    print("SLAVE", st, sim.status())
+    st = CosimLocalSlave(fmu_path=str(simple_table_fmu), instance_name="st")
 
     ist = sim.add_local_slave(st)
     assert ist == 0, f"local slave number {ist}"
@@ -158,23 +182,19 @@ def test_run_osp(interpolate=True):
     reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ist)}
 
     # Set initial values
-    sim.boolean_initial_value(ist, reference_dict["interpolate"], interpolate)
+    sim.boolean_initial_value(ist, reference_dict["interpolate"], True)
 
     sim_status = sim.status()
     assert sim_status.current_time == 0
     assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
-    infos = sim.slave_infos()
-    print("INFOS", infos)
 
     # Simulate for 1 second
     sim.simulate_until(target_time=15e9)
 
 
-def test_run_osp_system_structure():
+def test_run_osp_system_structure(simple_table_system_structure):
     "Run an OSP simulation in the same way as the SimulatorInterface of case_study is implemented"
-    sysconfig = Path("SimpleTableSystemStructure.xml")
-    assert sysconfig.exists(), f"File {sysconfig.name} not found"
-    simulator = CosimExecution.from_osp_config_file(str(sysconfig))
+    simulator = CosimExecution.from_osp_config_file(str(simple_table_system_structure))
     comps = []
     for comp in list(simulator.slave_infos()):
         name = comp.name.decode()
@@ -209,13 +229,3 @@ def test_run_osp_system_structure():
         print(f"Time {time/1e9}: {values}")
         if time == 5:
             assert values == [7.475, 7.525, 7.574999999999999]
-
-
-if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
-    assert retcode == 0, f"Non-zero return code {retcode}"
-    # test_inputtable_class()
-    # test_make_simpletable()
-    # test_use_fmu()
-    # test_run_osp()
-    # test_run_osp_system_structure()

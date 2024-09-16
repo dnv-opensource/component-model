@@ -28,9 +28,3 @@ def test_check():
         Variability.discrete,
         Initial.none,
     )
-
-
-if __name__ == "__main__":
-    test_combinations()
-    test_ensure_enum()
-    test_check()

@@ -137,13 +137,3 @@ def test_needed_functions():
 # def test_get_standard_unit():
 #     assert Unit.get_standard_unit("mass") == "kg"
 
-
-if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
-    assert retcode == 0, f"Return code {retcode}"
-    # test_needed_functions()
-# The rest does not work and it is unclear how this ever worked. Changes in pint?
-#    test_split()
-#    test_quantity()
-#    test_convert()
-#    test_get_standard_unit()

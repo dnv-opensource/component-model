@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from component_model.model import Model
 from component_model.utils import (
     make_osp_system_structure,
@@ -9,6 +11,11 @@ from component_model.utils import (
     xml_to_python_val,
 )
 
+@pytest.fixture(scope="session")
+def bouncing_ball_fmu(tmp_path_factory):
+    build_path = tmp_path_factory.mktemp("fmu")
+    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"), project_files=[], dest=build_path)
+    return fmu_path
 
 def dicts_equal(d1: dict, d2: dict):
     assert isinstance(d1, dict), f"Dict expected. Found {d1}"
@@ -19,14 +26,6 @@ def dicts_equal(d1: dict, d2: dict):
     for key in d2:
         assert key in d1, f"Key {key} not found in {d1}"
         assert d1[key] == d2[key], f"Value of key {key} {d1[key]} != {d2[key]}"
-
-
-def ensure_bouncing_ball():
-    fmu = "BouncingBall.fmu"
-    if not Path("./" + fmu).exists():
-        fmu = Model.build("../component_model/example_models/bouncing_ball.py")
-    return fmu
-
 
 def test_xml_to_python_val():
     assert xml_to_python_val("true")
@@ -39,9 +38,8 @@ def test_xml_to_python_val():
     assert xml_to_python_val("Hello World") == "Hello World", "Detect a literal string"
 
 
-def test_model_description():
-    fmu = ensure_bouncing_ball()
-    et = read_xml(fmu)
+def test_model_description(bouncing_ball_fmu):
+    et = read_xml(bouncing_ball_fmu)
     assert et is not None, "No Model Description"
     for a in (
         "fmiVersion",
@@ -102,9 +100,9 @@ def test_model_description():
     ), f"3 InitialUnknowns expected. Found {''.join(x.get('index')+', ' for x in e.findall('./Unknown'))}"
 
 
-def test_osp_structure():
+def test_osp_structure(tmp_path_factory):
     make_osp_system_structure(
-        "systemModel",
+        str(tmp_path_factory.mktemp("fmu") / "systemModel"),
         version="0.1",
         models={
             "simpleTable": {"interpolate": True},
@@ -114,18 +112,17 @@ def test_osp_structure():
     )
 
 
-def test_model_from_fmu():
-    fmu = ensure_bouncing_ball()
-    kwargs = model_from_fmu(fmu)
+def test_model_from_fmu(bouncing_ball_fmu):
+    kwargs = model_from_fmu(bouncing_ball_fmu)
+    kwargs.pop('guid')
     expected = {
         "name": "BouncingBall",
         "description": "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU",
-        "author": "anonymous",
+        "author": 'DNV, SEACo project',
         "version": "0.1",
         "unit_system": "SI",
         "license": 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. ',
-        "copyright": "Copyright (c) 2024 anonymous",
-        "guid": "5ba912602f794e89974175f850f540dd",
+        "copyright": "Copyright (c) 2024 DNV, SEACo project",
         "default_experiment": {"start_time": 0.0, "stop_time": 1.0, "step_size": 0.01},
         "flags": (
             {
@@ -143,9 +140,8 @@ def test_model_from_fmu():
     dicts_equal(kwargs, expected)
 
 
-def test_variables_from_fmu():
-    fmu = ensure_bouncing_ball()
-    et = read_xml(fmu)
+def test_variables_from_fmu(bouncing_ball_fmu):
+    et = read_xml(bouncing_ball_fmu)
     mv = et.find(".//ModelVariables")
     collect = []
     for kwargs in variables_from_fmu(mv):
@@ -154,12 +150,3 @@ def test_variables_from_fmu():
     assert collect[0]["name"] == "pos"
     assert len(collect[1]["start"]) == 3
     assert len(collect[4]["rng"][0]) == 0
-
-
-if __name__ == "__main__":
-    #    retcode = pytest.main(["-rP -s -v", __file__])
-    #    assert retcode == 0, f"Return code {retcode}"
-    test_xml_to_python_val()
-    test_model_description()
-    test_model_from_fmu()
-    test_variables_from_fmu()

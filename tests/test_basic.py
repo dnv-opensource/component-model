@@ -12,6 +12,11 @@ from pythonfmu import (  # type: ignore
     String,
 )
 
+@pytest.fixture(scope="session")
+def build_fmu(tmp_path_factory):
+    build_path = tmp_path_factory.mktemp("fmu")
+    fmu_path = FmuBuilder.build_FMU(__file__, project_files=[], dest=build_path)
+    return fmu_path
 
 class PythonSlave(Fmi2Slave):
     author = "John Doe"
@@ -79,18 +84,12 @@ class PythonSlave(Fmi2Slave):
         return True
 
 
-def test_make_fmu():
-    model = FmuBuilder.build_FMU(
-        __file__,
-        dest=".",
-    )  # , xFunc=None)
-    assert str(model) == "PythonSlave.fmu"
-    # print("MODEL", model, type(model))
+def test_make_fmu(build_fmu):
+    assert build_fmu.name == "PythonSlave.fmu"
 
-
-def test_use_fmu():
-    result = simulate_fmu(
-        "PythonSlave.fmu",
+def test_use_fmu(build_fmu):
+    _ = simulate_fmu(
+        build_fmu,
         stop_time=1,
         step_size=0.1,
         validate=True,
@@ -99,11 +98,4 @@ def test_use_fmu():
         logger=print,  # fmi_call_logger=print,
         start_values={"realIn": 88.8},
     )
-    plot_result(result)
 
-
-if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
-    assert retcode == 0, f"Return code {retcode}"
-    # test_make_fmu()
-    # test_use_fmu()
