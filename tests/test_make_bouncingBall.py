@@ -35,8 +35,9 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     return ET.fromstring(xml)
 
 @pytest.fixture(scope="session")
-def bouncing_ball_fmu(tmp_path_factory):
-    build_path = tmp_path_factory.mktemp("fmu")
+def bouncing_ball_fmu():
+    build_path = Path.cwd() / "fmus"
+    build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"), project_files=[], dest=build_path)
     return fmu_path
 

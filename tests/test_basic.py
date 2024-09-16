@@ -1,3 +1,4 @@
+from pathlib import Path
 import pytest
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from pythonfmu import (  # type: ignore
@@ -13,8 +14,9 @@ from pythonfmu import (  # type: ignore
 )
 
 @pytest.fixture(scope="session")
-def build_fmu(tmp_path_factory):
-    build_path = tmp_path_factory.mktemp("fmu")
+def build_fmu():
+    build_path = Path.cwd() / "fmus"
+    build_path.mkdir(exist_ok=True)
     fmu_path = FmuBuilder.build_FMU(__file__, project_files=[], dest=build_path)
     return fmu_path
 

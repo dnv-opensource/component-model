@@ -24,8 +24,9 @@ def check_expected(value, expected, feature: str):
         assert value == expected, f"Expected the {feature} '{expected}', but found the value {value}"
 
 @pytest.fixture(scope="session")
-def simple_table_fmu(tmp_path_factory):
-    build_path = tmp_path_factory.mktemp("fmu")
+def simple_table_fmu():
+    build_path = Path.cwd() / "fmus"
+    build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "simple_table.py"), project_files=[], dest=build_path)
     return fmu_path
 
@@ -37,7 +38,9 @@ def simple_table_system_structure(tmp_path_factory, simple_table_fmu):
     
     root[0][0].attrib['source'] = f"../{os.path.basename(simple_table_fmu.parent)}/SimpleTable.fmu"
 
-    system_structure_path = tmp_path_factory.mktemp("fmu") / "SimpleTableSystemStructure.xml"
+    build_path = Path.cwd() / "config"
+    build_path.mkdir(exist_ok=True)
+    system_structure_path = build_path / "SimpleTableSystemStructure.xml"
     tree.write(system_structure_path)
     return system_structure_path 
 

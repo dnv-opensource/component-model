@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -9,8 +10,9 @@ from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
 
 @pytest.fixture(scope="session")
-def bouncing_ball_fmu(tmp_path_factory):
-    build_path = tmp_path_factory.mktemp("fmu")
+def bouncing_ball_fmu():
+    build_path = Path.cwd() / "fmus"
+    build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball2.py"), project_files=[], dest=build_path)
     return fmu_path
 
