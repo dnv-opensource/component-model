@@ -12,16 +12,8 @@ from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
-from .caus_var_ini import check_causality_variability_initial, use_start
+from .caus_var_ini import check_causality_variability_initial, use_start, Initial
 from .logger import get_module_logger
-
-
-class Initial(Enum):
-    exact = 0
-    approx = 1
-    calculated = 2
-    none = 3  # additional value to allow for the cases when initial: --
-
 
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum

@@ -13,9 +13,10 @@ from pint import UnitRegistry
 from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore
 from pythonfmu import __version__ as pythonfmu_version
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
+
+from component_model.caus_var_ini import Initial
 
 from .logger import get_module_logger
 from .variable import Variable
