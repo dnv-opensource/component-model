@@ -13,12 +13,18 @@ from libcosimpy.CosimSlave import CosimLocalSlave
 def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball2.py"), project_files=[], dest=build_path)
+    fmu_path = Model.build(
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball2.py"),
+        project_files=[],
+        dest=build_path,
+    )
     return fmu_path
+
 
 def test_model_description():
     mod = BouncingBallFMU()
     mod.to_xml()
+
 
 def test_run_fmpy(bouncing_ball_fmu):
     _ = simulate_fmu(
@@ -36,6 +42,7 @@ def test_run_fmpy(bouncing_ball_fmu):
             "v0[1]": 3.0,
         },
     )
+
 
 def test_run_osp(bouncing_ball_fmu):
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos

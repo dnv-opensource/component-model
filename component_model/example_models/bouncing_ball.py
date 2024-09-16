@@ -35,7 +35,7 @@ class BouncingBall(Model):
         min_speed_z: float = 1e-6,
         **kwargs,
     ):
-        super().__init__(name, description, author='DNV, SEACo project', **kwargs)
+        super().__init__(name, description, author="DNV, SEACo project", **kwargs)
         self.pos = np.array(pos, dtype=float)
         self.speed = np.array(speed, dtype=float)
         self.a = np.array((0, 0, -g), float)

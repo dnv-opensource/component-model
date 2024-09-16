@@ -22,6 +22,7 @@ def build_fmu():
     fmu_path = FmuBuilder.build_FMU(__file__, project_files=[], dest=build_path)
     return fmu_path
 
+
 class PythonSlave(Fmi2Slave):
     author = "John Doe"
     description = "A simple description"
@@ -91,6 +92,7 @@ class PythonSlave(Fmi2Slave):
 def test_make_fmu(build_fmu):
     assert build_fmu.name == "PythonSlave.fmu"
 
+
 def test_use_fmu(build_fmu):
     _ = simulate_fmu(
         build_fmu,
@@ -102,4 +104,3 @@ def test_use_fmu(build_fmu):
         logger=print,  # fmi_call_logger=print,
         start_values={"realIn": 88.8},
     )
-

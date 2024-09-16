@@ -438,8 +438,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if "radian" in str(
-                ubase.units
+            if (
+                "radian" in str(ubase.units)
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))

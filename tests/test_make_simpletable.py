@@ -23,26 +23,33 @@ def check_expected(value, expected, feature: str):
     else:
         assert value == expected, f"Expected the {feature} '{expected}', but found the value {value}"
 
+
 @pytest.fixture(scope="session")
 def simple_table_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "simple_table.py"), project_files=[], dest=build_path)
+    fmu_path = Model.build(
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "simple_table.py"),
+        project_files=[],
+        dest=build_path,
+    )
     return fmu_path
+
 
 @pytest.fixture(scope="session")
 def simple_table_system_structure(tmp_path_factory, simple_table_fmu):
     ET.register_namespace("", "http://opensimulationplatform.com/MSMI/OSPSystemStructure")
-    tree = ET.parse(Path(__file__).parent / 'resources' / 'SimpleTableSystemStructure.xml')
+    tree = ET.parse(Path(__file__).parent / "resources" / "SimpleTableSystemStructure.xml")
     root = tree.getroot()
 
-    root[0][0].attrib['source'] = f"../{os.path.basename(simple_table_fmu.parent)}/SimpleTable.fmu"
+    root[0][0].attrib["source"] = f"../{os.path.basename(simple_table_fmu.parent)}/SimpleTable.fmu"
 
     build_path = Path.cwd() / "config"
     build_path.mkdir(exist_ok=True)
     system_structure_path = build_path / "SimpleTableSystemStructure.xml"
     tree.write(system_structure_path)
     return system_structure_path
+
 
 def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
@@ -59,6 +66,7 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     with ZipFile(file) as zp:
         xml = zp.read(sub)
     return ET.fromstring(xml)
+
 
 def test_inputtable_class(interpolate=False):
     tbl = InputTable(
@@ -127,7 +135,9 @@ def test_make_simpletable(simple_table_fmu):
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu(str(simple_table_fmu))
-    assert not len(val), f"Validation of the modelDescription of {simple_table_fmu.name} was not successful. Errors: {val}"
+    assert not len(
+        val
+    ), f"Validation of the modelDescription of {simple_table_fmu.name} was not successful. Errors: {val}"
 
 
 def test_use_fmu_interpolation(simple_table_fmu):
@@ -153,6 +163,7 @@ def test_use_fmu_interpolation(simple_table_fmu):
         check_expected(_linear(tt, _t, _z), z, f"Linear interpolated z at t={tt}")
         tt = t
 
+
 def test_use_fmu_no_interpolation(simple_table_fmu):
     result = simulate_fmu(
         simple_table_fmu,
@@ -174,6 +185,7 @@ def test_use_fmu_no_interpolation(simple_table_fmu):
             assert x == 4 and y == 5 and z == 6, f"Values for t>1 wrong. Found ({x}, {y}, {z}) at t={t}"
         elif t > 0:
             assert x == 1 and y == 2 and z == 3, f"Values for t>0 wrong. Found ({x}, {y}, {z}) at t={t}"
+
 
 def test_run_osp(simple_table_fmu):
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos

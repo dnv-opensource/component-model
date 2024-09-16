@@ -15,8 +15,13 @@ from component_model.utils import (
 def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"), project_files=[], dest=build_path)
+    fmu_path = Model.build(
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"),
+        project_files=[],
+        dest=build_path,
+    )
     return fmu_path
+
 
 def dicts_equal(d1: dict, d2: dict):
     assert isinstance(d1, dict), f"Dict expected. Found {d1}"
@@ -27,6 +32,7 @@ def dicts_equal(d1: dict, d2: dict):
     for key in d2:
         assert key in d1, f"Key {key} not found in {d1}"
         assert d1[key] == d2[key], f"Value of key {key} {d1[key]} != {d2[key]}"
+
 
 def test_xml_to_python_val():
     assert xml_to_python_val("true")
@@ -115,11 +121,11 @@ def test_osp_structure(tmp_path_factory):
 
 def test_model_from_fmu(bouncing_ball_fmu):
     kwargs = model_from_fmu(bouncing_ball_fmu)
-    kwargs.pop('guid')
+    kwargs.pop("guid")
     expected = {
         "name": "BouncingBall",
         "description": "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU",
-        "author": 'DNV, SEACo project',
+        "author": "DNV, SEACo project",
         "version": "0.1",
         "unit_system": "SI",
         "license": 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. ',

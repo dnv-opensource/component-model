@@ -32,12 +32,18 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
         xml = zp.read(sub)
     return ET.fromstring(xml)
 
+
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"), project_files=[], dest=build_path)
+    fmu_path = Model.build(
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"),
+        project_files=[],
+        dest=build_path,
+    )
     return fmu_path
+
 
 def test_bouncing_ball_class():
     bb = BouncingBall(pos=(0, 0, 10), speed=(1, 0, 0), g=9.81, e=0.9, min_speed_z=1e-6)
@@ -53,6 +59,7 @@ def test_bouncing_ball_class():
         height.append(bb.pos[2])
         times.append(time)
 
+
 def test_make_bouncing_ball(bouncing_ball_fmu):
     _ = fmu_info(bouncing_ball_fmu)  # not necessary, but it lists essential properties of the FMU
     et = _to_et(bouncing_ball_fmu)
@@ -61,7 +68,10 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu(str(bouncing_ball_fmu))
-    assert not len(val), f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
+    assert not len(
+        val
+    ), f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
+
 
 def test_use_fmu(bouncing_ball_fmu):
     _ = simulate_fmu(
@@ -74,6 +84,7 @@ def test_use_fmu(bouncing_ball_fmu):
         logger=print,  # fmi_call_logger=print,
         start_values={"pos[2]": 2},
     )
+
 
 def test_run_osp(bouncing_ball_fmu):
     sim = CosimExecution.from_step_size(step_size=1e7)  # empty execution object with fixed time step in nanos
@@ -95,18 +106,22 @@ def test_run_osp(bouncing_ball_fmu):
     # Simulate for 1 second
     sim.simulate_until(target_time=3e9)
 
+
 def test_from_fmu(bouncing_ball_fmu):
     assert bouncing_ball_fmu.exists(), "FMU not found"
     model = model_from_fmu(bouncing_ball_fmu)
-    assert model['name'] == "BouncingBall", f"Name: {model['name']}"
-    assert model['description'] == "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU"
-    assert model['author'] == "DNV, SEACo project"
-    assert model['version'] == "0.1"
-    assert model['license'].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-    assert model['copyright'] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
-    assert model['default_experiment'] is not None
+    assert model["name"] == "BouncingBall", f"Name: {model['name']}"
     assert (
-        model['default_experiment']['start_time'],
-        model['default_experiment']['step_size'],
-        model['default_experiment']['stop_time'],
+        model["description"]
+        == "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU"
+    )
+    assert model["author"] == "DNV, SEACo project"
+    assert model["version"] == "0.1"
+    assert model["license"].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
+    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
+    assert model["default_experiment"] is not None
+    assert (
+        model["default_experiment"]["start_time"],
+        model["default_experiment"]["step_size"],
+        model["default_experiment"]["stop_time"],
     ) == (0.0, 0.01, 1.0)
