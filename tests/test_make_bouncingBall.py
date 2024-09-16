@@ -1,20 +1,18 @@
-import gc
-from pathlib import Path
 import time
 import xml.etree.ElementTree as ET  # noqa: N817
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
 from component_model.example_models.bouncing_ball import BouncingBall  # type: ignore
 from component_model.model import Model  # type: ignore
+from component_model.utils import model_from_fmu
 from fmpy import simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
-
-from component_model.utils import model_from_fmu
 
 
 def _in_interval(x: float, x0: float, x1: float):
@@ -56,7 +54,7 @@ def test_bouncing_ball_class():
         times.append(time)
 
 def test_make_bouncing_ball(bouncing_ball_fmu):
-    info = fmu_info(bouncing_ball_fmu)  # not necessary, but it lists essential properties of the FMU
+    _ = fmu_info(bouncing_ball_fmu)  # not necessary, but it lists essential properties of the FMU
     et = _to_et(bouncing_ball_fmu)
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
     # similarly other critical issues of the modelDescription can be checked
@@ -92,7 +90,7 @@ def test_run_osp(bouncing_ball_fmu):
     sim_status = sim.status()
     assert sim_status.current_time == 0
     assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
-    infos = sim.slave_infos()
+    _ = sim.slave_infos()
 
     # Simulate for 1 second
     sim.simulate_until(target_time=3e9)

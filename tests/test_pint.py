@@ -2,7 +2,6 @@
 
 import logging
 
-import pytest
 from component_model.logger import get_module_logger  # type: ignore
 from pint import UnitRegistry
 

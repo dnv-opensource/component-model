@@ -1,6 +1,7 @@
 from pathlib import Path
+
 import pytest
-from fmpy import plot_result, simulate_fmu  # type: ignore
+from fmpy import simulate_fmu  # type: ignore
 from pythonfmu import (  # type: ignore
     Boolean,
     DefaultExperiment,
@@ -12,6 +13,7 @@ from pythonfmu import (  # type: ignore
     Real,
     String,
 )
+
 
 @pytest.fixture(scope="session")
 def build_fmu():

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from component_model.example_models.input_table import InputTable  # type: ignore
 from component_model.model import Model  # type: ignore
-from fmpy import plot_result, simulate_fmu  # type: ignore
+from fmpy import simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
@@ -35,14 +35,14 @@ def simple_table_system_structure(tmp_path_factory, simple_table_fmu):
     ET.register_namespace("", "http://opensimulationplatform.com/MSMI/OSPSystemStructure")
     tree = ET.parse(Path(__file__).parent / 'resources' / 'SimpleTableSystemStructure.xml')
     root = tree.getroot()
-    
+
     root[0][0].attrib['source'] = f"../{os.path.basename(simple_table_fmu.parent)}/SimpleTable.fmu"
 
     build_path = Path.cwd() / "config"
     build_path.mkdir(exist_ok=True)
     system_structure_path = build_path / "SimpleTableSystemStructure.xml"
     tree.write(system_structure_path)
-    return system_structure_path 
+    return system_structure_path
 
 def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0

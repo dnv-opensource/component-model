@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from component_model.model import Model
 from component_model.utils import (
     make_osp_system_structure,
@@ -10,6 +9,7 @@ from component_model.utils import (
     variables_from_fmu,
     xml_to_python_val,
 )
+
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():

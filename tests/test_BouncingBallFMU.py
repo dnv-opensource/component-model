@@ -1,13 +1,13 @@
-import os
 from pathlib import Path
 
 import pytest
 from component_model.example_models.bouncing_ball2 import BouncingBallFMU
 from component_model.model import Model  # type: ignore
-from fmpy import dump, plot_result, simulate_fmu  # type: ignore
+from fmpy import simulate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
+
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
