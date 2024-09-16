@@ -1,11 +1,12 @@
 import datetime
+import os
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
 from math import log
 from pathlib import Path
-from typing import TypeAlias
+from typing import TypeAlias, Union
 
 import numpy as np
 from pint import UnitRegistry
@@ -310,7 +311,7 @@ class Model(Fmi2Slave):
     def build(
         script: str = "",
         project_files: list | None = None,
-        dest: str = ".",
+        dest: Union[str, os.PathLike[str], None] = ".",
         documentation_folder: Path | None = None,
     ):
         """Build the FMU, resulting in the model-name.fmu file.
@@ -329,6 +330,10 @@ class Model(Fmi2Slave):
         if project_files is None:
             project_files = []
         project_files.append(Path(__file__).parents[0])
+
+        # Make sure the dest path is of type Patch
+        dest = dest if isinstance(dest, Path) else Path(dest)
+
         with tempfile.TemporaryDirectory() as documentation_dir:
             doc_dir = Path(documentation_dir)
             license_file = doc_dir / "licenses" / "license.txt"

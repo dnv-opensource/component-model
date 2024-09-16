@@ -90,41 +90,33 @@ def test_xml():
     # print( ET.tostring(et))
 
 
-# def test_from_fmu():
-#     path = Path( Path(__file__).parent, "BouncingBallFMU.fmu")
-#     assert path.exists(), "FMU not found"
-#     model = model_from_fmu( path)
-#     assert model.name == "BouncingBallFMU", f"Name:{model.name}"
-#     print( dir(model))
-#     assert model.description == "Simple bouncing ball test FMU", f"Description:{model.description}"
-#     assert model.author == "DNV, SEACo project"
-#     assert model.version == "0.1"
-#     assert model.license.startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-#     assert model.copyright == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
-#     assert model.guid == "8336c04d3e2f45379db8ed685e034a69", f"Found: {model.guid}"
-#     assert model.default_experiment is None
-#     #     assert (
-#     #         model.default_experiment.start_time,
-#     #         model.default_experiment.step_size,
-#     #         model.default_experiment.stop_time,
-#     #         model.default_experiment.tolerance,
-#     #     ) == (0.0, 0.1, 10.0, 0.001)
-#     assert model.flags == {
-#         "needsExecutionTool": True,
-#         "canHandleVariableCommunicationStepSize": True,
-#         "canNotUseMemoryManagementFunctions": True,
-#     }
-#     for idx, var in model.vars.items():
-#         print(idx, var)
-#     assert model.vars[0].name == "x[0]"
-#     assert model.vars[0].value0 == 0.0
-#     assert model.vars[6].name == "bounceFactor"
+def test_from_fmu():
+    path = Path(Path(__file__).parent, "BouncingBallFMU.fmu")
+    assert path.exists(), "FMU not found"
+    model = model_from_fmu( path)
+    assert model.name == "BouncingBallFMU", f"Name:{model.name}"
+    print( dir(model))
+    assert model.description == "Simple bouncing ball test FMU", f"Description:{model.description}"
+    assert model.author == "DNV, SEACo project"
+    assert model.version == "0.1"
+    assert model.license.startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
+    assert model.copyright == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
+    assert model.guid == "8336c04d3e2f45379db8ed685e034a69", f"Found: {model.guid}"
+    assert model.default_experiment is None
+    assert (
+        model.default_experiment.start_time,
+        model.default_experiment.step_size,
+        model.default_experiment.stop_time,
+        model.default_experiment.tolerance,
+    ) == (0.0, 0.1, 10.0, 0.001)
+    assert model.flags == {
+        "needsExecutionTool": True,
+        "canHandleVariableCommunicationStepSize": True,
+        "canNotUseMemoryManagementFunctions": True,
+    }
+    for idx, var in model.vars.items():
+        print(idx, var)
+    assert model.vars[0].name == "x[0]"
+    assert model.vars[0].value0 == 0.0
+    assert model.vars[6].name == "bounceFactor"
 
-
-if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
-    assert retcode == 0, f"Return code {retcode}"
-    # test_license()
-    # test_osp_structure()
-    # test_xml()
-    # test_from_fmu() # not yet finished and tested
