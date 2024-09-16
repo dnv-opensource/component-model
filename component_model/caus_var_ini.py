@@ -4,11 +4,13 @@ from enum import Enum
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
+
 class Initial(Enum):
     exact = 0
     approx = 1
     calculated = 2
-    none = 3 # additional value to allow for the cases when initial: --
+    none = 3  # additional value to allow for the cases when initial: --
+
 
 # see tables on page 50 in FMI 2.0.1 specification
 combinations = (

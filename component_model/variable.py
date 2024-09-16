@@ -15,11 +15,13 @@ from pythonfmu.variables import ScalarVariable  # type: ignore
 from .caus_var_ini import check_causality_variability_initial, use_start
 from .logger import get_module_logger
 
+
 class Initial(Enum):
     exact = 0
     approx = 1
     calculated = 2
-    none = 3 # additional value to allow for the cases when initial: --
+    none = 3  # additional value to allow for the cases when initial: --
+
 
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum
