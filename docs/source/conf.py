@@ -11,8 +11,9 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 
-import os, sys, shutil
-
+import os
+import shutil
+import sys
 
 sys.path.insert(0, os.path.abspath("../_ext"))
 sys.path.insert(0, os.path.abspath("../../component_model"))
@@ -67,7 +68,6 @@ exclude_patterns: list[str] = []
 #
 html_theme = "classic"  # alabaster'
 html_theme_options = {
-    "body_min_width": "70%",
     "rightsidebar": "false",
     "stickysidebar": "true",
     "relbarbgcolor": "black",

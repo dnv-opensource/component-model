@@ -12,7 +12,7 @@ from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
-from .caus_var_ini import check_causality_variability_initial, use_start, Initial
+from .caus_var_ini import Initial, check_causality_variability_initial, use_start
 from .logger import get_module_logger
 
 logger = get_module_logger(__name__, level=0)
@@ -292,6 +292,7 @@ class Variable(ScalarVariable):
 
     @property
     def initial(self) -> Initial:
+        assert self._initial is not None, "Initial shall be properly set at this point"
         return self._initial
 
     def setter(self, value: PyType | Compound, idx: int | None = None):

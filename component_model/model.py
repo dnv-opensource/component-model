@@ -312,7 +312,7 @@ class Model(Fmi2Slave):
     def build(
         script: str = "",
         project_files: list | None = None,
-        dest: Union[str, os.PathLike[str], None] = ".",
+        dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
     ):
         """Build the FMU, resulting in the model-name.fmu file.
@@ -439,8 +439,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if (
-                "radian" in str(ubase.units)
+            if "radian" in str(
+                ubase.units
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))

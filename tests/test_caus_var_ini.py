@@ -1,4 +1,3 @@
-from enum import Enum
 
 import component_model.caus_var_ini as cvi  # type: ignore
 import pytest
@@ -23,7 +22,11 @@ def test_ensure_enum():
 
 
 def test_check():
-    assert cvi.check_causality_variability_initial("input", "discrete", cvi.Initial.approx, msg=True) == (None, None, None)
+    assert cvi.check_causality_variability_initial("input", "discrete", cvi.Initial.approx, msg=True) == (
+        None,
+        None,
+        None,
+    )
     assert cvi.check_causality_variability_initial("input", "discrete", None, msg=True) == (
         Causality.input,
         Variability.discrete,

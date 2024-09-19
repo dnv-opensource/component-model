@@ -6,7 +6,7 @@ from component_model.model import Model
 from component_model.variable import Variable
 
 
-class BouncingBall(Model):
+class BouncingBall3D(Model):
     """Another BouncingBall model, made in Python and using Model and Variable to construct a FMU.
 
     Special features:
@@ -26,7 +26,7 @@ class BouncingBall(Model):
 
     def __init__(
         self,
-        name: str = "BouncingBall_3D",
+        name: str = "BouncingBall3D",
         description="Another BouncingBall model, made in Python and using Model and Variable to construct a FMU",
         pos: tuple = (0, 0, 10),
         speed: tuple = (1, 0, 0),

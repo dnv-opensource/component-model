@@ -6,7 +6,7 @@ from component_model.model import Model
 from component_model.variable import Variable
 
 
-class BouncingBallFMU(Model):
+class BouncingBallXZ(Model):
     """Fmi2Slave implementation of a model made in Python, performing the FMU 'packaging', implements the pythonfmu.Fmi2Slave and runs buildFMU, i.e.
           * prepare the modeldescription.xml
           * implement the FMI2 C interface for the present platform (as .dll, .so, ...).
@@ -29,7 +29,7 @@ class BouncingBallFMU(Model):
 
     def __init__(
         self,
-        name="BouncingBall",
+        name="BouncingBallXZ",
         description="Simple bouncing ball test FMU",
         author="DNV, SEACo project",
         version="0.1",

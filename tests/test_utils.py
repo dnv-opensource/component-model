@@ -16,7 +16,7 @@ def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"),
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
     )
@@ -71,7 +71,7 @@ def test_model_description(bouncing_ball_fmu):
             "canBeInstantiatedOnlyOncePerProcess": "false",
             "canGetAndSetFMUstate": "false",
             "canSerializeFMUstate": "false",
-            "modelIdentifier": "BouncingBall",
+            "modelIdentifier": "BouncingBall3D",
             "canNotUseMemoryManagementFunctions": "true",
         },
     )
@@ -123,7 +123,7 @@ def test_model_from_fmu(bouncing_ball_fmu):
     kwargs = model_from_fmu(bouncing_ball_fmu)
     kwargs.pop("guid")
     expected = {
-        "name": "BouncingBall",
+        "name": "BouncingBall3D",
         "description": "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU",
         "author": "DNV, SEACo project",
         "version": "0.1",
@@ -139,7 +139,7 @@ def test_model_from_fmu(bouncing_ball_fmu):
                 "canBeInstantiatedOnlyOncePerProcess": False,
                 "canGetAndSetFMUstate": False,
                 "canSerializeFMUstate": False,
-                "modelIdentifier": "BouncingBall",
+                "modelIdentifier": "BouncingBall3D",
                 "canNotUseMemoryManagementFunctions": True,
             },
         ),
@@ -157,3 +157,8 @@ def test_variables_from_fmu(bouncing_ball_fmu):
     assert collect[0]["name"] == "pos"
     assert len(collect[1]["start"]) == 3
     assert len(collect[4]["rng"][0]) == 0
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+

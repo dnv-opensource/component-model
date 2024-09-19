@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from component_model.example_models.bouncing_ball2 import BouncingBallFMU
+from component_model.example_models.bouncing_ball_xz import BouncingBallXZ
 from component_model.model import Model  # type: ignore
 from fmpy import simulate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
@@ -14,7 +14,7 @@ def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball2.py"),
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball_xz.py"),
         project_files=[],
         dest=build_path,
     )
@@ -22,7 +22,7 @@ def bouncing_ball_fmu():
 
 
 def test_model_description():
-    mod = BouncingBallFMU()
+    mod = BouncingBallXZ()
     mod.to_xml()
 
 
@@ -63,3 +63,8 @@ def test_run_osp(bouncing_ball_fmu):
 
     # Simulate for 15 seconds
     sim.simulate_until(target_time=15e9)
+
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"

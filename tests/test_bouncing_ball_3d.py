@@ -4,7 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from component_model.example_models.bouncing_ball import BouncingBall  # type: ignore
+from component_model.example_models.bouncing_ball_3d import BouncingBall3D  # type: ignore
 from component_model.model import Model  # type: ignore
 from component_model.utils import model_from_fmu
 from fmpy import simulate_fmu  # type: ignore
@@ -38,7 +38,7 @@ def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball.py"),
+        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
     )
@@ -46,7 +46,7 @@ def bouncing_ball_fmu():
 
 
 def test_bouncing_ball_class():
-    bb = BouncingBall(pos=(0, 0, 10), speed=(1, 0, 0), g=9.81, e=0.9, min_speed_z=1e-6)
+    bb = BouncingBall3D(pos=(0, 0, 10), speed=(1, 0, 0), g=9.81, e=0.9, min_speed_z=1e-6)
     arrays_equal(bb.pos, (0, 0, 0.254))  # 1)) was provided as inch
     assert bb.g == 9.81
     time = 0
@@ -110,7 +110,7 @@ def test_run_osp(bouncing_ball_fmu):
 def test_from_fmu(bouncing_ball_fmu):
     assert bouncing_ball_fmu.exists(), "FMU not found"
     model = model_from_fmu(bouncing_ball_fmu)
-    assert model["name"] == "BouncingBall", f"Name: {model['name']}"
+    assert model["name"] == "BouncingBall3D", f"Name: {model['name']}"
     assert (
         model["description"]
         == "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU"
@@ -125,3 +125,8 @@ def test_from_fmu(bouncing_ball_fmu):
         model["default_experiment"]["step_size"],
         model["default_experiment"]["stop_time"],
     ) == (0.0, 0.01, 1.0)
+
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"

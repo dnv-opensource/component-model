@@ -17,7 +17,7 @@ def bouncing_ball_fmu(tmp_path_factory):
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball2.py",
+        Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball_xz.py",
         project_files=[],
         dest=build_path,
     )
@@ -106,7 +106,7 @@ def test_xml():
 
 def test_from_fmu(bouncing_ball_fmu):
     model = model_from_fmu(bouncing_ball_fmu)
-    assert model["name"] == "BouncingBallFMU", f"Name:{model['name']}"
+    assert model["name"] == "BouncingBallXZ", f"Name:{model['name']}"
     print(dir(model))
     assert model["description"] == "Simple bouncing ball test FMU", f"Description:{model['description']}"
     assert model["author"] == "DNV, SEACo project"
@@ -119,3 +119,8 @@ def test_from_fmu(bouncing_ball_fmu):
         model["default_experiment"]["step_size"],
         model["default_experiment"]["stop_time"],
     ) == (0.0, 0.01, 1.0)
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+
