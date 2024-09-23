@@ -14,7 +14,7 @@ from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
-from resources.input_table import InputTable  # type: ignore
+from tests.examples.input_table import InputTable  # type: ignore
 
 
 def check_expected(value, expected, feature: str):
@@ -29,8 +29,8 @@ def simple_table_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent / "resources" / "simple_table.py"),
-        project_files=[],
+        str(Path(__file__).parent / "examples" / "simple_table.py"),
+        project_files=[Path(__file__).parent / "examples" / "input_table.py"],
         dest=build_path,
     )
     return fmu_path
