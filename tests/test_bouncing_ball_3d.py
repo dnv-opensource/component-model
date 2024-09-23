@@ -4,7 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from component_model.example_models.bouncing_ball_3d import BouncingBall3D  # type: ignore
+from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
 from component_model.model import Model  # type: ignore
 from component_model.utils import model_from_fmu
 from fmpy import simulate_fmu  # type: ignore
@@ -38,7 +38,7 @@ def bouncing_ball_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "component_model" / "example_models" / "bouncing_ball_3d.py"),
+        str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
     )
