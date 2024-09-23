@@ -1,10 +1,10 @@
-name: Push to main
-run-name: Push to main by @${{ github.actor }}
+name: Push to master
+run-name: Push to master by @${{ github.actor }}
 
 on:
   push:
     branches:
-      - main
+      - master
 
 concurrency:
   group: push-${{ github.ref }}-1
