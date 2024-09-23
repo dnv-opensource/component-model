@@ -29,7 +29,7 @@ def simple_table_fmu():
     build_path = Path.cwd() / "fmus"
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "component_model" / "example_models" / "simple_table.py"),
+        str(Path(__file__).parent / "resources" / "simple_table.py"),
         project_files=[],
         dest=build_path,
     )
