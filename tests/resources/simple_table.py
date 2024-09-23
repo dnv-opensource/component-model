@@ -1,4 +1,4 @@
-from component_model.example_models.input_table import InputTable
+from .input_table import InputTable
 
 
 class SimpleTable(InputTable):
