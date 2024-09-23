@@ -5,7 +5,6 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from component_model.example_models.input_table import InputTable  # type: ignore
 from component_model.model import Model  # type: ignore
 from fmpy import simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
@@ -15,6 +14,7 @@ from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
+from resources.input_table import InputTable  # type: ignore
 
 
 def check_expected(value, expected, feature: str):
