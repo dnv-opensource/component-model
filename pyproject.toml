@@ -20,7 +20,7 @@
     ]
     dependencies = [
         "pint>=0.22",
-        "pythonfmu@git+https://github.com/Jorgelmh/PythonFMU",
+        "pythonfmu@git+https://github.com/dnv-innersource/PythonFMU",
         "numpy>=1.24.2",
         "fmpy>=0.3.21",
         "libcosimpy>=0.0.2",
