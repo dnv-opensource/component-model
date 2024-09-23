@@ -1,7 +1,6 @@
 from math import sqrt
 
 import numpy as np
-
 from component_model.model import Model
 from component_model.variable import Variable
 

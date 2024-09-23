@@ -4,7 +4,6 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
 from component_model.model import Model  # type: ignore
 from component_model.utils import model_from_fmu
 from fmpy import simulate_fmu  # type: ignore
@@ -13,6 +12,8 @@ from fmpy.validation import validate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
+
+from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
 
 
 def _in_interval(x: float, x0: float, x1: float):

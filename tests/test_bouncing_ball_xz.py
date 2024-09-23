@@ -1,12 +1,13 @@
 from pathlib import Path
 
 import pytest
-from tests.examples.bouncing_ball_xz import BouncingBallXZ
 from component_model.model import Model  # type: ignore
 from fmpy import simulate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
+
+from tests.examples.bouncing_ball_xz import BouncingBallXZ
 
 
 @pytest.fixture(scope="session")
