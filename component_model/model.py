@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
 from math import log
 from pathlib import Path
-from typing import TypeAlias, Union
+from typing import TypeAlias
 
 import numpy as np
 from pint import UnitRegistry
@@ -439,8 +439,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if "radian" in str(
-                ubase.units
+            if (
+                "radian" in str(ubase.units)
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))

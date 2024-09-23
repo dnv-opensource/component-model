@@ -158,7 +158,7 @@ def test_variables_from_fmu(bouncing_ball_fmu):
     assert len(collect[1]["start"]) == 3
     assert len(collect[4]["rng"][0]) == 0
 
+
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-

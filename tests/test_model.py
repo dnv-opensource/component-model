@@ -120,7 +120,7 @@ def test_from_fmu(bouncing_ball_fmu):
         model["default_experiment"]["stop_time"],
     ) == (0.0, 0.01, 1.0)
 
+
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-
