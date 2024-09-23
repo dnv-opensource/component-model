@@ -263,7 +263,7 @@ def test_init():
     assert myEnum.check == Check.all
     # internally packed into tuple:
     assert myEnum.start == (Causality.parameter,)
-    assert myEnum.range == ((0, 5),), f"Range: {myEnum.range}"
+    assert myEnum.range == ((0, 4),), f"Range: {myEnum.range}"
     assert myEnum.unit == ("dimensionless",)
     assert myEnum.display[0] is None, f"Display: {myEnum.display[0]}"
     assert myEnum.check_range(1)
@@ -342,7 +342,7 @@ def test_init():
     assert mod.myNP[1] == -1.0, "Internal changes not range-checked!"
     with pytest.raises(VariableRangeError) as err:  # ... but getter() detects the range error
         _ = myNP.getter()
-    assert str(err.value) == "getter(): Value [1.0, -57.29577951308233, 3.0] outside range."
+    assert str(err.value) == "getter(): Value [np.float64(1.0), np.float64(-57.29577951308233), np.float64(3.0)] outside range."
     assert mod.myNP[1] == -1.0, f"Value {mod.myNP} should still be unchanged"
     mod.myNP = np.array((1.5, 2.5, 3.5), float)
     assert np.linalg.norm(mod.myNP) == math.sqrt(1.5**2 + 2.5**2 + 3.5**2), "np calculations are done on value"
@@ -382,7 +382,7 @@ def test_init():
         )
     assert str(err.value).startswith("Range must be specified for int variable")
     assert myFloat.range[0][1] == 99.0
-    assert myEnum.range[0] == (0, 5)
+    assert myEnum.range[0] == (0, 4)
     assert myEnum.check_range(Causality.parameter)
     assert myStr.range == (("", ""),), "Just a placeholder. Range of str is not checked"
     assert myBool.typ == bool
