@@ -348,7 +348,7 @@ def test_init():
     assert np.linalg.norm(mod.myNP) == math.sqrt(1.5**2 + 2.5**2 + 3.5**2), "np calculations are done on value"
     myNP.setter((1.0, 1.0, 1.0))
     arrays_equal(mod.myNP, (1.0, math.radians(1.0), 1.0))
-#    arrays_equal(myNP.getter(), (1.0, 1.0, 1.0))  # getter shows display units
+    #    arrays_equal(myNP.getter(), (1.0, 1.0, 1.0))  # getter shows display units
     vr0 = mod.variable_by_name("myNP").value_reference
     mod.set_real((vr0, vr0 + 1, vr0 + 2), (2.0, 2.0, 2.0))  # simulate setting from outside
     arrays_equal(mod.get_real((vr0, vr0 + 1, vr0 + 2)), [2.0, 2.0, 2.0])
