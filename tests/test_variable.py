@@ -342,10 +342,7 @@ def test_init():
     assert mod.myNP[1] == -1.0, "Internal changes not range-checked!"
     with pytest.raises(VariableRangeError) as err:  # ... but getter() detects the range error
         _ = myNP.getter()
-    assert (
-        str(err.value)
-        == "getter(): Value [1.0, -57.29577951308233, 3.0] outside range."
-    )
+    assert str(err.value) == "getter(): Value [1.0, -57.29577951308233, 3.0] outside range."
     assert mod.myNP[1] == -1.0, f"Value {mod.myNP} should still be unchanged"
     mod.myNP = np.array((1.5, 2.5, 3.5), float)
     assert np.linalg.norm(mod.myNP) == math.sqrt(1.5**2 + 2.5**2 + 3.5**2), "np calculations are done on value"
