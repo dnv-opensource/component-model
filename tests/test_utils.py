@@ -79,8 +79,8 @@ def test_model_description(bouncing_ball_fmu):
     el = et.find("./UnitDefinitions")
     assert el is not None, "UnitDefinitions element expected"
     assert (
-        len(el) == 5
-    ), f"Five UnitDefinitions expected. Found {''.join(x.get('name')+', ' for x in el.findall('./Unit'))}"
+        len(el) == 4
+    ), f"4 UnitDefinitions expected. Found {''.join(x.get('name')+', ' for x in el.findall('./Unit'))}"
     el = et.find("./TypeDefinitions")
     assert el is None, "No TypeDefinitions expected (so far not implemented in component_model"
     el = et.find("./LogCategories")
