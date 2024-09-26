@@ -4,7 +4,6 @@ from math import sqrt
 from pathlib import Path
 from zipfile import ZipFile
 
-import matplotlib.pyplot as plt
 import pytest
 from component_model.model import Model  # type: ignore
 from component_model.utils import model_from_fmu
@@ -28,13 +27,6 @@ def arrays_equal(arr1, arr2, eps=1e-7):
     for i in range(len(arr1)):
         # assert type(arr1[i]) == type(arr2[i]), f"Array element {i} type {type(arr1[i])} != {type(arr2[i])}"
         assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
-
-
-def show_data(_z):
-    fig, ax = plt.subplots()
-    ax.plot(_z)
-    plt.title("Data (_z)", loc="left")
-    plt.show()
 
 
 def _to_et(file: str, sub: str = "modelDescription.xml"):
@@ -158,7 +150,6 @@ def test_bouncing_ball_class():
 #             z.append( bb._pos.getter()[2])
 #
 #         print( f"Bounce {n}: {bb.pos}, steps:{len(z)}")
-#    show_data(z)
 #     return
 #     arrays_equal(result[int(2.5 / dt)], (2.5, 0, 0), eps=0.4)
 #     arrays_equal(result[int(3 / dt)], (3, 0, 0))
