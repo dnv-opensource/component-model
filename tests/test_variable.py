@@ -344,7 +344,7 @@ def test_init():
         _ = myNP.getter()
     assert (
         str(err.value)
-        == "getter(): Value [np.float64(1.0), np.float64(-57.29577951308233), np.float64(3.0)] outside range."
+        == "getter(): Value [1.0, -57.29577951308233, 3.0] outside range."
     )
     assert mod.myNP[1] == -1.0, f"Value {mod.myNP} should still be unchanged"
     mod.myNP = np.array((1.5, 2.5, 3.5), float)
