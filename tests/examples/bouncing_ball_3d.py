@@ -1,7 +1,6 @@
 from math import sqrt
 
 import numpy as np
-
 from component_model.model import Model
 from component_model.variable import Variable
 
@@ -36,28 +35,28 @@ class BouncingBall3D(Model):
         **kwargs,
     ):
         super().__init__(name, description, author="DNV, SEACo project", **kwargs)
-        self._pos = self._interface( 'pos', pos)
-        self._speed = self._interface( 'speed', speed)
-        self._g = self._interface( 'g', g)
+        self._pos = self._interface("pos", pos)
+        self._speed = self._interface("speed", speed)
+        self._g = self._interface("g", g)
         self.a = np.array((0, 0, -self.g), float)
-        self._e = self._interface( 'e', e)
+        self._e = self._interface("e", e)
         self.min_speed_z = min_speed_z
         self.stopped = False
         self.time = 0.0
-        self._p_bounce = self._interface( 'p_bounce', ('0m', '0m','0m')) # instantiates self.p_bounce. z always 0.
+        self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # instantiates self.p_bounce. z always 0.
         self.t_bounce, self.p_bounce = self.next_bounce()
 
-    def _interface(self, name:str, start:float|tuple):
+    def _interface(self, name: str, start: float | tuple):
         """Define a FMU2 interface variable, using the variable interface.
 
         Args:
             name (str): base name of the variable
             start (str|float|tuple): start value of the variable (optionally with units)
-        
+
         Returns:
             the variable object. As a side effect the variable value is made available as self.<name>
         """
-        if name == 'pos':
+        if name == "pos":
             return Variable(
                 self,
                 name="pos",
@@ -68,7 +67,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=((0, "100 m"), None, (0, "10 m")),
             )
-        elif name == 'speed':
+        elif name == "speed":
             return Variable(
                 self,
                 name="speed",
@@ -79,7 +78,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=((0, "1 m/s"), None, ("-100 m/s", "10 m/s")),
             )
-        elif name == 'g':
+        elif name == "g":
             return Variable(
                 self,
                 name="g",
@@ -89,7 +88,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
-        elif name == 'e':
+        elif name == "e":
             return Variable(
                 self,
                 name="e",
@@ -99,7 +98,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
-        elif name == 'p_bounce':
+        elif name == "p_bounce":
             return Variable(
                 self,
                 name="p_bounce",
@@ -127,8 +126,8 @@ class BouncingBall3D(Model):
                 self.a[2] = 0.0
                 self.speed[2] = 0.0
                 self.pos[2] = 0.0
-            self.time += self.dt_bounce # jump to the exact bounce time
-            self.dt_bounce, self.p_bounce = self.next_bounce() # update to the next bounce
+            self.time += self.dt_bounce  # jump to the exact bounce time
+            self.dt_bounce, self.p_bounce = self.next_bounce()  # update to the next bounce
         self.pos += self.speed * dt + 0.5 * self.a * dt**2
         self.speed += self.a * dt
         if self.pos[2] < 0:
@@ -154,4 +153,3 @@ class BouncingBall3D(Model):
         super().setup_experiment(start)
         self.stopped = False
         self.a = np.array((0, 0, -self.g), float)
-
