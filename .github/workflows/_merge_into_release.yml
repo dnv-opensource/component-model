@@ -21,6 +21,7 @@ jobs:
       - uses: devmasx/merge-branch@v1.4.0
         with:
           type: now
+          from_branch: master
           target_branch: release
           # @TODO: A dedicated RELEASE_TOKEN should be created in the repo settings
           #        and used for this task when in production.
