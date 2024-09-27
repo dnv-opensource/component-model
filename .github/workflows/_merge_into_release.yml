@@ -17,7 +17,7 @@ jobs:
           # Fetch the whole history to prevent unrelated history errors
           fetch-depth: 0
           # The branch you want to checkout (usually equal to `branchtomerge`)
-          # ref: ${{ github.event.ref }}
+          ref: ${{ github.event.ref }}
       - uses: devmasx/merge-branch@v1.4.0
         with:
           type: now
