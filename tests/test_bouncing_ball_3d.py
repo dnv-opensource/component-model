@@ -1,6 +1,7 @@
 import time
 import xml.etree.ElementTree as ET  # noqa: N817
 from math import sqrt
+import matplotlib.pyplot as plt
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -13,8 +14,6 @@ from fmpy.validation import validate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
-
-from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
 
 
 def _in_interval(x: float, x0: float, x1: float):
@@ -35,9 +34,13 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     return ET.fromstring(xml)
 
 
-def result(bb):
-    """Make a row of the fmpy results vector (all output variables in display units)"""
-    return (bb.time, *bb._pos.getter(), *bb._speed.getter(), *bb._p_bounce.getter())
+def do_show(result:list):
+    fig, ax = plt.subplots()
+    ax.plot( [res[3] for res in result], label = "z-position")
+    ax.plot( [res[4] for res in result], label = "x-speed")
+    ax.plot( [res[6] for res in result], label = "z-speed")
+    ax.legend()
+    plt.show()
 
 
 @pytest.fixture(scope="session")
@@ -52,61 +55,87 @@ def bouncing_ball_fmu():
     return fmu_path
 
 
-def test_bouncing_ball_class():
+def test_bouncing_ball_class(show):
+    """Test the BouncingBall3D class in isolation.
+
+    The first four lines are necessary to ensure that the BouncingBall3D class can be accessed:
+    If pytest is run from the command line, the current directory is the package root,
+    but when it is run from the editor (__main__) it is run from /tests/.
+    """
+    import os
+    if not os.path.exists( './pyproject.toml'):
+        import sys
+        sys.path.insert(0, os.path.abspath("../"))
+    from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
+
     bb = BouncingBall3D(
         pos=("0 m", "0 m", "10 inch"), speed=("1 m/s", "0 m/s", "0 m/s"), g="9.81 m/s^2", e=0.9, min_speed_z=1e-6
     )
-    arrays_equal(bb.pos, (0, 0, 10 * 0.0254))  # was provided as inch
-    arrays_equal(bb.speed, (1, 0, 0))
-    assert bb.g == 9.81
-    assert bb.e == 0.9
-    t_bounce = sqrt(2 * 10 * 0.0254 / 9.81)
-    v_bounce = 9.81 * t_bounce  # speed in z-direction
-    x_bounce = t_bounce  # x-position where it bounces in m
+    result = []
+    def get_result():
+        """Make a row of the fmpy results vector (all output variables in display units)"""
+        result.append( (bb.time, *bb._pos.getter(), *bb._speed.getter(), *bb._p_bounce.getter()))
+
+    h_fac = 1.0
+    if bb._pos.display[2] is not None: # the main test settings
+        arrays_equal(bb.pos, (0, 0, 10 * 0.0254))  # was provided as inch
+        arrays_equal(bb.speed, (1, 0, 0))
+        assert bb.g == 9.81
+        assert bb.e == 0.9
+        h_fac = 0.0254
+    h0 = bb.pos[2]
+    t_bounce = sqrt(2 * h0 / bb.g)
+    v_bounce = bb.g * t_bounce  # speed in z-direction
+    x_bounce = bb.speed[0]* t_bounce  # x-position where it bounces in m
     arrays_equal(bb.p_bounce, (x_bounce, 0, 0))
     time = 0
     dt = bb.default_experiment["stepSize"]
     assert dt == 0.01
     # set start values (in display units. Are translated to internal units
-    bb._pos.setter((0, 0, 10))
+    if bb._pos.display[2] is not None:
+        bb._pos.setter((0, 0, 10))
     t_b, p_b = bb.next_bounce()
     assert t_bounce == t_b
+    #print("Bounce", t_bounce, x_bounce, p_b)
     arrays_equal((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"
-    z = [bb._pos.getter()[2]]
+    get_result()
     # after one step
     bb.do_step(time, dt)
-    z.append(bb._pos.getter()[2])
+    get_result()
+    #print("After one step", result(bb))
     arrays_equal(
-        result(bb),
+        result[-1],
         (
-            0.01,
-            0.01,
+            0.01, # time
+            0.01, # pos
             0,
-            (10 * 0.0254 - 0.5 * 9.81 * 0.01**2) / 0.0254,
-            1,
-            0,
-            -9.81 * 0.01,
-            sqrt(2 * 10 * 0.0254 / 9.81),
+            (h0 - 0.5 * bb.g * 0.01**2) / h_fac,
+            1, # speed
+            0, 
+            -bb.g * 0.01,
+            x_bounce, # p_bounce
             0,
             0,
         ),
     )
     # just before bounce
     t_before = int(t_bounce / dt) * dt  # just before bounce
-    assert t_before == 0.22
-    for _ in range(int(t_bounce / dt) - 1):
+    if t_before == t_bounce: # at the interval border
+        t_before -= dt
+    for _ in range(int(t_before / dt) - 1):
         bb.do_step(time, dt)
-        z.append(bb._pos.getter()[2])
+        get_result()
+    #print(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
     arrays_equal(
-        result(bb),
+        result[-1],
         (
             t_before,
             1 * t_before,
             0,
-            (10 * 0.0254 - 0.5 * 9.81 * t_before**2) / 0.0254,
+            (h0 - 0.5 * bb.g * t_before**2) / h_fac,
             1,
             0,
-            -9.81 * t_before,
+            -bb.g * t_before,
             x_bounce,
             0,
             0,
@@ -114,50 +143,48 @@ def test_bouncing_ball_class():
         eps=0.003,
     )
     # just after bounce
+    #print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
     bb.do_step(time, dt)
-    z.append(bb._pos.getter()[2])
+    get_result()
     ddt = t_before + dt - t_bounce  # time from bounce to end of step
-    x_bounce2 = x_bounce + 2 * v_bounce * 0.9 * 1.0 * 0.9 / 9.81
+    x_bounce2 = x_bounce + 2 * v_bounce * bb.e * 1.0 * bb.e / bb.g
     arrays_equal(
-        result(bb),
+        result[-1],
         (
             t_before + dt,
-            t_bounce * 1 + 1 * 0.9 * ddt,
+            t_bounce * 1 + 1 * bb.e * ddt,
             0,
-            (v_bounce * 0.9 * ddt - 0.5 * 9.81 * ddt**2) / 0.0254,
-            0.9 * 1,
+            (v_bounce * bb.e * ddt - 0.5 * bb.g * ddt**2) / h_fac,
+            bb.e * 1,
             0,
-            (v_bounce * 0.9 - 9.81 * ddt),
+            (v_bounce * bb.e - bb.g * ddt),
             x_bounce2,
             0,
             0,
         ),
         eps=0.03,
     )
-
-
-#     # from bounce to bounce
-#     v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce
-#     for n in range(2, 100): # from bounce to bounce
-#         v_x = v_x* 0.9
-#         v_z = v_z* 0.9
-#         delta_t = 2* v_z* v_x/ 9.81
-#         t_b = t_b + delta_t
-#         x_b = x_b + v_x* t_b
-#
-#         for _ in range( int( delta_t/dt)):
-#             bb.do_step( time, dt)
-#             z.append( bb._pos.getter()[2])
-#
-#         print( f"Bounce {n}: {bb.pos}, steps:{len(z)}")
-#     return
-#     arrays_equal(result[int(2.5 / dt)], (2.5, 0, 0), eps=0.4)
-#     arrays_equal(result[int(3 / dt)], (3, 0, 0))
-#     print("RESULT", result[int(t_before / dt) + 1])
-#
-#     time += dt
-#     height.append(bb.pos[2])
-#     times.append(time)
+    # from bounce to bounce
+    v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce # set start values (first bounce)
+    #print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
+    for n in range(2, 100): # from bounce to bounce
+        v_x = v_x* bb.e # adjusted speeds
+        v_z = v_z* bb.e
+        delta_t = 2* v_z/ bb.g # time for one bounce (parabola): v(t) = v0 - g*t/2 => 2*v0/g = t
+        t_b += delta_t
+        x_b += v_x* delta_t
+        while bb.time <= t_b:
+            # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
+            bb.do_step( time, dt)
+            get_result()
+        # print( f"Bounce {n}: {bb.pos}, steps:{len(result)}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
+        assert abs( bb.pos[2]) < 1e-2, f"z-position {bb.pos[2]} should be close to 0"
+        if delta_t > 2*dt:
+            assert result[-2][6]<0 and result[-1][6]>0, f"Expected speed sign change {result[-2][6]}-{result[-1][6]}when bouncing"
+            assert bb.speed[0] == result[-2][4]*bb.e, "Reduced speed in x-direction"
+    if show:
+        do_show(result)
+    
 
 
 def test_make_bouncing_ball(bouncing_ball_fmu):
@@ -228,5 +255,9 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_bouncing_ball_class(show=False)
+    # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+    #              dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
+    # test_use_fmu( Path.cwd() / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
