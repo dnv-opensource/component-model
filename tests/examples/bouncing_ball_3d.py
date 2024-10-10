@@ -27,7 +27,7 @@ class BouncingBall3D(Model):
         self,
         name: str = "BouncingBall3D",
         description="Another BouncingBall model, made in Python and using Model and Variable to construct a FMU",
-        pos: tuple = ("0 m", "0 m", "10 m"),
+        pos: tuple = ("0 m", "0 m", "10 inch"),
         speed: tuple = ("1 m/s", "0 m/s", "0 m/s"),
         g: float = "9.81 m/s^2",
         e: float = 0.9,

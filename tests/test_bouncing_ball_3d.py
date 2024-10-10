@@ -8,7 +8,7 @@ from zipfile import ZipFile
 import pytest
 from component_model.model import Model  # type: ignore
 from component_model.utils import model_from_fmu
-from fmpy import simulate_fmu  # type: ignore
+from fmpy import simulate_fmu, plot_result  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
@@ -68,9 +68,7 @@ def test_bouncing_ball_class(show):
         sys.path.insert(0, os.path.abspath("../"))
     from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
 
-    bb = BouncingBall3D(
-        pos=("0 m", "0 m", "10 inch"), speed=("1 m/s", "0 m/s", "0 m/s"), g="9.81 m/s^2", e=0.9, min_speed_z=1e-6
-    )
+    bb = BouncingBall3D()
     result = []
     def get_result():
         """Make a row of the fmpy results vector (all output variables in display units)"""
@@ -200,17 +198,120 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     ), f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
 
 
-def test_use_fmu(bouncing_ball_fmu):
-    _ = simulate_fmu(
-        str(bouncing_ball_fmu),
+def test_use_fmu(bouncing_ball_fmu, show):
+    """Test and validate the basic BouncingBall using fmpy and not using OSP or case_study."""
+    assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
+    dt = 0.01
+    result = simulate_fmu(
+        bouncing_ball_fmu,
+        start_time=0.0,
         stop_time=3.0,
-        step_size=0.1,
+        step_size=dt,
         validate=True,
         solver="Euler",
-        debug_logging=True,
+        debug_logging=False,
+        visible=True,
         logger=print,  # fmi_call_logger=print,
-        start_values={"pos[2]": 2},
+        start_values={
+            "pos[2]": 10.0,
+            "speed[0]": 1.0,
+            "e": 0.9,
+            "g": 9.81,
+        },
     )
+    if show:
+        plot_result(result)
+    h0 = 10*0.0254
+    g = 9.81
+    e = 0.9
+    h_fac = 0.0254
+    t_bounce = sqrt(2*h0 / g)
+    v_bounce = g * t_bounce # speed in z-direction
+    x_bounce = t_bounce/1.0 # x-position where it bounces in m
+    # Note: default values are reported at time 0!
+    # print(f"Result[0]: {result[0]}")
+    arrays_equal(result[0], (0, 0, 0, 10, 1, 0, 0, sqrt(2*10*h_fac/9.81), 0, 0)) # time,pos-3, speed-3, p_bounce-3
+    # print(f"Result[1]: {result[1]}")
+    arrays_equal(
+        result[1],
+        (
+            0.01, # time
+            0.01, # pos
+            0,
+            (h0 - 0.5 * g * 0.01**2) / h_fac,
+            1, # speed
+            0, 
+            -g * 0.01,
+            x_bounce, # p_bounce
+            0,
+            0,
+        ),
+    )
+    arrays_equal(result[1], (0.01,
+                      0.01, 0, (10*0.0254-0.5*9.81*0.01**2)/0.0254,
+                      1, 0, -9.81*0.01, sqrt(2*10*0.0254/9.81), 0, 0))
+    
+    
+    # just before bounce
+    t_before = int(t_bounce / dt) * dt  # just before bounce
+    if t_before == t_bounce: # at the interval border
+        t_before -= dt
+    #print(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
+    arrays_equal(
+        result[int(t_before/dt)],
+        (
+            t_before,
+            1 * t_before,
+            0,
+            (h0 - 0.5 * g * t_before**2) / h_fac,
+            1,
+            0,
+            -g * t_before,
+            x_bounce,
+            0,
+            0,
+        ),
+        eps=0.003,
+    )
+    # just after bounce
+    #print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
+    ddt = t_before + dt - t_bounce  # time from bounce to end of step
+    x_bounce2 = x_bounce + 2 * v_bounce * e * 1.0 * e / g
+    arrays_equal(
+        result[int((t_before+dt)/dt)],
+        (
+            t_before + dt,
+            t_bounce * 1 + 1 * e * ddt,
+            0,
+            (v_bounce * e * ddt - 0.5 * g * ddt**2) / h_fac,
+            e * 1,
+            0,
+            (v_bounce * e - g * ddt),
+            x_bounce2,
+            0,
+            0,
+        ),
+        eps=0.03,
+    )
+    # from bounce to bounce
+    v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce # set start values (first bounce)
+    row = int((t_before+dt)/dt)
+    #print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
+    for n in range(2, 100): # from bounce to bounce
+        v_x = v_x* e # adjusted speeds
+        v_z = v_z* e
+        delta_t = 2* v_z/ g # time for one bounce (parabola): v(t) = v0 - g*t/2 => 2*v0/g = t
+        t_b += delta_t
+        x_b += v_x* delta_t
+        while result[row][0] <= t_b: # spool to the time just after the bounce
+            row += 1
+            if row >= len(result):
+                return
+        # print( f"Bounce {n}: {result[row][3]}, steps:{row}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
+        assert abs( min(result[row-1][3], result[row][3])) < 0.3, f"z-position {result[row][3]} should be close to 0"
+        if delta_t > 2*dt:
+            assert result[row-1][6]<0 and result[row][6]>0, f"Expected speed sign change {result[row-1][6]}-{result[row][6]}when bouncing"
+            assert abs( result[row-1][4]*e - result[row][4])<1e-15, "Reduced speed in x-direction"
 
 
 def test_run_osp(bouncing_ball_fmu):
@@ -255,9 +356,9 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
-    assert retcode == 0, f"Non-zero return code {retcode}"
+   retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
+   assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
     # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
     #              dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
-    # test_use_fmu( Path.cwd() / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
+    # test_use_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu", False)
