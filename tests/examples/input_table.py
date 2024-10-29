@@ -50,8 +50,8 @@ class InputTable(Model):
         )  # this is only internally defined, not as Variable
         self.outputName = outputName
         self._interface(table[0][1:], interpolate)
-        
-    def _interface(self, outs0:tuple, interpolate0:bool)
+
+    def _interface(self, outs0: tuple, interpolate0: bool):
         self._outs = Variable(
             self,
             name="outs",

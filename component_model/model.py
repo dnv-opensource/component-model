@@ -149,9 +149,9 @@ class Model(Fmi2Slave):
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
         super().exit_initialization_mode()
-        print(f"MODEL_exit_initialization")
+        print("MODEL_exit_initialization")
         self.dirty_do()  # run on_set on all dirty variables
-        
+
     def do_step(self, time, dt):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
@@ -446,8 +446,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if (
-                "radian" in str(ubase.units)
+            if "radian" in str(
+                ubase.units
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))

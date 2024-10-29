@@ -45,8 +45,7 @@ class BouncingBall3D(Model):
         self.stopped = False
         self.time = 0.0
         self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
-        self.t_bounce, self.p_bounce = (-1.0, self.pos) # provoke an update at simulation start
-
+        self.t_bounce, self.p_bounce = (-1.0, self.pos)  # provoke an update at simulation start
 
     def do_step(self, _, dt):
         """Perform a simulation step from `self.time` to `self.time + dt`.
@@ -58,14 +57,14 @@ class BouncingBall3D(Model):
         """
         if not super().do_step(self.time, dt):
             return False
-        if self.t_bounce < self.time: # calculate first bounce
+        if self.t_bounce < self.time:  # calculate first bounce
             self.t_bounce, self.p_bounce = self.next_bounce()
-        while self.t_bounce <= self.time+dt:  # bounce happens within step or at border
+        while self.t_bounce <= self.time + dt:  # bounce happens within step or at border
             dt1 = self.t_bounce - self.time
             self.pos = self.p_bounce
             self.speed += self.a * dt1  # speed before bouncing
             self.speed[2] = -self.speed[2]  # speed after bouncing if e==1.0
-            self.speed *= self.e # speed reduction due to coefficient of restitution
+            self.speed *= self.e  # speed reduction due to coefficient of restitution
             if self.speed[2] < self.min_speed_z:
                 self.stopped = True
                 self.a[2] = 0.0
@@ -75,7 +74,7 @@ class BouncingBall3D(Model):
             dt -= dt1
             self.t_bounce, self.p_bounce = self.next_bounce()  # update to the next bounce
         if dt > 0:
-            #print(f"pos={self.pos}, speed={self.speed}, a={self.a}, dt={dt}")
+            # print(f"pos={self.pos}, speed={self.speed}, a={self.a}, dt={dt}")
             self.pos += self.speed * dt + 0.5 * self.a * dt**2
             self.speed += self.a * dt
             self.time += dt
@@ -94,7 +93,7 @@ class BouncingBall3D(Model):
             dt_bounce = (self.speed[2] + sqrt(self.speed[2] ** 2 + 2 * self.g * self.pos[2])) / self.g
             p_bounce = self.pos + self.speed * dt_bounce  # linear. not correct for z-direction!
             p_bounce[2] = 0
-            return (self.time+dt_bounce, p_bounce)
+            return (self.time + dt_bounce, p_bounce)
 
     def setup_experiment(self, start: float):
         """Set initial (non-interface) variables."""
@@ -107,7 +106,6 @@ class BouncingBall3D(Model):
         """Initialize the model after initial variables are set."""
         super().exit_initialization_mode()
         self.a = np.array((0, 0, -self.g), float)
-
 
     def _interface(self, name: str, start: float | tuple):
         """Define a FMU2 interface variable, using the variable interface.
@@ -150,7 +148,7 @@ class BouncingBall3D(Model):
                 variability="fixed",
                 start=start,
                 rng=(),
-                on_set = self.on_set_g
+                on_set=self.on_set_g,
             )
         elif name == "e":
             return Variable(
@@ -172,6 +170,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
+
     def on_set_g(self, g):
         self.a = np.array((0, 0, -g), float)
         return g
