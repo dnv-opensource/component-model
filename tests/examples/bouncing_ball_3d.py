@@ -45,7 +45,7 @@ class BouncingBall3D(Model):
         self.stopped = False
         self.time = 0.0
         self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
-        self.t_bounce, self.p_bounce = self.next_bounce()
+        self.t_bounce, self.p_bounce = (-1.0, self.pos) # provoke an update at simulation start
 
 
     def do_step(self, _, dt):
@@ -58,7 +58,8 @@ class BouncingBall3D(Model):
         """
         if not super().do_step(self.time, dt):
             return False
-        assert self.t_bounce > self.time, f".t_bounce not updated: {self.t_bounce} <= {self.time}"
+        if self.t_bounce < self.time: # calculate first bounce
+            self.t_bounce, self.p_bounce = self.next_bounce()
         while self.t_bounce <= self.time+dt:  # bounce happens within step or at border
             dt1 = self.t_bounce - self.time
             self.pos = self.p_bounce
@@ -74,6 +75,7 @@ class BouncingBall3D(Model):
             dt -= dt1
             self.t_bounce, self.p_bounce = self.next_bounce()  # update to the next bounce
         if dt > 0:
+            #print(f"pos={self.pos}, speed={self.speed}, a={self.a}, dt={dt}")
             self.pos += self.speed * dt + 0.5 * self.a * dt**2
             self.speed += self.a * dt
             self.time += dt
@@ -97,10 +99,11 @@ class BouncingBall3D(Model):
     def setup_experiment(self, start: float):
         """Set initial (non-interface) variables."""
         super().setup_experiment(start)
+        # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
         self.stopped = False
         self.a = np.array((0, 0, -self.g), float)
         self.time = start
-        self.t_bounce, self.p_bounce = self.next_bounce()
+
 
     def _interface(self, name: str, start: float | tuple):
         """Define a FMU2 interface variable, using the variable interface.
@@ -143,6 +146,7 @@ class BouncingBall3D(Model):
                 variability="fixed",
                 start=start,
                 rng=(),
+                on_set = self.set_acceleration
             )
         elif name == "e":
             return Variable(
@@ -164,3 +168,6 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
+    def set_acceleration(self, g):
+        self.a = np.array((0, 0, -g), float)
+        return g

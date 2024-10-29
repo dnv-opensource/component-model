@@ -11,9 +11,11 @@ from component_model.utils import model_from_fmu
 from fmpy import simulate_fmu, plot_result  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
-from libcosimpy.CosimEnums import CosimExecutionState
+from libcosimpy.CosimEnums import CosimExecutionState, CosimErrorCode, CosimVariableType
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
+from libcosimpy.CosimObserver import CosimObserver
+from libcosimpy.CosimManipulator import CosimManipulator
 
 
 def _in_interval(x: float, x0: float, x1: float):
@@ -314,25 +316,66 @@ def test_use_fmu(bouncing_ball_fmu, show):
             assert abs( result[row-1][4]*e - result[row][4])<1e-15, "Reduced speed in x-direction"
 
 
-def test_run_osp(bouncing_ball_fmu):
+def test_from_osp(bouncing_ball_fmu):
+    def get_status( sim):
+        status = sim.status()
+        return {'currentTime': status.current_time,
+                'state' : CosimExecutionState(status.state).name,
+                'error_code' : CosimErrorCode(status.error_code).name,
+                'real_time_factor' : status.real_time_factor,
+                'rolling_average_real_time_factor' : status.rolling_average_real_time_factor,
+                'real_time_factor_target' : status.real_time_factor_target,
+                'is_real_time_simulation' : status.is_real_time_simulation,
+                'steps_to_monitor' : status.steps_to_monitor}
+
     sim = CosimExecution.from_step_size(step_size=1e7)  # empty execution object with fixed time step in nanos
     bb = CosimLocalSlave(fmu_path=str(bouncing_ball_fmu.absolute()), instance_name="bb")
 
     ibb = sim.add_local_slave(bb)
     assert ibb == 0, f"local slave number {ibb}"
-
-    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ibb)}
+    info = sim.slave_infos()
+    assert info[0].name.decode() == 'bb', "The name of the component instance"
+    assert info[0].index == 0, "The index of the component instance"
+    assert sim.slave_index_from_instance_name('bb') == 0
+    assert sim.num_slaves()==1
+    assert sim.num_slave_variables(0)==11, "3*pos, 3*speed, g, e, 3*p_bounce"
+    variables = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ibb)}
+    assert variables == {'pos[0]': 0, 'pos[1]': 1, 'pos[2]': 2,
+                         'speed[0]': 3, 'speed[1]': 4, 'speed[2]': 5,
+                         'g': 6,
+                         'e': 7,
+                         'p_bounce[0]': 8, 'p_bounce[1]': 9, 'p_bounce[2]': 10}
 
     # Set initial values
-    sim.real_initial_value(ibb, reference_dict["pos[2]"], 2.0)
+    sim.real_initial_value(ibb, variables["g"], 20.0) # possible, but has no effect!
+    
+    assert get_status(sim)['state'] == 'STOPPED'
 
-    sim_status = sim.status()
-    assert sim_status.current_time == 0
-    assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
-    _ = sim.slave_infos()
+    observer = CosimObserver.create_last_value()
+    assert sim.add_observer( observer) == True
+    manipulator = CosimManipulator.create_override()
+    assert sim.add_manipulator( manipulator)
 
-    # Simulate for 1 second
-    sim.simulate_until(target_time=3e9)
+    values = observer.last_real_values(0, list(range(11)))
+    assert values == [0.0]*11, "No initial values yet! - as expected"
+
+    assert manipulator.slave_real_values(0, [6], [1.5])==True
+    values = observer.last_real_values(0, list(range(11)))
+    assert values == [0.0]*11, "No visible effect"
+
+    # that does not seem to work (not clear why):    assert sim.step()==True
+    assert sim.simulate_until(target_time=1e7)==True, "Simulate for one base step did not work"
+    assert get_status(sim)['currentTime'] == 1e7, "Time after simulation not correct"
+    values = observer.last_real_values(0, list(range(11)))
+    assert values[6]==1.5, "Manipulator setting did not work"
+    assert values[5]==-0.015, "Manipulator setting did not have the expected effect on speed"
+    
+#     values = observer.last_real_values(0, list(range(11)))
+#     print("VALUES2", values)
+# 
+#     manipulator.reset_variables(0, CosimVariableType.REAL, [6])
+    
+#    sim.simulate_until(target_time=3e9)
 
 
 def test_from_fmu(bouncing_ball_fmu):
@@ -341,7 +384,7 @@ def test_from_fmu(bouncing_ball_fmu):
     assert model["name"] == "BouncingBall3D", f"Name: {model['name']}"
     assert (
         model["description"]
-        == "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU"
+        == "Another Python-based BouncingBall model, using Model and Variable to construct a FMU"
     )
     assert model["author"] == "DNV, SEACo project"
     assert model["version"] == "0.1"
@@ -356,9 +399,11 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-   retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
-   assert retcode == 0, f"Non-zero return code {retcode}"
+    #retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
+    #assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
-    # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
-    #              dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
+    Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+                 dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
     # test_use_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu", False)
+    # test_from_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
+    test_from_osp( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
