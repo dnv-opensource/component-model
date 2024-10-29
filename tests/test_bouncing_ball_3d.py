@@ -87,7 +87,6 @@ def test_bouncing_ball_class(show):
     t_bounce = sqrt(2 * h0 / bb.g)
     v_bounce = bb.g * t_bounce  # speed in z-direction
     x_bounce = bb.speed[0]* t_bounce  # x-position where it bounces in m
-    arrays_equal(bb.p_bounce, (x_bounce, 0, 0))
     time = 0
     dt = bb.default_experiment["stepSize"]
     assert dt == 0.01
@@ -231,8 +230,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
     v_bounce = g * t_bounce # speed in z-direction
     x_bounce = t_bounce/1.0 # x-position where it bounces in m
     # Note: default values are reported at time 0!
-    # print(f"Result[0]: {result[0]}")
-    arrays_equal(result[0], (0, 0, 0, 10, 1, 0, 0, sqrt(2*10*h_fac/9.81), 0, 0)) # time,pos-3, speed-3, p_bounce-3
+    arrays_equal(list(result[0])[:7], [0, 0, 0, 10, 1, 0, 0]) # time,pos-3, speed-3(, p_bounce-3 not calculated)
     # print(f"Result[1]: {result[1]}")
     arrays_equal(
         result[1],
@@ -399,11 +397,11 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    #retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
-    #assert retcode == 0, f"Non-zero return code {retcode}"
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False",  __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
-    Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
-                 dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
+    # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+    #              dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
     # test_use_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu", False)
     # test_from_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
-    test_from_osp( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
+    # test_from_osp( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")

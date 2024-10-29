@@ -101,8 +101,12 @@ class BouncingBall3D(Model):
         super().setup_experiment(start)
         # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
         self.stopped = False
-        self.a = np.array((0, 0, -self.g), float)
         self.time = start
+
+    def exit_initialization_mode(self):
+        """Initialize the model after initial variables are set."""
+        super().exit_initialization_mode()
+        self.a = np.array((0, 0, -self.g), float)
 
 
     def _interface(self, name: str, start: float | tuple):
@@ -146,7 +150,7 @@ class BouncingBall3D(Model):
                 variability="fixed",
                 start=start,
                 rng=(),
-                on_set = self.set_acceleration
+                on_set = self.on_set_g
             )
         elif name == "e":
             return Variable(
@@ -168,6 +172,6 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
-    def set_acceleration(self, g):
+    def on_set_g(self, g):
         self.a = np.array((0, 0, -g), float)
         return g
