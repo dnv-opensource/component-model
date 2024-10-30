@@ -148,7 +148,6 @@ class BouncingBall3D(Model):
                 variability="fixed",
                 start=start,
                 rng=(),
-                on_set=self.on_set_g,
             )
         elif name == "e":
             return Variable(
@@ -170,7 +169,3 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
-
-    def on_set_g(self, g):
-        self.a = np.array((0, 0, -g), float)
-        return g

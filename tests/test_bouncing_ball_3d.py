@@ -47,7 +47,7 @@ def do_show(result: list):
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
-    build_path = Path.cwd() / "fmus"
+    build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
         str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
@@ -374,7 +374,7 @@ def test_from_osp(bouncing_ball_fmu):
     }
 
     # Set initial values
-    sim.real_initial_value(ibb, variables["g"], 20.0)  # possible, but has no effect!
+    sim.real_initial_value(ibb, variables["g"], 1.5)  # actual setting will only happen after start_initialization_mode
 
     assert get_status(sim)["state"] == "STOPPED"
 
@@ -386,16 +386,12 @@ def test_from_osp(bouncing_ball_fmu):
     values = observer.last_real_values(0, list(range(11)))
     assert values == [0.0] * 11, "No initial values yet! - as expected"
 
-    assert manipulator.slave_real_values(0, [6], [1.5])
-    values = observer.last_real_values(0, list(range(11)))
-    assert values == [0.0] * 11, "No visible effect"
-
     # that does not seem to work (not clear why):    assert sim.step()==True
     assert sim.simulate_until(target_time=1e7), "Simulate for one base step did not work"
     assert get_status(sim)["currentTime"] == 1e7, "Time after simulation not correct"
     values = observer.last_real_values(0, list(range(11)))
-    assert values[6] == 1.5, "Manipulator setting did not work"
-    assert values[5] == -0.015, "Manipulator setting did not have the expected effect on speed"
+    assert values[6] == 1.5, "Initial setting did not work"
+    assert values[5] == -0.015, "Initial setting did not have the expected effect on speed"
 
 
 #     values = observer.last_real_values(0, list(range(11)))
@@ -430,7 +426,7 @@ if __name__ == "__main__":
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
     # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
-    #              dest = (Path(__file__).parent / "test_working_directory" / "fmus"))
-    # test_use_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu", False)
-    # test_from_fmu( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
-    # test_from_osp( Path(__file__).parent / "test_working_directory" / "fmus" / "BouncingBall3D.fmu")
+    #              dest = (Path(__file__).parent / "test_working_directory"))
+    # test_use_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu", False)
+    # test_from_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
+    # test_from_osp( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")

@@ -139,8 +139,6 @@ class Model(Fmi2Slave):
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
         self.currentTime = 0  # keeping track of time when dynamic calculations are performed
-        self._events: list[tuple] = []  # optional list of events activated on time during a simulation
-        # Events consist of tuples of (time, changedVariable)
 
     def setup_experiment(self, start: float):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
@@ -157,13 +155,6 @@ class Model(Fmi2Slave):
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         """
         self.currentTime = time
-        while len(self._events):  # Check whether any event is pending and set the respective variables
-            (t0, (var, val)) = self._events[-1]
-            if t0 <= time:
-                var.value = val
-                self._events.pop()
-            else:
-                break
         self.dirty_do()  # run on_set on all dirty variables
 
         for var in self.vars.values():

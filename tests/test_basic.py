@@ -17,7 +17,7 @@ from pythonfmu import (  # type: ignore
 
 @pytest.fixture(scope="session")
 def build_fmu():
-    build_path = Path.cwd() / "fmus"
+    build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = FmuBuilder.build_FMU(__file__, project_files=[], dest=build_path)
     return fmu_path
@@ -104,3 +104,8 @@ def test_use_fmu(build_fmu):
         logger=print,  # fmi_call_logger=print,
         start_values={"realIn": 88.8},
     )
+
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
