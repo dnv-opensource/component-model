@@ -147,7 +147,6 @@ class Model(Fmi2Slave):
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
         super().exit_initialization_mode()
-        print("MODEL_exit_initialization")
         self.dirty_do()  # run on_set on all dirty variables
 
     def do_step(self, time, dt):
