@@ -18,8 +18,8 @@ from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from component_model.caus_var_ini import Initial
 
-from .logger import get_module_logger
-from .variable import Variable
+from src.component_model.utils.logger import get_module_logger
+from src.component_model.variable import Variable
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
