@@ -85,6 +85,7 @@ def make_osp_system_structure(
     start: float = 0.0,
     base_step: float = 0.01,
     algorithm: str = "fixedStep",
+    path: Path | str = ".",
 ):
     """Prepare a OspSystemStructure xml file according to `OSP configuration specification <https://open-simulation-platform.github.io/libcosim/configuration>`_.
 
@@ -99,6 +100,11 @@ def make_osp_system_structure(
         start (float)=0.0: The simulation start time
         base_step (float)=0.01: The base stepSize of the simulation. The exact usage depends on the algorithm chosen
         algorithm (str)='fixedStep': The name of the algorithm
+        path (Path,str)='.': the path where the file should be saved
+
+    Returns
+    -------
+        The absolute path of the file as Path object
 
         .. todo:: better stepSize control in dependence on algorithm selected, e.g. with fixedStep we should probably set all step sizes to the minimum of everything?
     """
@@ -141,22 +147,21 @@ def make_osp_system_structure(
     def make_connections():
         """Make the <connections> element from the provided con."""
         cons = ET.Element("Connections")
-        m1, v1, m2, v2 = connections
-        if isinstance(v1, (tuple, list)):  # group connection (e.g. a compound Variable)
-            if not isinstance(v2, (tuple, list)) or len(v2) != len(v1):
-                raise Exception(
-                    f"Something wrong with the vector connection between {m1} and {m2}. Variable vectors do not match."
-                ) from None
-            for i in range(len(v1)):
+        if len(connections):
+            m1, v1, m2, v2 = connections
+            if isinstance(v1, (tuple, list)):  # group connection (e.g. a compound Variable)
+                if not isinstance(v2, (tuple, list)) or len(v2) != len(v1):
+                    raise Exception(f"Vector connection between {m1} and {m2} does not match.") from None
+                for i in range(len(v1)):
+                    con = ET.Element("VariableConnection")
+                    ET.SubElement(con, "Variable", {"simulator": m1, "name": v1[i]})
+                    ET.SubElement(con, "Variable", {"simulator": m2, "name": v2[i]})
+                    cons.append(con)
+            else:  # single connection
                 con = ET.Element("VariableConnection")
-                ET.SubElement(con, "Variable", {"simulator": m1, "name": v1[i]})
-                ET.SubElement(con, "Variable", {"simulator": m2, "name": v2[i]})
+                ET.SubElement(con, "Variable", {"simulator": m1, "name": v1})
+                ET.SubElement(con, "Variable", {"simulator": m2, "name": v2})
                 cons.append(con)
-        else:  # single connection
-            con = ET.Element("VariableConnection")
-            ET.SubElement(con, "Variable", {"simulator": m1, "name": v1})
-            ET.SubElement(con, "Variable", {"simulator": m2, "name": v2})
-            cons.append(con)
         return cons
 
     osp = ET.Element(
@@ -170,7 +175,9 @@ def make_osp_system_structure(
     osp.append(make_connections())
     tree = ET.ElementTree(osp)
     ET.indent(tree, space="   ", level=0)
-    tree.write(name + ".xml", encoding="utf-8")
+    file = Path(path).absolute() / (name + ".xml")
+    tree.write(file, encoding="utf-8")
+    return file
 
 
 def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:

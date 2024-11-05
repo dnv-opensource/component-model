@@ -1,4 +1,3 @@
-import os
 import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 from zipfile import ZipFile
@@ -6,6 +5,7 @@ from zipfile import ZipFile
 import numpy as np
 import pytest
 from component_model.model import Model  # type: ignore
+from component_model.utils import make_osp_system_structure
 from fmpy import simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
@@ -15,7 +15,7 @@ from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
 
-from tests.examples.input_table import InputTable  # type: ignore
+from tests.examples.input_table import InputTable
 
 
 def check_expected(value, expected, feature: str):
@@ -27,7 +27,12 @@ def check_expected(value, expected, feature: str):
 
 @pytest.fixture(scope="session")
 def simple_table_fmu():
-    build_path = Path.cwd() / "fmus"
+    return _simple_table_fmu()
+
+
+def _simple_table_fmu():
+    """Make FMU and return .fmu file with path."""
+    build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
         str(Path(__file__).parent / "examples" / "simple_table.py"),
@@ -38,18 +43,24 @@ def simple_table_fmu():
 
 
 @pytest.fixture(scope="session")
-def simple_table_system_structure(tmp_path_factory, simple_table_fmu):
-    ET.register_namespace("", "http://opensimulationplatform.com/MSMI/OSPSystemStructure")
-    tree = ET.parse(Path(__file__).parent / "resources" / "SimpleTableSystemStructure.xml")
-    root = tree.getroot()
+def simple_table_system_structure(simple_table_fmu):
+    return _simple_table_system_structure(simple_table_fmu)
 
-    root[0][0].attrib["source"] = f"../{os.path.basename(simple_table_fmu.parent)}/SimpleTable.fmu"
 
-    build_path = Path.cwd() / "config"
-    build_path.mkdir(exist_ok=True)
-    system_structure_path = build_path / "SimpleTableSystemStructure.xml"
-    tree.write(system_structure_path)
-    return system_structure_path
+def _simple_table_system_structure(simple_table_fmu):
+    """Make a structure file and return the path"""
+    path = make_osp_system_structure(
+        name="OspSystemStructure",
+        models={"tab": {"source": "SimpleTable.fmu", "stepSize": 0.01}},
+        connections=(),
+        version="0.1",
+        start=0.0,
+        base_step=0.01,
+        algorithm="fixedStep",
+        path=Path.cwd(),
+    )
+
+    return path
 
 
 def _in_interval(x: float, x0: float, x1: float):
@@ -245,3 +256,12 @@ def test_run_osp_system_structure(simple_table_system_structure):
         print(f"Time {time/1e9}: {values}")
         if time == 5:
             assert values == [7.475, 7.525, 7.574999999999999]
+
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    # import os
+    # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    # test_inputtable_class()
+    # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))

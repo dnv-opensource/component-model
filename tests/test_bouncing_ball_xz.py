@@ -7,12 +7,10 @@ from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
 
-from tests.examples.bouncing_ball_xz import BouncingBallXZ
-
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
-    build_path = Path.cwd() / "fmus"
+    build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
         str(Path(__file__).parent / "examples" / "bouncing_ball_xz.py"),
@@ -20,11 +18,6 @@ def bouncing_ball_fmu():
         dest=build_path,
     )
     return fmu_path
-
-
-def test_model_description():
-    mod = BouncingBallXZ()
-    mod.to_xml()
 
 
 def test_run_fmpy(bouncing_ball_fmu):

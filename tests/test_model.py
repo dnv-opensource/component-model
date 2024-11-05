@@ -14,7 +14,7 @@ logger = get_module_logger(__name__, level=logging.INFO)
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu(tmp_path_factory):
-    build_path = Path.cwd() / "fmus"
+    build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
         Path(__file__).parent / "examples" / "bouncing_ball_xz.py",
@@ -107,7 +107,6 @@ def test_xml():
 def test_from_fmu(bouncing_ball_fmu):
     model = model_from_fmu(bouncing_ball_fmu)
     assert model["name"] == "BouncingBallXZ", f"Name:{model['name']}"
-    print(dir(model))
     assert model["description"] == "Simple bouncing ball test FMU", f"Description:{model['description']}"
     assert model["author"] == "DNV, SEACo project"
     assert model["version"] == "0.1"

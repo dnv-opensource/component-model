@@ -139,25 +139,21 @@ class Model(Fmi2Slave):
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
         self.currentTime = 0  # keeping track of time when dynamic calculations are performed
-        self._events: list[tuple] = []  # optional list of events activated on time during a simulation
-        # Events consist of tuples of (time, changedVariable)
 
     def setup_experiment(self, start: float):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
         self.start_time = start
+
+    def exit_initialization_mode(self):
+        """Initialize the model after initial variables are set."""
+        super().exit_initialization_mode()
+        self.dirty_do()  # run on_set on all dirty variables
 
     def do_step(self, time, dt):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         """
         self.currentTime = time
-        while len(self._events):  # Check whether any event is pending and set the respective variables
-            (t0, (var, val)) = self._events[-1]
-            if t0 <= time:
-                var.value = val
-                self._events.pop()
-            else:
-                break
         self.dirty_do()  # run on_set on all dirty variables
 
         for var in self.vars.values():
@@ -228,7 +224,8 @@ class Model(Fmi2Slave):
         """Run on_set on all dirty variables."""
         for var in self._dirty:
             if var.on_set is not None:
-                setattr(var.owner, var.local_name, var.on_set(getattr(var.owner, var.local_name)))
+                val = var.on_set(getattr(var.owner, var.local_name))
+                setattr(var.owner, var.local_name, val)
         self._dirty = []
 
     @property
@@ -305,13 +302,32 @@ class Model(Fmi2Slave):
 
         return (copyright, license)
 
+    @staticmethod
+    def ensure_requirements(existing_file: str | Path | None, temp_file: Path) -> Path:
+        """Return the path to the component-model requirements file."""
+        if existing_file is None:
+            requirements = ["numpy", "pint"]
+            temp_file.write_text("\n".join(requirements))
+            return temp_file
+        else:
+            with open(existing_file, "r") as file:
+                requirements = file.read().splitlines()
+
+            if "numpy" not in requirements:
+                requirements.append("numpy")
+            if "pint" not in requirements:
+                requirements.append("pint")
+
+            temp_file.write_text("\n".join(requirements))
+            return temp_file
+
     # =====================
     # FMU-related functions
     # =====================
     @staticmethod
     def build(
         script: str = "",
-        project_files: list | None = None,
+        project_files: list[str, Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
     ):
@@ -335,11 +351,26 @@ class Model(Fmi2Slave):
         # Make sure the dest path is of type Patch
         dest = dest if isinstance(dest, Path) else Path(dest)
 
-        with tempfile.TemporaryDirectory() as documentation_dir:
+        with tempfile.TemporaryDirectory() as documentation_dir, tempfile.TemporaryDirectory() as requirements_dir:
             doc_dir = Path(documentation_dir)
             license_file = doc_dir / "licenses" / "license.txt"
             license_file.parent.mkdir()
             license_file.write_text("Dummy license")
+
+            # Requirements file creation
+            req_dir = Path(requirements_dir)
+            requirements_file = req_dir / "requirements.txt"
+            existing_requirements = None
+
+            for idx, file in enumerate(project_files):
+                file_path = Path(file) if isinstance(file, str) else file
+                if file_path.name == "requirements.txt":
+                    project_files.pop(idx)
+                    existing_requirements = file
+
+            requirements = Model.ensure_requirements(existing_requirements, requirements_file)
+            project_files.append(requirements)
+
             index_file = doc_dir / "index.html"
             index_file.write_text("dummy index")
             asBuilt = FmuBuilder.build_FMU(

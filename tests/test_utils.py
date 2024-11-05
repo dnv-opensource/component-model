@@ -13,7 +13,11 @@ from component_model.utils import (
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
-    build_path = Path.cwd() / "fmus"
+    return _bouncing_ball_fmu()
+
+
+def _bouncing_ball_fmu():
+    build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
         str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
@@ -107,15 +111,16 @@ def test_model_description(bouncing_ball_fmu):
     ), f"3 InitialUnknowns expected. Found {''.join(x.get('index')+', ' for x in e.findall('./Unknown'))}"
 
 
-def test_osp_structure(tmp_path_factory):
+def test_osp_structure():
     make_osp_system_structure(
-        str(tmp_path_factory.mktemp("fmu") / "systemModel"),
+        "systemModel",
         version="0.1",
         models={
             "simpleTable": {"interpolate": True},
             "mobileCrane": {"pedestal.pedestalMass": 5000.0, "boom.boom.0": 20.0},
         },
         connections=("simpleTable", "outputs.0", "mobileCrane", "pedestal.angularVelocity"),
+        path=Path.cwd(),
     )
 
 
@@ -124,7 +129,7 @@ def test_model_from_fmu(bouncing_ball_fmu):
     kwargs.pop("guid")
     expected = {
         "name": "BouncingBall3D",
-        "description": "Another BouncingBall model, made in Python and using Model and Variable to construct a FMU",
+        "description": "Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
         "author": "DNV, SEACo project",
         "version": "0.1",
         "unit_system": "SI",

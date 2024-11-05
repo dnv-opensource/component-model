@@ -605,18 +605,18 @@ def test_on_set():
     arrays_equal(mod.myNP2, (0.9 * 0.9 * 4, 0.9 * 7, 0.9 * 8))
 
 
-# if __name__ == "__main__":
-# retcode = pytest.main(["-rP -s -v", __file__])
-# assert retcode == 0, f"Return code {retcode}"
-# test_range()
-# test_var_check()
-# test_spherical_cartesian()
-# test_auto_type()
-# test_init()
-# test_dirty()
-# test_var_ref()
-# test_vars_iter()
-# test_get()
-# test_set()
-# test_on_set()
-# test_xml()
+if __name__ == "__main__":
+    retcode = pytest.main(["-rP -s -v", __file__])
+    assert retcode == 0, f"Return code {retcode}"
+    # test_range()
+    # test_var_check()
+    # test_spherical_cartesian()
+    # test_auto_type()
+    # test_init()
+    # test_dirty()
+    # test_var_ref()
+    # test_vars_iter()
+    # test_get()
+    # test_set()
+    # test_on_set()
+    # test_xml()
