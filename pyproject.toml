@@ -75,11 +75,11 @@ editor = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dnv-innersource/my-package"
-Documentation = "https://dnv-innersource.github.io/my-package/README.html"
-Repository = "https://github.com/dnv-innersource/my-package.git"
-Issues = "https://github.com/dnv-innersource/my-package/issues"
-Changelog = "https://github.com/dnv-innersource/my-package/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/dnv-innersource/component-model"
+Documentation = "https://dnv-innersource.github.io/component-model/README.html"
+Repository = "https://github.com/dnv-innersource/component-model.git"
+Issues = "https://github.com/dnv-innersource/component-model/issues"
+Changelog = "https://github.com/dnv-innersource/component-model/blob/main/CHANGELOG.md"
 
 
 [tool.uv]

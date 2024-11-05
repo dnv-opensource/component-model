@@ -372,9 +372,9 @@ If you are interested in the long story including the why‘s, read these discus
     import pandas as pd
     import numpy as np
 
-    import my_package
-    import my_package.my_module
-    from my_package.my_module import my_function, MyClass
+    import component_model
+    import component_model.my_module
+    from component_model.my_module import my_function, MyClass
 ```
 
 * Even if a Python file is intended to be used as executable / script file only, it shall still be importable as a module, and its import should not have any side effects. Its main functionality shall hence be in a `main()` function, so that the code can be imported as a module for testing or being reused in the future:

@@ -46,11 +46,11 @@
             "justMyCode": true,
         },
         {
-            "name": "my_package test_cli",
+            "name": "component_model test_cli",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}\\tests",
-            "program": "${workspaceFolder}\\src\\my_package\\cli\\my_package.py",
+            "program": "${workspaceFolder}\\src\\component_model\\cli\\component_model.py",
             "args": [
                 "test_config_file",
                 "--run",
