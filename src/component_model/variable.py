@@ -11,7 +11,6 @@ from pint import Quantity  # management of units
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
-
 from src.component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
 from src.component_model.utils.logger import get_module_logger
 
@@ -194,7 +193,7 @@ class Variable(ScalarVariable):
         self._start: tuple
         # First we check for str (since these are also iterable), then we can check for the presence of __getitem__
         # Determine the (element) type (unique for all elements in compound variables)
-        if self._typ == str:  # explicit free string
+        if self._typ is str:  # explicit free string
             self._len = 1
             self.unit = "dimensionless"
             self.display = None
@@ -453,7 +452,7 @@ class Variable(ScalarVariable):
         if self._len == 1 and idx is None:
             idx = 0
         if isinstance(value, str):  # no range checking on strings
-            return self._typ == str
+            return self._typ is str
         elif self._len > 1 and idx is None:  # check all components
             assert isinstance(value, (tuple, list, np.ndarray)) and len(value) == self._len, f"{value} has no elements"
             return all(self.check_range(value[i], i, disp) for i in range(self._len))
@@ -465,15 +464,15 @@ class Variable(ScalarVariable):
                 value = value[idx]
             if value is None:  # denotes unchanged values (of compound variables)
                 return True
-            if self._typ != type(value):
+            if self._typ is not type(value):
                 try:
                     value = self._typ(value)  # try to cast the value
                 except Exception:  # give up
                     return False
             # special types (str checked above):
-            if self._typ == str:  # no range checking on str
+            if self._typ is str:  # no range checking on str
                 return True
-            elif self._typ == bool:
+            elif self._typ is bool:
                 return isinstance(value, bool)
             elif isinstance(value, Enum):
                 return isinstance(value, self._typ)
@@ -489,7 +488,7 @@ class Variable(ScalarVariable):
         """Translate the provided type to a proper fmi type and return it as string.
         See types defined in schema fmi2Unit.xsd.
         """
-        if self._typ == bool:
+        if self._typ is bool:
             return "true" if val else "false"
         else:
             return str(val)
@@ -517,9 +516,9 @@ class Variable(ScalarVariable):
                             pass
                         elif issubclass(typ, t):
                             typ = t
-                        elif typ == float and t == int:  # we allow that, even if no subclass
+                        elif typ is float and t is int:  # we allow that, even if no subclass
                             pass
-                        elif typ == int and t == float:  # we allow that, even if no subclass
+                        elif typ is int and t is float:  # we allow that, even if no subclass
                             typ = float
                     else:
                         raise VariableInitError(f"Incompatible variable types {typ}, {t} in {val}") from None
@@ -593,7 +592,7 @@ class Variable(ScalarVariable):
                 val, ub, display = (str(quantity), "", None)  # type: ignore
         else:
             val, ub, display = (quantity, "dimensionless", None)  # type: ignore
-        if self._typ is not None and type(val) != self._typ:  # check variable type
+        if self._typ is not None and type(val) is not self._typ:  # check variable type
             try:  # try to convert the magnitude to the correct type.
                 val = self._typ(val)
             except Exception as err:

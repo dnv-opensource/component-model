@@ -11,6 +11,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from component_model.utils.xml import read_xml, xml_to_python_val
+
 
 def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
     """Generate a Model from an FMU (excluding the inner working functions like `do_step()`),

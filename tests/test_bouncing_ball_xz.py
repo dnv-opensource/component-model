@@ -1,11 +1,12 @@
 from pathlib import Path
 
 import pytest
-from component_model.model import Model  # type: ignore
 from fmpy import simulate_fmu  # type: ignore
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimSlave import CosimLocalSlave
+
+from component_model.model import Model  # type: ignore
 
 
 @pytest.fixture(scope="session")

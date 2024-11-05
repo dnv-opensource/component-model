@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 
 import pytest
+
 from component_model.logger import get_module_logger  # type: ignore
 from component_model.model import Model  # type: ignore
 from component_model.utils import model_from_fmu

@@ -2,8 +2,9 @@
 
 import logging
 
-from component_model.logger import get_module_logger  # type: ignore
 from pint import UnitRegistry
+
+from component_model.logger import get_module_logger  # type: ignore
 
 logger = get_module_logger(__name__, level=logging.INFO)
 

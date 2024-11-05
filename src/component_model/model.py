@@ -15,11 +15,10 @@ from pythonfmu import __version__ as pythonfmu_version
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
-
-from component_model.caus_var_ini import Initial
-
 from src.component_model.utils.logger import get_module_logger
 from src.component_model.variable import Variable
+
+from component_model.caus_var_ini import Initial
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -649,7 +648,7 @@ class Model(Fmi2Slave):
         """
         values = list()
         for var, sub in self._var_iter(vrs):
-            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
             val = var.getter()
             if var is not None and len(var) > 1:
@@ -680,7 +679,7 @@ class Model(Fmi2Slave):
         """
         idx = 0
         for var, sub in self._var_iter(vrs):
-            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.typ}"
             if var is not None and len(var) > 1:
                 if sub is None:  # set the whole vector
