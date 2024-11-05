@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from component_model.logger import get_module_logger  # type: ignore
 from component_model.model import Model  # type: ignore
-from component_model.utils import model_from_fmu
+from component_model.utils.fmu import model_from_fmu
+from component_model.utils.logger import get_module_logger  # type: ignore
 from component_model.variable import Check, Variable
 
 logger = get_module_logger(__name__, level=logging.INFO)

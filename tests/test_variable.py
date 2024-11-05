@@ -9,8 +9,8 @@ from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
 from component_model.caus_var_ini import Initial
-from component_model.logger import get_module_logger  # type: ignore
 from component_model.model import Model  # type: ignore
+from component_model.utils.logger import get_module_logger  # type: ignore
 from component_model.variable import (  # type: ignore
     Check,
     Variable,

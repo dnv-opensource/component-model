@@ -16,7 +16,7 @@ from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
 
 from component_model.model import Model  # type: ignore
-from component_model.utils import model_from_fmu
+from component_model.utils.fmu import model_from_fmu
 
 
 def _in_interval(x: float, x0: float, x1: float):

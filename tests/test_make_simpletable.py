@@ -14,7 +14,7 @@ from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
 
 from component_model.model import Model  # type: ignore
-from component_model.utils import make_osp_system_structure
+from component_model.utils.osp import make_osp_system_structure
 from tests.examples.input_table import InputTable
 
 

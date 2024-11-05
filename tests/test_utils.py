@@ -3,13 +3,9 @@ from pathlib import Path
 import pytest
 
 from component_model.model import Model
-from component_model.utils import (
-    make_osp_system_structure,
-    model_from_fmu,
-    read_xml,
-    variables_from_fmu,
-    xml_to_python_val,
-)
+from component_model.utils.fmu import model_from_fmu, read_xml, variables_from_fmu
+from component_model.utils.osp import make_osp_system_structure
+from component_model.utils.xml import xml_to_python_val
 
 
 @pytest.fixture(scope="session")
