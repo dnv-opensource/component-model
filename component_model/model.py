@@ -358,14 +358,14 @@ class Model(Fmi2Slave):
             license_file.write_text("Dummy license")
 
             # Requirements file creation
-            requirements_dir = Path(requirements_dir)
-            requirements_file = requirements_dir / "requirements.txt"
+            req_dir = Path(requirements_dir)
+            requirements_file = req_dir / "requirements.txt"
             existing_requirements = None
 
             for idx, file in enumerate(project_files):
                 file_path = Path(file) if isinstance(file, str) else file
                 if file_path.name == "requirements.txt":
-                    project_files.remove(idx)
+                    project_files.pop(idx)
                     existing_requirements = file
 
             requirements = Model.ensure_requirements(existing_requirements, requirements_file)
