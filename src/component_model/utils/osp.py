@@ -52,7 +52,7 @@ def make_osp_system_structure(
             return initial
 
         simulators = ET.Element("Simulators")
-        if len(models):
+        if models:
             for m, props in models.items():
                 # Note: instantiated model names might be small, but FMUs are based on class names and are therefore capitalized
                 simulator = ET.Element(

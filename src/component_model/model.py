@@ -15,10 +15,10 @@ from pythonfmu import __version__ as pythonfmu_version
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
-from src.component_model.utils.logger import get_module_logger
-from src.component_model.variable import Variable
 
 from component_model.caus_var_ini import Initial
+from component_model.utils.logger import get_module_logger
+from component_model.variable import Variable
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -326,7 +326,7 @@ class Model(Fmi2Slave):
     @staticmethod
     def build(
         script: str = "",
-        project_files: list[str, Path] | None = None,
+        project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
     ):

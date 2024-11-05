@@ -11,8 +11,9 @@ from pint import Quantity  # management of units
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
-from src.component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
-from src.component_model.utils.logger import get_module_logger
+
+from component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
+from component_model.utils.logger import get_module_logger
 
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum
@@ -183,7 +184,7 @@ class Variable(ScalarVariable):
 
         self._annotations = annotations
         self._check = value_check  # unique for all elements in compound variables
-        self._typ = typ  # preliminary. Will be adapted if not explicitly provided (None)
+        self._typ: type | None = typ  # preliminary. Will be adapted if not explicitly provided (None)
 
         self.on_step = on_step  # hook to define a function of currentTime and time step dT,
         # to be performed during Model.do_step for input variables
@@ -347,7 +348,7 @@ class Variable(ScalarVariable):
             if issubclass(self._typ, Enum):  # native Enums do not exist in FMI2. Convert to int
                 value = value.value
             elif not isinstance(value, self._typ):  # other type conversion
-                value = self._typ(value)
+                value = self._typ(value)  # type: ignore[call-arg]
             if self._check & Check.units:  # Convert 'value' display.u -> base unit
                 if self._display[0] is not None:
                     value = self.display[0][2](value)
@@ -360,7 +361,7 @@ class Variable(ScalarVariable):
             else:
                 for i in range(self._len):  # check whether conversion to _typ is necessary
                     if not isinstance(value[i], self._typ):
-                        value[i] = self._typ(value[i])
+                        value[i] = self._typ(value[i])  # type: ignore[call-arg]
             if self._check & Check.units:  # Convert 'value' display.u -> base unit
                 for i in range(self._len):
                     if self._display[i] is not None:
@@ -382,7 +383,9 @@ class Variable(ScalarVariable):
         def ensure_display_limits(val: PyType, idx: int, right: bool):
             """Ensure that value is provided as display unit and that limits are included in range."""
             if self._display[idx] is not None:  # Range in display units!
-                val = self._display[idx][2](val)
+                _val = self._display[idx]
+                assert isinstance(_val, tuple)
+                val = _val[2](val)
             if isinstance(val, float) and abs(val) != float("inf") and int(val) != val:
                 if right:
                     val += 1e-15
@@ -422,8 +425,8 @@ class Variable(ScalarVariable):
                             raise VariableInitError(
                                 f"The supplied range value {str(r)} does not conform to the unit type {self._unit[idx]}"
                             )
-                        elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:
-                            raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")
+                        elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:  # type: ignore[index]
+                            raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")  # type: ignore[index]
                     q = ensure_display_limits(q, idx, len(i_range) > 0)
                     i_range.append(q)
 
@@ -479,7 +482,9 @@ class Variable(ScalarVariable):
 
             elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
                 if not disp and self._display[idx] is not None:  # check an internal unit value
-                    value = self._display[idx][2](value)
+                    _val = self._display[idx]
+                    assert isinstance(_val, tuple)
+                    value = _val[2](value)
                 return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
             else:
                 raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
@@ -641,7 +646,8 @@ class Variable(ScalarVariable):
         declaredType = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
             self.typ.__qualname__
         ]  # translation of python to FMI primitives. Same for all components
-        do_use_start = use_start(self._causality, self._variability, self._initial)
+        assert self._initial is not None, "Initial shall be properly set at this point"
+        do_use_start = use_start(causality=self._causality, variability=self._variability, initial=self._initial)
         svars = []
         for i in range(self._len):
             sv = ET.Element(
