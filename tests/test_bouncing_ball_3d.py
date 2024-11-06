@@ -422,11 +422,11 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
-    assert retcode == 0, f"Non-zero return code {retcode}"
+    #retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    #assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
-    # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
-    #              dest = (Path(__file__).parent / "test_working_directory"))
+    Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+                 dest = (Path(__file__).parent / "test_working_directory"))
     # test_use_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu", False)
     # test_from_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
-    # test_from_osp( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
+    test_from_osp( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
