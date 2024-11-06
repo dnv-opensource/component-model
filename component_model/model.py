@@ -302,13 +302,32 @@ class Model(Fmi2Slave):
 
         return (copyright, license)
 
+    @staticmethod
+    def ensure_requirements(existing_file: str | Path | None, temp_file: Path) -> Path:
+        """Return the path to the component-model requirements file."""
+        if existing_file is None:
+            requirements = ["numpy", "pint"]
+            temp_file.write_text("\n".join(requirements))
+            return temp_file
+        else:
+            with open(existing_file, "r") as file:
+                requirements = file.read().splitlines()
+
+            if "numpy" not in requirements:
+                requirements.append("numpy")
+            if "pint" not in requirements:
+                requirements.append("pint")
+
+            temp_file.write_text("\n".join(requirements))
+            return temp_file
+
     # =====================
     # FMU-related functions
     # =====================
     @staticmethod
     def build(
         script: str = "",
-        project_files: list | None = None,
+        project_files: list[str, Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
     ):
@@ -332,11 +351,26 @@ class Model(Fmi2Slave):
         # Make sure the dest path is of type Patch
         dest = dest if isinstance(dest, Path) else Path(dest)
 
-        with tempfile.TemporaryDirectory() as documentation_dir:
+        with tempfile.TemporaryDirectory() as documentation_dir, tempfile.TemporaryDirectory() as requirements_dir:
             doc_dir = Path(documentation_dir)
             license_file = doc_dir / "licenses" / "license.txt"
             license_file.parent.mkdir()
             license_file.write_text("Dummy license")
+
+            # Requirements file creation
+            req_dir = Path(requirements_dir)
+            requirements_file = req_dir / "requirements.txt"
+            existing_requirements = None
+
+            for idx, file in enumerate(project_files):
+                file_path = Path(file) if isinstance(file, str) else file
+                if file_path.name == "requirements.txt":
+                    project_files.pop(idx)
+                    existing_requirements = file
+
+            requirements = Model.ensure_requirements(existing_requirements, requirements_file)
+            project_files.append(requirements)
+
             index_file = doc_dir / "index.html"
             index_file.write_text("dummy index")
             asBuilt = FmuBuilder.build_FMU(
@@ -436,8 +470,8 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if "radian" in str(
-                ubase.units
+            if (
+                "radian" in str(ubase.units)
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
                 # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
