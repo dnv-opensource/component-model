@@ -164,7 +164,7 @@ class Variable(ScalarVariable):
         on_step: Callable | None = None,
         on_set: Callable | None = None,
         owner: Any | None = None,
-        valueReference: int | None = None,
+        value_reference: int | None = None,
     ):
         self.model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
@@ -216,7 +216,7 @@ class Variable(ScalarVariable):
 
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
-        self.model.register_variable(self, self.start, valueReference)  # register in model and return index
+        self.model.register_variable(self, self.start, value_reference)  # register in model and return index
         # disable super() functions and properties which are not in use here
         self.to_xml = None
 
@@ -694,9 +694,9 @@ class Variable(ScalarVariable):
 
 
 # Utility functions for handling special variable types
-def spherical_to_cartesian(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn spherical vector 'vec' (defined according to ISO 80000-2 (r,polar,azimuth)) into cartesian coordinates."""
-    if asDeg:
+    if deg:
         theta = radians(vec[1])
         phi = radians(vec[2])
     else:
@@ -710,7 +710,7 @@ def spherical_to_cartesian(vec: np.ndarray | tuple, asDeg: bool = False) -> np.n
     return np.array((r * sinTheta * cosPhi, r * sinTheta * sinPhi, r * cosTheta))
 
 
-def cartesian_to_spherical(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into spherical coordinates.
     (defined according to ISO 80000-2, (r, polar, azimuth)).
     """
@@ -720,46 +720,46 @@ def cartesian_to_spherical(vec: np.ndarray | tuple, asDeg: bool = False) -> np.n
             return np.array((0, 0, 0), dtype="float")
         else:
             return np.array((r, 0, 0), dtype="float")
-    elif asDeg:
+    elif deg:
         return np.array((r, degrees(acos(vec[2] / r)), degrees(atan2(vec[1], vec[0]))), dtype="float64")
     else:
         return np.array((r, acos(vec[2] / r), atan2(vec[1], vec[0])), dtype="float")
 
 
-def cartesian_to_cylindrical(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into cylindrical coordinates.
     (defined according to ISO, (r, phi, z), with phi right-handed wrt. x-axis).
     """
     phi = atan2(vec[1], vec[0])
-    if asDeg:
+    if deg:
         phi = degrees(phi)
     return np.array((sqrt(vec[0] * vec[0] + vec[1] * vec[1]), phi, vec[2]), dtype="float")
 
 
-def cylindrical_to_cartesian(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn cylinder coordinate vector 'vec' (defined according to ISO (r,phi,z)) into cartesian coordinates.
     The angle phi is measured with respect to x-axis, right hand.
     """
-    phi = radians(vec[1]) if asDeg else vec[1]
+    phi = radians(vec[1]) if deg else vec[1]
     return np.array((vec[0] * cos(phi), vec[0] * sin(phi), vec[2]), dtype="float")
 
 
-def quantity_direction(quantityDirection: tuple, asSpherical: bool = False, asDeg: bool = False) -> np.ndarray:
+def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: bool = False) -> np.ndarray:
     """Turn a 4-tuple, consisting of quantity (float) and a direction 3-vector to a direction 3-vector,
     where the norm denotes the direction and the length denotes the quantity.
     The return vector is always a cartesian vector.
 
     Args:
-        quantityDirection (tuple): a 4-tuple consisting of the desired length of the resulting vector (in standard units (m or m/s))
+        quantity_direction (tuple): a 4-tuple consisting of the desired length of the resulting vector (in standard units (m or m/s))
            and the direction 3-vector (in standard units)
-        asSpherical (bool)=False: Optional possibility to provide the input direction vector in spherical coordinates
-        asDeg (bool)=False: Optional possibility to provide the input angle (of spherical coordinates) in degrees. Only relevant if asSpherical=True
+        spherical (bool)=False: Optional possibility to provide the input direction vector in spherical coordinates
+        deg (bool)=False: Optional possibility to provide the input angle (of spherical coordinates) in degrees. Only relevant if spherical=True
     """
-    if quantityDirection[0] < 1e-15:
+    if quantity_direction[0] < 1e-15:
         return np.array((0, 0, 0), dtype="float")
-    if asSpherical:
-        direction = spherical_to_cartesian(quantityDirection[1:], asDeg)  # turn to cartesian coordinates, if required
+    if spherical:
+        direction = spherical_to_cartesian(quantity_direction[1:], deg)  # turn to cartesian coordinates, if required
     else:
-        direction = np.array(quantityDirection[1:], dtype="float")
+        direction = np.array(quantity_direction[1:], dtype="float")
     n = np.linalg.norm(direction)  # normalize
-    return quantityDirection[0] / n * direction
+    return quantity_direction[0] / n * direction

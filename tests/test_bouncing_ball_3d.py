@@ -65,13 +65,10 @@ def test_bouncing_ball_class(show):
     If pytest is run from the command line, the current directory is the package root,
     but when it is run from the editor (__main__) it is run from /tests/.
     """
-    import os
+    import sys
 
-    if not os.path.exists("./pyproject.toml"):
-        import sys
-
-        sys.path.insert(0, os.path.abspath("../"))
-    from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
+    sys.path.insert(0, str(Path(__file__).parent / "examples"))
+    from bouncing_ball_3d import BouncingBall3D  # type: ignore
 
     bb = BouncingBall3D()
     result = []
@@ -423,11 +420,13 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
-    assert retcode == 0, f"Non-zero return code {retcode}"
+    # retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    # assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
-    # Model.build( str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
-    #              dest = (Path(__file__).parent / "test_working_directory"))
+    Model.build(
+        str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+        dest=(Path(__file__).parent / "test_working_directory"),
+    )
     # test_use_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu", False)
     # test_from_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
-    # test_from_osp( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
+    test_from_osp(Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")

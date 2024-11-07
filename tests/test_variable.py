@@ -127,7 +127,7 @@ def init_model_variables():
         mod,
         "myInt2",
         description="A integer variable without range checking",
-        valueReference=99,  # manual valueReference
+        value_reference=99,  # manual valueReference
         causality="input",
         variability="continuous",
         start=99,
@@ -186,7 +186,7 @@ def init_model_variables():
         start=("1.0", "2.0", "3.0"),
         rng=((0, float("inf")), (0, float("inf")), (0, float("inf"))),
         on_set=lambda val: 0.9 * val,
-        on_step=lambda t, dT: mod.myNP2[0](dT * mod.myNP2[0]),
+        on_step=lambda t, dt: mod.myNP2[0](dt * mod.myNP2[0]),
     )
     return (mod, myInt, myInt2, myFloat, myEnum, myStr, myNP, myNP2, myBool)
 

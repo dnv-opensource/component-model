@@ -179,6 +179,7 @@ name = "component-model"
 version = "0.0.2b7"
 source = { editable = "." }
 dependencies = [
+    { name = "flexparser" },
     { name = "fmpy" },
     { name = "jsonpath-ng" },
     { name = "libcosimpy" },
@@ -221,6 +222,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "docutils", marker = "extra == 'rest'", specifier = ">=0.21" },
+    { name = "flexparser", specifier = "<0.4" },
     { name = "fmpy", specifier = ">=0.3.21" },
     { name = "fmpy", marker = "extra == 'modeltest'", specifier = ">=0.3.21" },
     { name = "jsonpath-ng", specifier = ">=1.7.0" },
