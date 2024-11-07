@@ -80,10 +80,10 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 def test_inputtable_class(interpolate=False):
     import sys
-    sys.path.insert(0, str(Path(__file__).parent / 'examples'))
+
+    sys.path.insert(0, str(Path(__file__).parent / "examples"))
     from input_table import InputTable
 
-    
     tbl = InputTable(
         "TestTable",
         "my description",
