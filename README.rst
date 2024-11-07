@@ -1,7 +1,7 @@
 Introduction
 ============
 The package extends the `PythonFMU package <https://github.com/NTNU-IHB/PythonFMU>`_.
-It includes the necessary modules to construct a component model according to the fmi, OSP and DNV-RP-0513 standards 
+It includes the necessary modules to construct a component model according to the fmi, OSP and DNV-RP-0513 standards
 with focus on the following features:
 
 * seamless translation of a Python model to an FMU package with minimal overhead (definition of FMU interface)
@@ -24,7 +24,7 @@ A new model can consist of any python code. To turn the python code into an FMU 
 #. Calling the method `Model.build()` will then compile the FMU and package it into a suitable FMU file.
 
 See the files `example_models/bouncing_ball.py` and `tests/test_make_bouncingBall.py` supplied with this package
-as a simple example of this process. The first file defines the model class 
+as a simple example of this process. The first file defines the model class
 and the second file demonstrates the process of making the FMU and using it within fmpy and OSP.
 
 
@@ -36,7 +36,7 @@ Usage example
 -------------
 This is another BouncingBall example, using 3D vectors and units.
 
-.. literalinclude:: ../../tests/examples/bouncing_ball_3d.py
+.. literalinclude:: ./tests/examples/bouncing_ball_3d.py
    :language: python
 
 The following might be noted:
@@ -51,10 +51,10 @@ The following might be noted:
   Local (non-interface) variables can thus be initialized in a convenient way.
 
 It should be self-evident that thorough testing of any model is necessary **before** translation to a FMU.
-The simulation orchestration engine (e.g. OSP) used to run FMUs obfuscates error messages, 
+The simulation orchestration engine (e.g. OSP) used to run FMUs obfuscates error messages,
 such that first stage assurance of a model should aways done using e.g. `pytest`.
 
-The minimal code to make the FMU file package is 
+The minimal code to make the FMU file package is
 
 .. code-block:: Python
 
@@ -64,7 +64,7 @@ The minimal code to make the FMU file package is
    asBuilt = Model.build("../component_model/example_models/bouncing_ball.py")
    info = fmu_info(asBuilt.name)  # not necessary, but it lists essential properties of the FMU
 
-The model can then be run using `fmpy <https://pypi.org/project/FMPy/>`_ 
+The model can then be run using `fmpy <https://pypi.org/project/FMPy/>`_
 
 .. code-block:: Python
 
@@ -82,7 +82,7 @@ The model can then be run using `fmpy <https://pypi.org/project/FMPy/>`_
    )
    plot_result(result)
 
-Similarly, the model can be run using `OSP <https://opensimulationplatform.com/>`_ 
+Similarly, the model can be run using `OSP <https://opensimulationplatform.com/>`_
 (or rather `libcosimpy <https://pypi.org/project/libcosimpy/>`_ - OSP wrapped into Python):
 
 .. code-block:: Python
@@ -119,7 +119,7 @@ while OSP is made for multi-component systems.
 
 Contribute
 ----------
-Anybody in the FMU and OSP community is welcome to contribute to this code, to make it better, 
-and especially including other features from model assurance, 
-as we firmly believe that trust in our models is needed 
+Anybody in the FMU and OSP community is welcome to contribute to this code, to make it better,
+and especially including other features from model assurance,
+as we firmly believe that trust in our models is needed
 if we want to base critical decisions on the support from these models.
