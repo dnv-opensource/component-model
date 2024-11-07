@@ -81,7 +81,6 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 
 def test_inputtable_class(interpolate=False):
-
     tbl = InputTable(
         "TestTable",
         "my description",

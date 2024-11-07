@@ -1,4 +1,5 @@
 import numpy as np
+
 from component_model.model import Model
 
 
