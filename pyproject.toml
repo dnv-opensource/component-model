@@ -60,6 +60,7 @@ dependencies = [
     "libcosimpy>=0.0.2",
     "fmpy>=0.3.21",
     "pythonfmu>=0.6.5",
+    "flexparser<0.4",
 ]
 
 [project.optional-dependencies]
