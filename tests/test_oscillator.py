@@ -1,8 +1,10 @@
 from functools import partial
-from math import sqrt, pi, sin
-import numpy as np
-import pytest
+from math import pi, sin, sqrt
+
 import matplotlib.pyplot as plt
+import numpy as np
+from pathlib import Path
+
 
 def do_show( time:list, z:list, v:list):
     fig, ax = plt.subplots()
@@ -10,7 +12,7 @@ def do_show( time:list, z:list, v:list):
     ax.plot( time, v, label="z-speed")
     ax.legend()
     plt.show()
-    
+
 
 def force( t:float, ampl:float=1.0, omega:float=0.1):
     return np.array( (0,0,ampl* sin(omega*t)), float)
@@ -23,13 +25,9 @@ def test_oscillator_class(show):
     If pytest is run from the command line, the current directory is the package root,
     but when it is run from the editor (__main__) it is run from /tests/.
     """
-    import os
-
-    if not os.path.exists("./pyproject.toml"):
-        import sys
-
-        sys.path.insert(0, os.path.abspath("../"))
-    from tests.examples.oscillator import HarmonicOscillator, DrivingForce
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'examples'))
+    from oscillator import HarmonicOscillator
 
     osc = HarmonicOscillator( k=1.0, c=0.1, m=1.0)
     osc.x[2] = 1.0
@@ -47,13 +45,13 @@ def test_oscillator_class(show):
         z.append( osc.x[2])
         v.append( osc.v[2])
         time += dt
-    
+
     if show:
         do_show( times, z, v)
-    
+
 
 if __name__ == "__main__":
     #retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     #assert retcode == 0, f"Non-zero return code {retcode}"
     test_oscillator_class(show=True)
-    
+

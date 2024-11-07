@@ -64,13 +64,9 @@ def test_bouncing_ball_class(show):
     If pytest is run from the command line, the current directory is the package root,
     but when it is run from the editor (__main__) it is run from /tests/.
     """
-    import os
-
-    if not os.path.exists("./pyproject.toml"):
-        import sys
-
-        sys.path.insert(0, os.path.abspath("../"))
-    from tests.examples.bouncing_ball_3d import BouncingBall3D  # type: ignore
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'examples'))
+    from bouncing_ball_3d import BouncingBall3D  # type: ignore
 
     bb = BouncingBall3D()
     result = []

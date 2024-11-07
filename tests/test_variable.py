@@ -126,7 +126,7 @@ def init_model_variables():
         mod,
         "myInt2",
         description="A integer variable without range checking",
-        valueReference=99,  # manual valueReference
+        value_reference=99,  # manual valueReference
         causality="input",
         variability="continuous",
         start=99,

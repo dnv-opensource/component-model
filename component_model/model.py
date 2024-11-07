@@ -182,7 +182,7 @@ class Model(Fmi2Slave):
                 ):
                     self._units[u].append(du)
 
-    def register_variable(self, var: Variable, start: tuple | list | np.ndarray, valueReference: int | None = None):
+    def register_variable(self, var: Variable, start: tuple | list | np.ndarray, value_reference: int | None = None):
         """Register the variable 'var' as model variable. Set the initial value and add the unit if not yet used.
         Perform some checks and register the value_reference. The following should be noted.
 
@@ -196,10 +196,10 @@ class Model(Fmi2Slave):
             assert check, f"Variable name {var.name} already used as index {idx} in model {self.name}"
         # ensure that the model has the value as attribute:
         setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
-        if valueReference is None:  # automatic valueReference
+        if value_reference is None:  # automatic valueReference
             vref = len(self.vars)
         else:
-            vref = valueReference
+            vref = value_reference
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
@@ -605,7 +605,7 @@ class Model(Fmi2Slave):
             raise KeyError(f"Unknown iteration key {key} in 'vars_iter'")
 
     def ref_to_var(self, vr: int):
-        """Find Variable and sub-index (for compound variable), based on a valueReference value."""
+        """Find Variable and sub-index (for compound variable), based on a value_reference value."""
         _vr = vr
         while True:
             var = self.vars[_vr]

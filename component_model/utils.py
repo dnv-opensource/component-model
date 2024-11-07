@@ -180,7 +180,7 @@ def make_osp_system_structure(
     return file
 
 
-def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
+def model_from_fmu(fmu: str | Path, msg: bool = False, sep=".") -> dict:
     """Generate a Model from an FMU (excluding the inner working functions like `do_step()`),
     i.e. partially reverse-engineering a FMU.
     This can be useful for convenient access to model information like variables
@@ -192,7 +192,7 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
 
     Args:
         fmu (str, Path): the FMU file which is to be read. can be the full FMU zipfile, the modelDescription.xml or a equivalent string
-        provideMsg (bool): Optional possibility to provide messages during the process (for debugging purposes)
+        msg (bool): Optional possibility to provide messages during the process (for debugging purposes)
         sep (str)='.': separation used for structured variables (both for sub-systems and variable names)
 
     Returns

@@ -17,7 +17,7 @@ def bouncing_ball_fmu(tmp_path_factory):
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        Path(__file__).parent / "examples" / "bouncing_ball_xz.py",
+        Path(__file__).parent / "examples" / "bouncing_ball_3d.py",
         project_files=[],
         dest=build_path,
     )
@@ -106,8 +106,9 @@ def test_xml():
 
 def test_from_fmu(bouncing_ball_fmu):
     model = model_from_fmu(bouncing_ball_fmu)
-    assert model["name"] == "BouncingBallXZ", f"Name:{model['name']}"
-    assert model["description"] == "Simple bouncing ball test FMU", f"Description:{model['description']}"
+    assert model["name"] == "BouncingBall3D", f"Name:{model['name']}"
+    expected = "Another Python-based BouncingBall model, using Model and Variable to construct a FMU"
+    assert model["description"] == expected, f"Description:{model['description']}"
     assert model["author"] == "DNV, SEACo project"
     assert model["version"] == "0.1"
     assert model["license"].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
