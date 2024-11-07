@@ -10,7 +10,7 @@ on:
       - ready_for_review
       - converted_to_draft
     branches:
-      - main
+      - master
 
 concurrency:
   group: pr-${{ github.ref }}-1

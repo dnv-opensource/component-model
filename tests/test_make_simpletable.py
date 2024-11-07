@@ -4,8 +4,6 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from component_model.model import Model  # type: ignore
-from component_model.utils import make_osp_system_structure
 from fmpy import simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
@@ -14,6 +12,10 @@ from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
+
+from component_model.model import Model  # type: ignore
+from component_model.utils.osp import make_osp_system_structure
+from tests.examples.input_table import InputTable
 
 
 def check_expected(value, expected, feature: str):
@@ -79,11 +81,6 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 
 def test_inputtable_class(interpolate=False):
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from input_table import InputTable
-
     tbl = InputTable(
         "TestTable",
         "my description",
