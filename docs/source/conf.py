@@ -80,7 +80,7 @@ html_theme = "furo"
 #     "sidebarwidth": "250px",
 # }
 html_static_path = ["_static"]
-html_logo = "_static/component_model.svg"
+html_logo = "_static/component-model.svg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,
