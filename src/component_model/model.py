@@ -17,9 +17,8 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from component_model.caus_var_ini import Initial
-
-from .logger import get_module_logger
-from .variable import Variable
+from component_model.utils.logger import get_module_logger
+from component_model.variable import Variable
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -327,7 +326,7 @@ class Model(Fmi2Slave):
     @staticmethod
     def build(
         script: str = "",
-        project_files: list[str, Path] | None = None,
+        project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
     ):
@@ -649,7 +648,7 @@ class Model(Fmi2Slave):
         """
         values = list()
         for var, sub in self._var_iter(vrs):
-            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
             val = var.getter()
             if var is not None and len(var) > 1:
@@ -680,7 +679,7 @@ class Model(Fmi2Slave):
         """
         idx = 0
         for var, sub in self._var_iter(vrs):
-            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.typ}"
             if var is not None and len(var) > 1:
                 if sub is None:  # set the whole vector

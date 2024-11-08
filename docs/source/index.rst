@@ -3,17 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Component Model documentation!
-=========================================
+component-model: Python Package to create Component Models
+==========================================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents:
 
-   readme
-   modules
-   
-.. speclist::
+   README
+   CHANGELOG
+   LICENSE
+   api
+
 
 Indices and tables
 ==================

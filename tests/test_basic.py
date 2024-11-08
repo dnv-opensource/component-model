@@ -15,7 +15,7 @@ from pythonfmu import (  # type: ignore
 )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="package")
 def build_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
