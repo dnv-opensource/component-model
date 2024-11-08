@@ -17,9 +17,8 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from component_model.caus_var_ini import Initial
-
-from .logger import get_module_logger
-from .variable import Variable
+from component_model.utils.logger import get_module_logger
+from component_model.variable import Variable
 
 logger = get_module_logger(__name__, level=0)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -182,7 +181,7 @@ class Model(Fmi2Slave):
                 ):
                     self._units[u].append(du)
 
-    def register_variable(self, var: Variable, start: tuple | list | np.ndarray, valueReference: int | None = None):
+    def register_variable(self, var: Variable, start: tuple | list | np.ndarray, value_reference: int | None = None):
         """Register the variable 'var' as model variable. Set the initial value and add the unit if not yet used.
         Perform some checks and register the value_reference. The following should be noted.
 
@@ -196,10 +195,10 @@ class Model(Fmi2Slave):
             assert check, f"Variable name {var.name} already used as index {idx} in model {self.name}"
         # ensure that the model has the value as attribute:
         setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
-        if valueReference is None:  # automatic valueReference
+        if value_reference is None:  # automatic valueReference
             vref = len(self.vars)
         else:
-            vref = valueReference
+            vref = value_reference
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
@@ -327,7 +326,7 @@ class Model(Fmi2Slave):
     @staticmethod
     def build(
         script: str = "",
-        project_files: list[str, Path] | None = None,
+        project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
     ):
@@ -605,7 +604,7 @@ class Model(Fmi2Slave):
             raise KeyError(f"Unknown iteration key {key} in 'vars_iter'")
 
     def ref_to_var(self, vr: int):
-        """Find Variable and sub-index (for compound variable), based on a valueReference value."""
+        """Find Variable and sub-index (for compound variable), based on a value_reference value."""
         _vr = vr
         while True:
             var = self.vars[_vr]
@@ -649,7 +648,7 @@ class Model(Fmi2Slave):
         """
         values = list()
         for var, sub in self._var_iter(vrs):
-            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
             val = var.getter()
             if var is not None and len(var) > 1:
@@ -680,7 +679,7 @@ class Model(Fmi2Slave):
         """
         idx = 0
         for var, sub in self._var_iter(vrs):
-            check = var.typ == typ or (typ == int and issubclass(var.typ, Enum))
+            check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.typ}"
             if var is not None and len(var) > 1:
                 if sub is None:  # set the whole vector

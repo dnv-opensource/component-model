@@ -5,9 +5,12 @@ from enum import Enum
 
 import numpy as np
 import pytest
+from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
+from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+
 from component_model.caus_var_ini import Initial
-from component_model.logger import get_module_logger  # type: ignore
 from component_model.model import Model  # type: ignore
+from component_model.utils.logger import get_module_logger  # type: ignore
 from component_model.variable import (  # type: ignore
     Check,
     Variable,
@@ -16,8 +19,6 @@ from component_model.variable import (  # type: ignore
     cartesian_to_spherical,
     spherical_to_cartesian,
 )
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
@@ -72,17 +73,17 @@ def test_var_check():
 
 
 def test_auto_type():
-    assert Variable.auto_type(1) == float, "int not allowed (default)"
-    assert Variable.auto_type(1, allow_int=True) == int, "int allowed"
-    assert Variable.auto_type(0.99, allow_int=True) == float
-    assert Variable.auto_type(0.99, allow_int=False) == float
-    assert Variable.auto_type((1, 2, 0.99), allow_int=False) == float
-    assert Variable.auto_type((1, 2, 0.99), allow_int=True) == float, "Ok by our rules"
-    assert Variable.auto_type((1, 2, 3), allow_int=True) == int
-    assert Variable.auto_type((True, False, 3), allow_int=True) == int
-    assert Variable.auto_type((True, False), allow_int=True) == bool
-    assert Variable.auto_type((True, False), allow_int=False) == bool
-    assert Variable.auto_type((True, 1, 9.9), allow_int=False) == bool
+    assert Variable.auto_type(1) is float, "int not allowed (default)"
+    assert Variable.auto_type(1, allow_int=True) is int, "int allowed"
+    assert Variable.auto_type(0.99, allow_int=True) is float
+    assert Variable.auto_type(0.99, allow_int=False) is float
+    assert Variable.auto_type((1, 2, 0.99), allow_int=False) is float
+    assert Variable.auto_type((1, 2, 0.99), allow_int=True) is float, "Ok by our rules"
+    assert Variable.auto_type((1, 2, 3), allow_int=True) is int
+    assert Variable.auto_type((True, False, 3), allow_int=True) is int
+    assert Variable.auto_type((True, False), allow_int=True) is bool
+    assert Variable.auto_type((True, False), allow_int=False) is bool
+    assert Variable.auto_type((True, 1, 9.9), allow_int=False) is bool
     #     with pytest.raises(VariableInitError) as err: # that goes too far
     #         assert Variable.auto_type( (True,1, 9.9), allow_int=False) == float
     #     assert str(err.value).startswith("Incompatible variable types")
@@ -126,7 +127,7 @@ def init_model_variables():
         mod,
         "myInt2",
         description="A integer variable without range checking",
-        valueReference=99,  # manual valueReference
+        value_reference=99,  # manual valueReference
         causality="input",
         variability="continuous",
         start=99,
@@ -185,7 +186,7 @@ def init_model_variables():
         start=("1.0", "2.0", "3.0"),
         rng=((0, float("inf")), (0, float("inf")), (0, float("inf"))),
         on_set=lambda val: 0.9 * val,
-        on_step=lambda t, dT: mod.myNP2[0](dT * mod.myNP2[0]),
+        on_step=lambda t, dt: mod.myNP2[0](dt * mod.myNP2[0]),
     )
     return (mod, myInt, myInt2, myFloat, myEnum, myStr, myNP, myNP2, myBool)
 
@@ -203,7 +204,7 @@ def test_init():
         myNP2,
         myBool,
     ) = init_model_variables()
-    assert myInt.typ == int
+    assert myInt.typ is int
     assert myInt.description == "A integer variable"
     assert myInt.causality == Causality.parameter
     assert myInt.variability == Variability.fixed
@@ -228,7 +229,7 @@ def test_init():
     mod.set_integer(((mod.variable_by_name("myInt").value_reference),), (99,))  # simulate setting from outside
     assert mod.get_integer(((mod.variable_by_name("myInt").value_reference),)) == [99]
 
-    assert myFloat.typ == float
+    assert myFloat.typ is float
     assert myFloat.causality == Causality.input
     assert myFloat.variability == Variability.continuous
     assert myFloat.initial == Initial.none, f"initial: {myFloat.initial}"
@@ -276,7 +277,7 @@ def test_init():
     mod.set_integer(((mod.variable_by_name("myEnum").value_reference),), (2,))  # simulate setting from outside
     assert mod.get_integer(((mod.variable_by_name("myEnum").value_reference),)) == [2]
 
-    assert myBool.typ == bool
+    assert myBool.typ is bool
     assert myBool.causality == Causality.parameter
     assert myBool.variability == Variability.fixed
     assert myBool.initial == Initial.exact
@@ -298,7 +299,7 @@ def test_init():
     mod.set_boolean(((mod.variable_by_name("myBool").value_reference),), (True,))  # simulate setting from outside
     assert mod.get_boolean(((mod.variable_by_name("myBool").value_reference),)) == [True]
 
-    assert myStr.typ == str
+    assert myStr.typ is str
     assert myStr.causality == Causality.parameter
     assert myStr.variability == Variability.fixed
     assert myStr.initial == Initial.exact, f"initial: {myStr.initial}"
@@ -318,7 +319,7 @@ def test_init():
     mod.set_string(((mod.variable_by_name("myStr").value_reference),), ("Hello",))  # simulate setting from outside
     assert mod.get_string(((mod.variable_by_name("myStr").value_reference),)) == ["Hello"]
 
-    assert myNP.typ == float
+    assert myNP.typ is float
     assert myNP == mod.variable_by_name("myNP")
     assert myNP.description == "A NP variable"
     assert mod.variable_by_name("myNP[1]") == mod.variable_by_name("myNP"), "Returns always the parent"
@@ -385,7 +386,7 @@ def test_init():
     assert myEnum.range[0] == (0, 4)
     assert myEnum.check_range(Causality.parameter)
     assert myStr.range == (("", ""),), "Just a placeholder. Range of str is not checked"
-    assert myBool.typ == bool
+    assert myBool.typ is bool
 
 
 def test_range():
@@ -426,7 +427,7 @@ def test_dirty():
         on_set=lambda x: 0.5 * x,
         rng=((0, "3m"), (0, float("inf")), (float("-inf"), "5rad")),
     )
-    assert myNP.typ == float, f"Type {myNP.typ}"
+    assert myNP.typ is float, f"Type {myNP.typ}"
     myNP.setter(np.array((2, 1, 4), float))
     assert myNP not in mod.dirty, "Not dirty, because the whole variable was changed"
     arrays_equal(mod.myNP, [0.5 * 2.0, 0.5 * math.radians(1), 0.5 * 4])  # ... and on_set has been run

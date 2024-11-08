@@ -4,8 +4,6 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from component_model.model import Model  # type: ignore
-from component_model.utils import make_osp_system_structure
 from fmpy import simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
@@ -15,6 +13,8 @@ from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
 
+from component_model.model import Model  # type: ignore
+from component_model.utils.osp import make_osp_system_structure
 from tests.examples.input_table import InputTable
 
 

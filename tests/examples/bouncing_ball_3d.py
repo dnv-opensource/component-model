@@ -1,6 +1,7 @@
 from math import sqrt
 
 import numpy as np
+
 from component_model.model import Model
 from component_model.variable import Variable
 
@@ -98,7 +99,6 @@ class BouncingBall3D(Model):
     def setup_experiment(self, start: float):
         """Set initial (non-interface) variables."""
         super().setup_experiment(start)
-        # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
         self.stopped = False
         self.time = start
 

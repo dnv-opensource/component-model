@@ -1,14 +1,11 @@
 from pathlib import Path
 
 import pytest
+
 from component_model.model import Model
-from component_model.utils import (
-    make_osp_system_structure,
-    model_from_fmu,
-    read_xml,
-    variables_from_fmu,
-    xml_to_python_val,
-)
+from component_model.utils.fmu import model_from_fmu, read_xml, variables_from_fmu
+from component_model.utils.osp import make_osp_system_structure
+from component_model.utils.xml import xml_to_python_val
 
 
 @pytest.fixture(scope="session")
@@ -43,9 +40,9 @@ def test_xml_to_python_val():
     assert not xml_to_python_val("false")
     assert xml_to_python_val("99") == 99, "Detect an int"
     assert xml_to_python_val("99.99") == 99.99, "Detect a float"
-    assert xml_to_python_val("Real") == float, "Detect a type"
-    assert xml_to_python_val("String") == str, "Detect a type"
-    assert xml_to_python_val("Real") == float, "Detect a type"
+    assert xml_to_python_val("Real") is float, "Detect a type"
+    assert xml_to_python_val("String") is str, "Detect a type"
+    assert xml_to_python_val("Real") is float, "Detect a type"
     assert xml_to_python_val("Hello World") == "Hello World", "Detect a literal string"
 
 

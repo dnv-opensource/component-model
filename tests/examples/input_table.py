@@ -1,4 +1,5 @@
 import numpy as np
+
 from component_model.model import Model
 from component_model.variable import Variable
 
@@ -11,7 +12,7 @@ class InputTable(Model):
         name (str): a specific name of this input table
         description (str): a description of the output this input table delivers
         table (tuple): the table (as tuple of tuples) with time values in column 0 and any number of outputs
-        outputName (str)='out': Optional possibility to specify the (parent) name of the outputs. Default: out.n with n=1,2,...
+        output_name (str)='out': Optional possibility to specify the (parent) name of the outputs. Default: out.n with n=1,2,...
         interpolate (bool)=False: Optional possibility to interpolate between rows in the table at evry communication point,
           instead of discrete changes after the next time value is reached.
         kwargs: any argument of the Model class can be overridden through this mechanism
@@ -25,7 +26,7 @@ class InputTable(Model):
         author="Siegfried Eisinger",
         version="0.1",
         table: tuple = (),
-        outputName: str = "out",
+        output_name: str = "out",
         interpolate: bool = False,
         **kwargs,
     ):
@@ -48,7 +49,7 @@ class InputTable(Model):
         self.outputs = np.array(
             list(row[1:] for row in table), dtype="float64"
         )  # this is only internally defined, not as Variable
-        self.outputName = outputName
+        self.output_name = output_name
         self._interface(table[0][1:], interpolate)
 
     def _interface(self, outs0: tuple, interpolate0: bool):
@@ -73,7 +74,7 @@ class InputTable(Model):
             on_set=self.set_ranges,  # need to adapt ranges when 'interpolate' changes
         )
 
-    def do_step(self, time, stepSize):
+    def do_step(self, time, dt):
         """Do a simulation step of size 'stepSize at time 'time."""
         # super().do_step( time, stepSize) # this is not called here, because there are no on_set and other general issues
         self.set_values(time)

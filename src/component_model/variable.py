@@ -12,8 +12,8 @@ from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
-from .caus_var_ini import Initial, check_causality_variability_initial, use_start
-from .logger import get_module_logger
+from component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
+from component_model.utils.logger import get_module_logger
 
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum
@@ -164,7 +164,7 @@ class Variable(ScalarVariable):
         on_step: Callable | None = None,
         on_set: Callable | None = None,
         owner: Any | None = None,
-        valueReference: int | None = None,
+        value_reference: int | None = None,
     ):
         self.model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
@@ -184,7 +184,7 @@ class Variable(ScalarVariable):
 
         self._annotations = annotations
         self._check = value_check  # unique for all elements in compound variables
-        self._typ = typ  # preliminary. Will be adapted if not explicitly provided (None)
+        self._typ: type | None = typ  # preliminary. Will be adapted if not explicitly provided (None)
 
         self.on_step = on_step  # hook to define a function of currentTime and time step dT,
         # to be performed during Model.do_step for input variables
@@ -194,7 +194,7 @@ class Variable(ScalarVariable):
         self._start: tuple
         # First we check for str (since these are also iterable), then we can check for the presence of __getitem__
         # Determine the (element) type (unique for all elements in compound variables)
-        if self._typ == str:  # explicit free string
+        if self._typ is str:  # explicit free string
             self._len = 1
             self.unit = "dimensionless"
             self.display = None
@@ -216,7 +216,7 @@ class Variable(ScalarVariable):
 
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
-        self.model.register_variable(self, self.start, valueReference)  # register in model and return index
+        self.model.register_variable(self, self.start, value_reference)  # register in model and return index
         # disable super() functions and properties which are not in use here
         self.to_xml = None
 
@@ -348,7 +348,7 @@ class Variable(ScalarVariable):
             if issubclass(self._typ, Enum):  # native Enums do not exist in FMI2. Convert to int
                 value = value.value
             elif not isinstance(value, self._typ):  # other type conversion
-                value = self._typ(value)
+                value = self._typ(value)  # type: ignore[call-arg]
             if self._check & Check.units:  # Convert 'value' display.u -> base unit
                 if self._display[0] is not None:
                     value = self.display[0][2](value)
@@ -361,7 +361,7 @@ class Variable(ScalarVariable):
             else:
                 for i in range(self._len):  # check whether conversion to _typ is necessary
                     if not isinstance(value[i], self._typ):
-                        value[i] = self._typ(value[i])
+                        value[i] = self._typ(value[i])  # type: ignore[call-arg]
             if self._check & Check.units:  # Convert 'value' display.u -> base unit
                 for i in range(self._len):
                     if self._display[i] is not None:
@@ -383,7 +383,9 @@ class Variable(ScalarVariable):
         def ensure_display_limits(val: PyType, idx: int, right: bool):
             """Ensure that value is provided as display unit and that limits are included in range."""
             if self._display[idx] is not None:  # Range in display units!
-                val = self._display[idx][2](val)
+                _val = self._display[idx]
+                assert isinstance(_val, tuple)
+                val = _val[2](val)
             if isinstance(val, float) and abs(val) != float("inf") and int(val) != val:
                 if right:
                     val += 1e-15
@@ -423,8 +425,8 @@ class Variable(ScalarVariable):
                             raise VariableInitError(
                                 f"The supplied range value {str(r)} does not conform to the unit type {self._unit[idx]}"
                             )
-                        elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:
-                            raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")
+                        elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:  # type: ignore[index]
+                            raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")  # type: ignore[index]
                     q = ensure_display_limits(q, idx, len(i_range) > 0)
                     i_range.append(q)
 
@@ -453,7 +455,7 @@ class Variable(ScalarVariable):
         if self._len == 1 and idx is None:
             idx = 0
         if isinstance(value, str):  # no range checking on strings
-            return self._typ == str
+            return self._typ is str
         elif self._len > 1 and idx is None:  # check all components
             assert isinstance(value, (tuple, list, np.ndarray)) and len(value) == self._len, f"{value} has no elements"
             return all(self.check_range(value[i], i, disp) for i in range(self._len))
@@ -465,22 +467,24 @@ class Variable(ScalarVariable):
                 value = value[idx]
             if value is None:  # denotes unchanged values (of compound variables)
                 return True
-            if self._typ != type(value):
+            if self._typ is not type(value):
                 try:
                     value = self._typ(value)  # try to cast the value
                 except Exception:  # give up
                     return False
             # special types (str checked above):
-            if self._typ == str:  # no range checking on str
+            if self._typ is str:  # no range checking on str
                 return True
-            elif self._typ == bool:
+            elif self._typ is bool:
                 return isinstance(value, bool)
             elif isinstance(value, Enum):
                 return isinstance(value, self._typ)
 
             elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
                 if not disp and self._display[idx] is not None:  # check an internal unit value
-                    value = self._display[idx][2](value)
+                    _val = self._display[idx]
+                    assert isinstance(_val, tuple)
+                    value = _val[2](value)
                 return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
             else:
                 raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
@@ -489,7 +493,7 @@ class Variable(ScalarVariable):
         """Translate the provided type to a proper fmi type and return it as string.
         See types defined in schema fmi2Unit.xsd.
         """
-        if self._typ == bool:
+        if self._typ is bool:
             return "true" if val else "false"
         else:
             return str(val)
@@ -517,9 +521,9 @@ class Variable(ScalarVariable):
                             pass
                         elif issubclass(typ, t):
                             typ = t
-                        elif typ == float and t == int:  # we allow that, even if no subclass
+                        elif typ is float and t is int:  # we allow that, even if no subclass
                             pass
-                        elif typ == int and t == float:  # we allow that, even if no subclass
+                        elif typ is int and t is float:  # we allow that, even if no subclass
                             typ = float
                     else:
                         raise VariableInitError(f"Incompatible variable types {typ}, {t} in {val}") from None
@@ -593,7 +597,7 @@ class Variable(ScalarVariable):
                 val, ub, display = (str(quantity), "", None)  # type: ignore
         else:
             val, ub, display = (quantity, "dimensionless", None)  # type: ignore
-        if self._typ is not None and type(val) != self._typ:  # check variable type
+        if self._typ is not None and type(val) is not self._typ:  # check variable type
             try:  # try to convert the magnitude to the correct type.
                 val = self._typ(val)
             except Exception as err:
@@ -642,7 +646,8 @@ class Variable(ScalarVariable):
         declaredType = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
             self.typ.__qualname__
         ]  # translation of python to FMI primitives. Same for all components
-        do_use_start = use_start(self._causality, self._variability, self._initial)
+        assert self._initial is not None, "Initial shall be properly set at this point"
+        do_use_start = use_start(causality=self._causality, variability=self._variability, initial=self._initial)
         svars = []
         for i in range(self._len):
             sv = ET.Element(
@@ -689,9 +694,9 @@ class Variable(ScalarVariable):
 
 
 # Utility functions for handling special variable types
-def spherical_to_cartesian(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn spherical vector 'vec' (defined according to ISO 80000-2 (r,polar,azimuth)) into cartesian coordinates."""
-    if asDeg:
+    if deg:
         theta = radians(vec[1])
         phi = radians(vec[2])
     else:
@@ -705,7 +710,7 @@ def spherical_to_cartesian(vec: np.ndarray | tuple, asDeg: bool = False) -> np.n
     return np.array((r * sinTheta * cosPhi, r * sinTheta * sinPhi, r * cosTheta))
 
 
-def cartesian_to_spherical(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into spherical coordinates.
     (defined according to ISO 80000-2, (r, polar, azimuth)).
     """
@@ -715,46 +720,46 @@ def cartesian_to_spherical(vec: np.ndarray | tuple, asDeg: bool = False) -> np.n
             return np.array((0, 0, 0), dtype="float")
         else:
             return np.array((r, 0, 0), dtype="float")
-    elif asDeg:
+    elif deg:
         return np.array((r, degrees(acos(vec[2] / r)), degrees(atan2(vec[1], vec[0]))), dtype="float64")
     else:
         return np.array((r, acos(vec[2] / r), atan2(vec[1], vec[0])), dtype="float")
 
 
-def cartesian_to_cylindrical(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into cylindrical coordinates.
     (defined according to ISO, (r, phi, z), with phi right-handed wrt. x-axis).
     """
     phi = atan2(vec[1], vec[0])
-    if asDeg:
+    if deg:
         phi = degrees(phi)
     return np.array((sqrt(vec[0] * vec[0] + vec[1] * vec[1]), phi, vec[2]), dtype="float")
 
 
-def cylindrical_to_cartesian(vec: np.ndarray | tuple, asDeg: bool = False) -> np.ndarray:
+def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
     """Turn cylinder coordinate vector 'vec' (defined according to ISO (r,phi,z)) into cartesian coordinates.
     The angle phi is measured with respect to x-axis, right hand.
     """
-    phi = radians(vec[1]) if asDeg else vec[1]
+    phi = radians(vec[1]) if deg else vec[1]
     return np.array((vec[0] * cos(phi), vec[0] * sin(phi), vec[2]), dtype="float")
 
 
-def quantity_direction(quantityDirection: tuple, asSpherical: bool = False, asDeg: bool = False) -> np.ndarray:
+def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: bool = False) -> np.ndarray:
     """Turn a 4-tuple, consisting of quantity (float) and a direction 3-vector to a direction 3-vector,
     where the norm denotes the direction and the length denotes the quantity.
     The return vector is always a cartesian vector.
 
     Args:
-        quantityDirection (tuple): a 4-tuple consisting of the desired length of the resulting vector (in standard units (m or m/s))
+        quantity_direction (tuple): a 4-tuple consisting of the desired length of the resulting vector (in standard units (m or m/s))
            and the direction 3-vector (in standard units)
-        asSpherical (bool)=False: Optional possibility to provide the input direction vector in spherical coordinates
-        asDeg (bool)=False: Optional possibility to provide the input angle (of spherical coordinates) in degrees. Only relevant if asSpherical=True
+        spherical (bool)=False: Optional possibility to provide the input direction vector in spherical coordinates
+        deg (bool)=False: Optional possibility to provide the input angle (of spherical coordinates) in degrees. Only relevant if spherical=True
     """
-    if quantityDirection[0] < 1e-15:
+    if quantity_direction[0] < 1e-15:
         return np.array((0, 0, 0), dtype="float")
-    if asSpherical:
-        direction = spherical_to_cartesian(quantityDirection[1:], asDeg)  # turn to cartesian coordinates, if required
+    if spherical:
+        direction = spherical_to_cartesian(quantity_direction[1:], deg)  # turn to cartesian coordinates, if required
     else:
-        direction = np.array(quantityDirection[1:], dtype="float")
+        direction = np.array(quantity_direction[1:], dtype="float")
     n = np.linalg.norm(direction)  # normalize
-    return quantityDirection[0] / n * direction
+    return quantity_direction[0] / n * direction

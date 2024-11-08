@@ -1,0 +1,13 @@
+[paths]
+source =
+    src/component_model
+    */site-packages/component_model
+
+[run]
+source = component_model
+branch = True
+
+[report]
+fail_under = 10.0
+show_missing = True
+skip_covered = True
