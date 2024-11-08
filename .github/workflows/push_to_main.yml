@@ -4,7 +4,7 @@ run-name: Push to main by @${{ github.actor }}
 on:
   push:
     branches:
-      - master
+      - main
 
 concurrency:
   group: push-${{ github.ref }}-1
