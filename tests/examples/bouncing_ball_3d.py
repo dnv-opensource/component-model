@@ -98,7 +98,6 @@ class BouncingBall3D(Model):
     def setup_experiment(self, start: float):
         """Set initial (non-interface) variables."""
         super().setup_experiment(start)
-        # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
         self.stopped = False
         self.time = start
 
