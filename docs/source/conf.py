@@ -27,7 +27,7 @@ copyright = "2024, DNV AS. All rights reserved."
 author = "Siegfried Eisinger"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.2b3"
+release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
