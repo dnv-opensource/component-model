@@ -27,7 +27,7 @@ copyright = "2024, DNV AS. All rights reserved."
 author = "Siegfried Eisinger"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.2b6"
+release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -80,7 +80,7 @@ html_theme = "furo"
 #     "sidebarwidth": "250px",
 # }
 html_static_path = ["_static"]
-html_logo = "_static/component_model.svg"
+html_logo = "_static/component-model.svg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,
