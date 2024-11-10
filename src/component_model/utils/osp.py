@@ -99,6 +99,12 @@ def make_osp_system_structure(
             "version": version,
         },
     )
+    _start = ET.Element('StartTime')
+    _start.text = str(start)
+    osp.append(_start)
+    _step = ET.Element('BaseStepSize')
+    _step.text = str(base_step)
+    osp.append(_step)
     osp.append(make_simulators())
     osp.append(make_connections())
     tree = ET.ElementTree(osp)

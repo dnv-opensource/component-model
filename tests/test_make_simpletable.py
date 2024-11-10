@@ -15,7 +15,6 @@ from libcosimpy.CosimSlave import CosimLocalSlave
 
 from component_model.model import Model  # type: ignore
 from component_model.utils.osp import make_osp_system_structure
-from tests.examples.input_table import InputTable
 
 
 def check_expected(value, expected, feature: str):
@@ -81,6 +80,10 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 
 def test_inputtable_class(interpolate=False):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / "examples"))
+    from input_table import InputTable
+
     tbl = InputTable(
         "TestTable",
         "my description",
@@ -259,9 +262,9 @@ def test_run_osp_system_structure(simple_table_system_structure):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
-    assert retcode == 0, f"Non-zero return code {retcode}"
+    #retcode = pytest.main(["-rA", "-v", __file__])
+    #assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_inputtable_class()
-    # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
+    test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
