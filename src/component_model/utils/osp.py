@@ -47,7 +47,7 @@ def make_osp_system_structure(
             ET.SubElement(
                 initial,
                 _type,
-                {"value": ("true" if val else "false") if isinstance(val, bool) else str(val)},
+                {"value": (("true" if val else "false") if isinstance(val, bool) else str(val))},
             )
             return initial
 
@@ -99,10 +99,10 @@ def make_osp_system_structure(
             "version": version,
         },
     )
-    _start = ET.Element('StartTime')
+    _start = ET.Element("StartTime")
     _start.text = str(start)
     osp.append(_start)
-    _step = ET.Element('BaseStepSize')
+    _step = ET.Element("BaseStepSize")
     _step.text = str(base_step)
     osp.append(_step)
     osp.append(make_simulators())

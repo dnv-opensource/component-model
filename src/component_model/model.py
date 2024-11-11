@@ -129,7 +129,11 @@ class Model(Fmi2Slave):
         self.ureg = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         if default_experiment is None:  # PythonFMU.DefaultExperiment not used!
-            self.default_experiment = {"startTime": 0, "stopTime": 1.0, "stepSize": 0.01}
+            self.default_experiment = {
+                "startTime": 0,
+                "stopTime": 1.0,
+                "stepSize": 0.01,
+            }
         else:
             self.default_experiment = default_experiment
         self.guid = guid if guid is not None else uuid.uuid4().hex
@@ -181,7 +185,12 @@ class Model(Fmi2Slave):
                 ):
                     self._units[u].append(du)
 
-    def register_variable(self, var: Variable, start: tuple | list | np.ndarray, value_reference: int | None = None):
+    def register_variable(
+        self,
+        var: Variable,
+        start: tuple | list | np.ndarray,
+        value_reference: int | None = None,
+    ):
         """Register the variable 'var' as model variable. Set the initial value and add the unit if not yet used.
         Perform some checks and register the value_reference. The following should be noted.
 
@@ -350,7 +359,10 @@ class Model(Fmi2Slave):
         # Make sure the dest path is of type Patch
         dest = dest if isinstance(dest, Path) else Path(dest)
 
-        with tempfile.TemporaryDirectory() as documentation_dir, tempfile.TemporaryDirectory() as requirements_dir:
+        with (
+            tempfile.TemporaryDirectory() as documentation_dir,
+            tempfile.TemporaryDirectory() as requirements_dir,
+        ):
             doc_dir = Path(documentation_dir)
             license_file = doc_dir / "licenses" / "license.txt"
             license_file.parent.mkdir()
@@ -438,8 +450,17 @@ class Model(Fmi2Slave):
                 )
         if self.default_experiment is not None:
             for a in self.default_experiment:  # check the dict
-                assert a in ("startTime", "stopTime", "stepSize", "tolerance"), f"DefaultExperiment key {a} unknown"
-            ET.SubElement(root, "DefaultExperiment", {k: str(v) for k, v in self.default_experiment.items()})
+                assert a in (
+                    "startTime",
+                    "stopTime",
+                    "stepSize",
+                    "tolerance",
+                ), f"DefaultExperiment key {a} unknown"
+            ET.SubElement(
+                root,
+                "DefaultExperiment",
+                {k: str(v) for k, v in self.default_experiment.items()},
+            )
 
         variables = self._xml_modelvariables()
         root.append(variables)  # append <ModelVariables>
@@ -484,7 +505,14 @@ class Model(Fmi2Slave):
             unit.append(base)
             for du in self._units[u]:  # list also the displays (if defined)
                 unit.append(
-                    ET.Element("DisplayUnit", {"name": du[0], "factor": str(du[1](1.0)), "offset": str(du[1](0.0))})
+                    ET.Element(
+                        "DisplayUnit",
+                        {
+                            "name": du[0],
+                            "factor": str(du[1](1.0)),
+                            "offset": str(du[1](0.0)),
+                        },
+                    )
                 )
             defs.append(unit)
         return defs
@@ -505,7 +533,10 @@ class Model(Fmi2Slave):
         """
         out = ET.Element("Outputs")
 
-        for v in filter(lambda v: v is not None and v.causality == Causality.output, self.vars.values()):
+        for v in filter(
+            lambda v: v is not None and v.causality == Causality.output,
+            self.vars.values(),
+        ):
             if len(v) == 1:
                 out.append(ET.Element("Unknown", {"index": str(v.value_reference + 1)}))
             else:

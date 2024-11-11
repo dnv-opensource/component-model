@@ -90,7 +90,11 @@ def test_model_description(bouncing_ball_fmu):
         len(el) == 5
     ), f"Five LogCategories expected. Found {''.join(x.get('name')+', ' for x in el.findall('./Category'))}"
     el = et.find("./DefaultExperiment")
-    assert el.attrib == {"startTime": "0", "stopTime": "1.0", "stepSize": "0.01"}, f"DefaultExperiment: {el.attrib}"
+    assert el.attrib == {
+        "startTime": "0",
+        "stopTime": "1.0",
+        "stepSize": "0.01",
+    }, f"DefaultExperiment: {el.attrib}"
     el = et.find("./ModelVariables")
     assert el is not None, "ModelVariables element expected"
     assert (
@@ -116,7 +120,12 @@ def test_osp_structure():
             "simpleTable": {"interpolate": True},
             "mobileCrane": {"pedestal.pedestalMass": 5000.0, "boom.boom.0": 20.0},
         },
-        connections=("simpleTable", "outputs.0", "mobileCrane", "pedestal.angularVelocity"),
+        connections=(
+            "simpleTable",
+            "outputs.0",
+            "mobileCrane",
+            "pedestal.angularVelocity",
+        ),
         path=Path.cwd(),
     )
 

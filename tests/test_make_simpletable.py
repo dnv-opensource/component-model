@@ -81,6 +81,7 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 def test_inputtable_class(interpolate=False):
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent / "examples"))
     from input_table import InputTable
 
@@ -243,8 +244,18 @@ def test_run_osp_system_structure(simple_table_system_structure):
                 }
             }
         )
-    assert variables["outs[0]"] == {"reference": 0, "type": 0, "causality": 2, "variability": 4}  # similar: [1],[2]
-    assert variables["interpolate"] == {"reference": 3, "type": 3, "causality": 1, "variability": 1}
+    assert variables["outs[0]"] == {
+        "reference": 0,
+        "type": 0,
+        "causality": 2,
+        "variability": 4,
+    }  # similar: [1],[2]
+    assert variables["interpolate"] == {
+        "reference": 3,
+        "type": 3,
+        "causality": 1,
+        "variability": 1,
+    }
 
     # Instantiate a suitable manipulator for changing variables.
     manipulator = CosimManipulator.create_override()
@@ -262,8 +273,8 @@ def test_run_osp_system_structure(simple_table_system_structure):
 
 
 if __name__ == "__main__":
-    #retcode = pytest.main(["-rA", "-v", __file__])
-    #assert retcode == 0, f"Non-zero return code {retcode}"
+    # retcode = pytest.main(["-rA", "-v", __file__])
+    # assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_inputtable_class()

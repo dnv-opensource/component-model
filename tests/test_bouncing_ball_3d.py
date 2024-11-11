@@ -165,7 +165,12 @@ def test_bouncing_ball_class(show):
         eps=0.03,
     )
     # from bounce to bounce
-    v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce  # set start values (first bounce)
+    v_x, v_z, t_b, x_b = (
+        1.0,
+        v_bounce,
+        t_bounce,
+        x_bounce,
+    )  # set start values (first bounce)
     # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
     for n in range(2, 100):  # from bounce to bounce
         v_x = v_x * bb.e  # adjusted speeds
@@ -308,7 +313,12 @@ def test_use_fmu(bouncing_ball_fmu, show):
         eps=0.03,
     )
     # from bounce to bounce
-    v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce  # set start values (first bounce)
+    v_x, v_z, t_b, x_b = (
+        1.0,
+        v_bounce,
+        t_bounce,
+        x_bounce,
+    )  # set start values (first bounce)
     row = int((t_before + dt) / dt)
     # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
     for n in range(2, 100):  # from bounce to bounce

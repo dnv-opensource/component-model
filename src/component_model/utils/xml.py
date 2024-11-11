@@ -17,9 +17,13 @@ def xml_to_python_val(val: str):
             try:
                 return float(val)
             except Exception:
-                return {"Real": float, "Integer": int, "Boolean": bool, "String": str, "Enumeration": Enum}.get(
-                    val, val
-                )
+                return {
+                    "Real": float,
+                    "Integer": int,
+                    "Boolean": bool,
+                    "String": str,
+                    "Enumeration": Enum,
+                }.get(val, val)
 
 
 def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
