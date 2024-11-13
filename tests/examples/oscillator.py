@@ -24,15 +24,7 @@ class HarmonicOscillator(Model):
         self.k = k
         self.c = c
         self.m = m
-        self._x = Variable(
-            self,
-            name="x",
-            description="Position in 3D space",
-            causality="output",
-            variability="continuous",
-            initial="exact",
-            start=(0, 0, 1.0),
-        )
+        self.x = (0.0, 0.0, 0.0)
         self.v = np.array((0, 0, 0), float)
         self.f = np.array((0, 0, 0), float)
 
