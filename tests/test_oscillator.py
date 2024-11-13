@@ -4,9 +4,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 
 from component_model.model import Model
+
 
 def build_oscillator():
     build_path = Path.cwd()
@@ -15,6 +15,8 @@ def build_oscillator():
         project_files=[],
         dest=build_path,
     )
+
+    return fmu_path
 
 
 def do_show(time: list, z: list, v: list):
