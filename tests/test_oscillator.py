@@ -4,6 +4,17 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
+
+from component_model.model import Model
+
+def build_oscillator():
+    build_path = Path.cwd()
+    fmu_path = Model.build(
+        str(Path(__file__).parent / "examples" / "oscillator.py"),
+        project_files=[],
+        dest=build_path,
+    )
 
 
 def do_show(time: list, z: list, v: list):
@@ -55,3 +66,4 @@ if __name__ == "__main__":
     # retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     # assert retcode == 0, f"Non-zero return code {retcode}"
     test_oscillator_class(show=True)
+    build_oscillator()
