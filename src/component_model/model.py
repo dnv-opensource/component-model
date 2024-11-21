@@ -81,7 +81,7 @@ class Model(Fmi2Slave):
           If None, the BSD-3-Clause license as also used in the component_model package is used, with a modified copyright line
         copyright (str)=None: Copyright line for use in full license text. If None, an automatic copyright line is constructed from the author name and the file date.
         default_experiment (dict) = None: key/value dictionary for the default experiment setup.
-          Valid keys: start_time,stop_time,step_size,tolerance
+          Valid keys: startTime,stopTime,stepSize,tolerance
         guid (str)=None: Unique identifier of the model (supplied or automatically generated)
         flags (dict)=None: Any of the defined FMI flags with a non-default value (see FMI 2.0.4, Section 4.3.1)
     """
