@@ -4,7 +4,6 @@ import pytest
 
 from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu, read_xml, variables_from_fmu
-from component_model.utils.osp import make_osp_system_structure
 from component_model.utils.xml import xml_to_python_val
 
 
@@ -112,24 +111,6 @@ def test_model_description(bouncing_ball_fmu):
     ), f"3 InitialUnknowns expected. Found {''.join(x.get('index')+', ' for x in e.findall('./Unknown'))}"
 
 
-def test_osp_structure():
-    make_osp_system_structure(
-        "systemModel",
-        version="0.1",
-        models={
-            "simpleTable": {"interpolate": True},
-            "mobileCrane": {"pedestal.pedestalMass": 5000.0, "boom.boom.0": 20.0},
-        },
-        connections=(
-            "simpleTable",
-            "outputs.0",
-            "mobileCrane",
-            "pedestal.angularVelocity",
-        ),
-        path=Path.cwd(),
-    )
-
-
 def test_model_from_fmu(bouncing_ball_fmu):
     kwargs = model_from_fmu(bouncing_ball_fmu)
     kwargs.pop("guid")
@@ -173,3 +154,5 @@ def test_variables_from_fmu(bouncing_ball_fmu):
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    # import os
+    # os.chdir( Path(__file__).parent / "test_working_directory")

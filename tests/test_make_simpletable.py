@@ -12,9 +12,9 @@ from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
+from sim_explorer.utils.osp import make_osp_system_structure
 
 from component_model.model import Model  # type: ignore
-from component_model.utils.osp import make_osp_system_structure
 
 
 def check_expected(value, expected, feature: str):
@@ -50,8 +50,7 @@ def _simple_table_system_structure(simple_table_fmu):
     """Make a structure file and return the path"""
     path = make_osp_system_structure(
         name="OspSystemStructure",
-        models={"tab": {"source": "SimpleTable.fmu", "stepSize": 0.01}},
-        connections=(),
+        simulators={"tab": {"source": "SimpleTable.fmu", "stepSize": 0.01, "interpolate": False}},
         version="0.1",
         start=0.0,
         base_step=0.01,
@@ -244,38 +243,36 @@ def test_run_osp_system_structure(simple_table_system_structure):
                 }
             }
         )
-    assert variables["outs[0]"] == {
-        "reference": 0,
-        "type": 0,
-        "causality": 2,
-        "variability": 4,
-    }  # similar: [1],[2]
-    assert variables["interpolate"] == {
-        "reference": 3,
-        "type": 3,
-        "causality": 1,
-        "variability": 1,
-    }
+    assert variables["outs[0]"] == {"reference": 0, "type": 0, "causality": 2, "variability": 4}  # similar: [1],[2]
+    assert variables["interpolate"] == {"reference": 3, "type": 3, "causality": 1, "variability": 1}
 
     # Instantiate a suitable manipulator for changing variables.
     manipulator = CosimManipulator.create_override()
     simulator.add_manipulator(manipulator=manipulator)
-    simulator.boolean_initial_value(0, 3, True)
+    simulator.boolean_initial_value(0, 3, True)  # set 'interpolate'
     # Instantiate a suitable observer for collecting results.
     observer = CosimObserver.create_last_value()
     simulator.add_observer(observer=observer)
+    _t = (0.0, 1.0, 3.0, 7.0)
+    _x = (1, 4, 7, 8)
+    _y = (2, 5, 8, 7)
+    _z = (3, 6, 9, 6)
     for time in range(1, 10):
         simulator.simulate_until(time * 1e9)
+        if time == 1:
+            assert observer.last_boolean_values(0, [3]) == [True]
         values = observer.last_real_values(0, [0, 1, 2])
-        print(f"Time {time/1e9}: {values}")
-        if time == 5:
-            assert values == [7.475, 7.525, 7.574999999999999]
+        # print(f"Time {time/1e9}: {values}, linear x:{_linear(time-0.01, _t, _x)}")
+        check_expected(_linear(time - 0.01, _t, _x), values[0], f"Linear interpolated x at t={time-0.01}")
+        check_expected(_linear(time - 0.01, _t, _y), values[1], f"Linear interpolated y at t={time-0.01}")
+        check_expected(_linear(time - 0.01, _t, _z), values[2], f"Linear interpolated z at t={time-0.01}")
 
 
 if __name__ == "__main__":
-    # retcode = pytest.main(["-rA", "-v", __file__])
-    # assert retcode == 0, f"Non-zero return code {retcode}"
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    # test_make_simpletable(_simple_table_fmu())
     # test_inputtable_class()
-    test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
+    # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
