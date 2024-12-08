@@ -1,0 +1,49 @@
+MsgCounterHandler
+=================
+
+.. currentmodule:: component_model.utils.logger
+
+.. autoclass:: MsgCounterHandler
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~MsgCounterHandler.__init__
+      ~MsgCounterHandler.acquire
+      ~MsgCounterHandler.addFilter
+      ~MsgCounterHandler.close
+      ~MsgCounterHandler.createLock
+      ~MsgCounterHandler.emit
+      ~MsgCounterHandler.filter
+      ~MsgCounterHandler.flush
+      ~MsgCounterHandler.format
+      ~MsgCounterHandler.get_count
+      ~MsgCounterHandler.get_name
+      ~MsgCounterHandler.handle
+      ~MsgCounterHandler.handleError
+      ~MsgCounterHandler.release
+      ~MsgCounterHandler.removeFilter
+      ~MsgCounterHandler.setFormatter
+      ~MsgCounterHandler.setLevel
+      ~MsgCounterHandler.setStream
+      ~MsgCounterHandler.set_name
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~MsgCounterHandler.levelcount
+      ~MsgCounterHandler.name
+      ~MsgCounterHandler.terminator
+   
+   
