@@ -1,9 +1,9 @@
-from abc import abstractmethod
 import datetime
 import os
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET  # noqa: N817
+from abc import abstractmethod
 from enum import Enum
 from math import log
 from pathlib import Path
@@ -153,7 +153,7 @@ class Model(Fmi2Slave):
         super().exit_initialization_mode()
         self.dirty_do()  # run on_set on all dirty variables
 
-    @abstractmethod # mark the class as 'still abstract'
+    @abstractmethod  # mark the class as 'still abstract'
     def do_step(self, time, dt):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.

@@ -19,7 +19,7 @@ class NewFeatures(Model):
             "Dummy model for testing new features in PythonFMU",
             "Siegfried Eisinger",
             default_experiment={"startTime": 0, "stopTime": 9, "stepSize": 1},
-            **kwargs
+            **kwargs,
         )
         self._i = Variable(
             self,

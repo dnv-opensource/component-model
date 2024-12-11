@@ -13,12 +13,7 @@ class NewFeatures(Model):
     + allow class as argument to .build, instead of the source code file
     """
 
-    def __init__(self,
-                 i: int = 1,
-                 f: float = 9.9,
-                 s: str = "Hello",
-                 **kwargs
-                 ):
+    def __init__(self, i: int = 1, f: float = 9.9, s: str = "Hello", **kwargs):
         super().__init__(
             "NewFeatures",
             "Dummy model for testing new features in PythonFMU",
@@ -64,6 +59,7 @@ class NewFeatures(Model):
     def exit_initialization_mode(self):
         print(f"My initial variables: i:{self.i}, f:{self.f}, s:{self.s}")
 
+
 class NewFeatures2(Model):
-    def do_step( time, dt):
+    def do_step(self, time, dt):
         return True
