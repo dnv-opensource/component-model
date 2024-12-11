@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import datetime
 import os
 import tempfile
@@ -152,6 +153,7 @@ class Model(Fmi2Slave):
         super().exit_initialization_mode()
         self.dirty_do()  # run on_set on all dirty variables
 
+    @abstractmethod # mark the class as 'still abstract'
     def do_step(self, time, dt):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.

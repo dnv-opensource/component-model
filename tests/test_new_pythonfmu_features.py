@@ -17,27 +17,127 @@ from pythonfmu.fmi2slave import Fmi2Slave
 from component_model.model import Model  # type: ignore
 from component_model.utils.fmu import model_from_fmu
 
+def match_par( txt:str, left:str='(', right:str=')'):
+    pos0 = txt.find(left, 0)
+    assert pos0>=0, f"First {left} not found"
+    stack = [pos0]
+    i = pos0
+    while True:
+        i += 1
+        if len(txt) <= i:
+            return (pos0, -1)
+        elif txt[i] == '#': # comment
+            i = txt.find('\n', i)            
+        elif txt[i:].startswith(left):
+            stack.append(i)
+        elif txt[i:].startswith(right):
+            if len(stack) > 1:
+                stack.pop(-1)
+            else:
+                return (pos0, i)
 
-def _in_interval(x: float, x0: float, x1: float):
-    return x0 <= x <= x1 or x1 <= x <= x0
+
+def test_match_par():
+    txt = "Hello (World)"
+    res = match_par( txt)
+    assert res == (6,12)
+    assert txt[res[0]] == '('
+    assert txt[res[1]] == ')'    
+    assert txt[res[0]+1:res[1]] == "World"
+    txt = "def  __init__( x:float=0.5, tpl:tuple=(1,2,3), tpl2:tuple=(1,2,(11,12))):\n code"
+    res = match_par( txt)
+    assert txt[res[0]:].startswith("( x:float")
+    assert txt[:res[1]+1].endswith("12)))")
+    txt = "def  __init__( x:float=0.5,\n tpl:tuple=(1,2,3), #a (stupid((comment)\n tpl2:tuple=(1,2,(11,12)),\n):\n code"
+    res = match_par( txt)
+    assert txt[res[0]:].startswith("( x:float")
+    assert txt[:res[1]+1].endswith("12)),\n)")
+
+def model_parameters( src:Path, newargs: dict|None=None) -> tuple[str,Fmi2Slave]:
+    """Replace default parameters in model class __init__ and return adapted script as str.
+    Function checks also that a unique FMI2Slave class exists in the script.
+    
+    Args:
+        src (Path): Path to the module source file where the class definition is expected.
+        newargs (dict): Optional dict of new argument values provided as name : value
+           If not provided, the script is returned unchanged as str
+    Returns:
+        (adapted) script as str, model class object
+    """
+    import importlib
+    import inspect
+    import sys
+    
+    modulename = src.stem
+    if src.parent not in sys.path:
+        sys.path.insert(0, str(src.parent))
+    module = importlib.import_module(modulename)
+    assert Path(inspect.getsourcefile( module)) == src
+    assert inspect.ismodule( module)
+    modelclasses = {}
+    for name, obj in inspect.getmembers(module):
+        if inspect.isclass( obj):
+            mro = inspect.getmro(obj)
+            if Fmi2Slave in mro and not inspect.isabstract(obj):
+                modelclasses.update( {obj : len(mro)})
+    if not len(modelclasses):
+        raise ValueError(f"No child class of Fmi2Slave found in module {src}") from None
+    else:
+        model = None
+        init = None
+        maxlen = max( n for n in modelclasses.values())
+        classes = [ c for c,n in modelclasses.items() if n==maxlen]
+        if not len(classes):
+            raise ValueError(f"No child class of Fmi2Slave found in module {src}") from None
+        elif len(classes) > 1:
+            raise ValueError(f"Non-unique Fmi2Slave-derived class in module {src}. Found {classes}.") from None
+        else:
+            model = classes[0]
+            for name, obj in inspect.getmembers(model):
+                if inspect.isfunction( obj) and name=="__init__":
+                    init = obj
+                    break
+    assert model is not None, f"Model object not found in module {src}"
+    module_lines = inspect.getsourcelines(module)
+
+    if newargs is None: # just return the raw script as str
+        return ("".join( line for line in module_lines[0]), model)
+
+    assert init is not None, f"__init__() function not found in module {src}, model {model}"        
+    sig = inspect.signature(init)
+    pars = sig.parameters
+    newpars = []
+    for p in pars:
+        if p in newargs:
+            par = pars[p].replace(default=newargs[p])
+        else:
+            par = pars[p]
+        newpars.append(par)
+        signew = inspect.Signature(parameters=newpars)
+    init_line = inspect.getsourcelines(init)[1]
+    from_init = "".join( line for line in module_lines[0][init_line-1:])
+    init_pos = from_init.find('__init__')
+    start,end = (match_par( from_init[init_pos-1:])[i] + init_pos for i in range(2))
+    from_init = from_init.replace( from_init[start-1:end], str(signew), 1)
+    module_code = "".join( line for line in module_lines[0][:init_line-1]) + from_init
+    return (module_code, model)
 
 
-def _to_et(file: str, sub: str = "modelDescription.xml"):
-    with ZipFile(file) as zp:
-        xml = zp.read(sub)
-    return ET.fromstring(xml)
-
-
-# def replace_assert( txt:str):
-#     c = re.compile(r"assert\s([^,]+),([^\n]*)\n")
-#     pos = 0
-#     while True:
-#         m = c.search( txt[pos:])
-#         if m is not None:
-#             print(m.groups())
-#             pos += m.end()
-#         else:
-#             break
+def test_model_parameters():
+    with pytest.raises(ValueError) as err:
+        model_parameters( Path(__file__).parent / "examples" / "new_pythonfmu_features3.py", {})
+    assert str(err.value).startswith("Non-unique Fmi2Slave-derived class in module")
+    with pytest.raises(ValueError) as err:
+        model_parameters( Path(__file__).parent / "examples" / "new_pythonfmu_features4.py", {})
+    assert str(err.value).startswith("No child class of Fmi2Slave found in module")
+    module_code, model = model_parameters(
+        Path(__file__).parent / "examples" / "new_pythonfmu_features2.py",
+        newargs={"i": 7, "f": -9.9, "s": "World"})
+    with open("test.py", 'w') as f:
+        f.write( module_code)
+    module_code, model = model_parameters(
+        Path(__file__).parent / "examples" / "new_pythonfmu_features.py",
+        newargs={"i": 7, "f": -9.9, "s": "World"})
 
 
 def build_fmu(
@@ -65,87 +165,24 @@ def build_fmu(
            and the values must have the correct type.
         **options: As in FMUBuilder.build_fmu
     """
-    import importlib
-    import inspect
-    import re
-    from abc import ABCMeta
-
-    def get_src_module_cls(model: str | Path):
-        """Identify the script file and the class object"""
-        import sys
-
-        if isinstance(model, str) and not Path(model).exists():  # assume module-name.class-name
-            assert "." in model, f"Module information missing in {model}"
-            classname = model.split(".")[-1]
-            path = model[: -len(classname) - 1]
-            if not path.endswith(".py"):
-                path += ".py"
-            src = Path(path)
-
-        else:  # must be a script identificator
-            src = Path(model)
-            classname = ""
-
-        assert src.exists(), f"Model source file within model identificator {model} not found"
-
-        modulename = src.name[:-3]
-        if src.parent not in sys.path:
-            sys.path.insert(0, str(src.parent))
-        module = importlib.import_module(modulename)
-        if classname == "":  # class not yet identified
-            classobj = None
-            for _, cls in inspect.getmembers(module, inspect.isclass):
-                if cls.__module__ == modulename and Fmi2Slave in cls.mro():
-                    if classobj is None:
-                        classobj = cls
-                    else:
-                        raise ValueError(f"Several Fmi2Slave classes in file {src}. Fully qualify class!") from None
-            assert classobj is not None, f"No Fmi2Slave class found in file {src}"
-        else:
-            classobj = getattr(module, classname)
-
-        return (src, module, classobj)
-
-    def replace_values(src: Path, classobj: ABCMeta, newargs: dict):
-        """In src, classobj.__init__ replace the argument default values as given in newargs.
-        Return the src file as changed str.
-        """
-        assert isinstance(classobj, ABCMeta)
-        sig = inspect.signature(classobj.__init__)
-        pars = sig.parameters
-        newpars = []
-        for p in pars:
-            if p in newargs:
-                par = pars[p].replace(default=newargs[p])
-            else:
-                par = pars[p]
-            newpars.append(par)
-        signew = inspect.Signature(parameters=newpars)
-        # print(str(signew), classobj.__name__)
-        with open(src) as f:
-            _src = f.read()
-        m = re.search(r"class\s+" + re.escape(classobj.__name__) + r"\s*\(", _src)
-        changed = _src[: m.end()] + re.sub(r"def\s+__init__\s*(\(.+\))", "def __init__" + str(signew), _src[m.end() :])
-        return changed
-
-    # Replace the first 5 code lines with this line:
-    script_file, module, classobj = get_src_module_cls(model)
-
     # Replace "shutil.copy2(script_file, temp_dir)" code line
     if newargs is not None:  # default arguments to be replaced
-        new_script = replace_values(script_file, classobj, newargs)
+        new_script, _ = model_parameters(model, newargs)
         # Change that so that it points to the temp_dir
-        with open(script_file.name, "w") as f:
+        with open(model.name, "w") as f:
             f.write(new_script)
     else:
         # Here we use the original shutil.copy2()
         pass
+    
+    # Alternatively, 'model_parameters' can be used on the top of the function
+    # (performing checks and returning the script as str, whether newargs are provided or not)
+    # The shutil.copy2() function can then be replaced with writing the str to file at the temp folder.
 
 
 def test_adapted():
     src = Path(__file__).parent / "examples" / "new_pythonfmu_features.py"
-    build_fmu(str(src) + ".NewFeatures", newargs={"i": 7, "f": -9.9, "s": "World"})  # fully qualified
-    build_fmu(src, newargs={"i": 8, "f": -9.91, "s": "World2"})  # only script
+    build_fmu(src, newargs={"i": 8, "f": -9.91, "s": "World2"})
 
 
 @pytest.fixture(scope="session")
@@ -156,9 +193,9 @@ def new_features_fmu():
 def _new_features_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
-    src = Path(__file__).parent / "examples" / "new_pythonfmu_features.py"
+    src = Path(__file__).parent / "examples" / "new_pythonfmu_features2.py"
     _src2 = build_fmu(str(src) + ".NewFeatures", newargs={"i": 9, "f": -9.92, "s": "World3"})
-    src2 = Path(__file__).parent / "test_working_directory" / "new_pythonfmu_features.py"
+    src2 = Path(__file__).parent / "test_working_directory" / "new_pythonfmu_features2.py"
     fmu_path = Model.build(
         src2,
         project_files=[],
@@ -315,16 +352,19 @@ def test_from_fmu(plain_fmu):
 
 
 if __name__ == "__main__":
-    # retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
-    # assert retcode == 0, f"Non-zero return code {retcode}"
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    
     # test_new_features_class()
-    import os
+    #import os
 
-    os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
-    new = _plain_fmu()
-    adapted = _new_features_fmu()
+    #os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    #test_model_parameters()
+    #test_match_par()
+    #new = _plain_fmu()
+    #adapted = _new_features_fmu()
     # test_use_fmu( new, show=False)
-    test_from_fmu(new)
+    #test_from_fmu(new)
     # test_from_osp(new)
     # test_from_osp(adapted)
-    # test_adapted()
+    #test_adapted()
