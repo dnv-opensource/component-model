@@ -337,6 +337,7 @@ class Model(Fmi2Slave):
         script: str = "",
         project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
+        newargs: dict | None = None,
         documentation_folder: Path | None = None,
     ):
         """Build the FMU, resulting in the model-name.fmu file.
@@ -389,6 +390,7 @@ class Model(Fmi2Slave):
                 project_files=project_files,
                 dest=dest,
                 documentation_folder=doc_dir,
+                newargs=newargs,
             )  # , xFunc=None)
             return asBuilt
 

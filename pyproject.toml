@@ -15,6 +15,9 @@ only-include = [
     "uv.lock",
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = [
     "src/component_model",
@@ -59,7 +62,7 @@ dependencies = [
     "jsonpath-ng>=1.7.0",
     "libcosimpy>=0.0.2",
     "fmpy>=0.3.21",
-    "pythonfmu>=0.6.5",
+    "pythonfmu @ git+https://github.com/NTNU-IHB/PythonFMU.git@feature/pass-class-arguments",
     "flexparser<0.4",
 ]
 
