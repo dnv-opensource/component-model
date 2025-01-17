@@ -12,11 +12,14 @@ from component_model.variable import Check, Variable
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
+
 class DummyModel(Model):
     def __init__(self, name, **kwargs):
         super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
-    def do_step(self, time:int|float, dt:int|float):
+
+    def do_step(self, time: int | float, dt: int | float):
         return True
+
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu(tmp_path_factory):

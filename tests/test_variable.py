@@ -22,11 +22,14 @@ from component_model.variable import (  # type: ignore
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
+
 class DummyModel(Model):
     def __init__(self, name, **kwargs):
         super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
-    def do_step(self, time:int|float, dt:int|float):
+
+    def do_step(self, time: int | float, dt: int | float):
         return True
+
 
 def arrays_equal(arr1, arr2, dtype="float", eps=1e-7):
     assert len(arr1) == len(arr2), "Length not equal!"

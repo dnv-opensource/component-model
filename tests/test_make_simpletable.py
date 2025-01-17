@@ -269,7 +269,7 @@ def test_run_osp_system_structure(simple_table_system_structure):
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
