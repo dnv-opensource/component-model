@@ -12,6 +12,11 @@ from component_model.variable import Check, Variable
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
+class DummyModel(Model):
+    def __init__(self, name, **kwargs):
+        super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
+    def do_step(self, time:int|float, dt:int|float):
+        return True
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu(tmp_path_factory):
@@ -26,7 +31,7 @@ def bouncing_ball_fmu(tmp_path_factory):
 
 
 def test_license():
-    mod = Model("TestModel", author="Ola Norman")
+    mod = DummyModel("TestModel", author="Ola Norman")
     c, lic = mod.make_copyright_license(None, None)
     assert c == f"Copyright (c) {time.localtime()[0]} Ola Norman", f"Found: {c}"
     assert lic.startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
@@ -45,7 +50,7 @@ of this software and a ..."""
 
 def test_xml():
     Model.instances = []  # reset
-    mod = Model("MyModel")
+    mod = DummyModel("MyModel")
     _ = Variable(
         mod,
         "Test9",
@@ -125,3 +130,5 @@ def test_from_fmu(bouncing_ball_fmu):
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_license()
+    # test_xml()

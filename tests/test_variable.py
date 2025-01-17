@@ -22,6 +22,11 @@ from component_model.variable import (  # type: ignore
 
 logger = get_module_logger(__name__, level=logging.INFO)
 
+class DummyModel(Model):
+    def __init__(self, name, **kwargs):
+        super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
+    def do_step(self, time:int|float, dt:int|float):
+        return True
 
 def arrays_equal(arr1, arr2, dtype="float", eps=1e-7):
     assert len(arr1) == len(arr2), "Length not equal!"
@@ -107,7 +112,7 @@ def test_spherical_cartesian():
 
 def init_model_variables():
     """Define model and a few variables for various tests"""
-    mod = Model("MyModel")
+    mod = DummyModel("MyModel")
     assert mod.name == "MyModel"
     assert mod.ureg is not None
 
@@ -192,7 +197,7 @@ def init_model_variables():
 
 
 def test_init():
-    mod = Model("MyModel")
+    mod = DummyModel("MyModel")
     (
         mod,
         myInt,
@@ -391,7 +396,7 @@ def test_init():
 
 def test_range():
     """Test the various ways of providing a range for a variable"""
-    mod = Model("MyModel2", instance_name="MyModel2")
+    mod = DummyModel("MyModel2", instance_name="MyModel2")
     with pytest.raises(VariableInitError) as err:
         int1 = Variable(mod, "int1", start=1)
     assert (
@@ -416,7 +421,7 @@ def test_range():
 
 def test_dirty():
     """Test the dirty mechanism"""
-    mod = Model("MyModel2", instance_name="MyModel2")
+    mod = DummyModel("MyModel2", instance_name="MyModel2")
     myNP = Variable(
         mod,
         "myNP",
@@ -549,7 +554,7 @@ def test_set():
 # @pytest.mark.skip()
 def test_xml():
     Model.instances = []  # reset
-    mod = Model("MyModel")
+    mod = DummyModel("MyModel")
     myNP2 = Variable(
         mod,
         "Test9",
@@ -562,11 +567,11 @@ def test_xml():
     lst = myNP2.xml_scalarvariables()
     assert len(lst) == 3
     expected = b'<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
-    assert ET.tostring(lst[0]) == expected, f"{ET.tostring( lst[0])}"
+    assert ET.tostring(lst[0]) == expected, f"{ET.tostring(lst[0])}"
     expected = b'<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="1.9999999999999993" max="2.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[1]) == expected, f"{ET.tostring( lst[1])}"
+    assert ET.tostring(lst[1]) == expected, f"{ET.tostring(lst[1])}"
     expected = b'<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="2.9999999999999996" max="3.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[2]) == expected, f"{ET.tostring( lst[2])}"
+    assert ET.tostring(lst[2]) == expected, f"{ET.tostring(lst[2])}"
 
     myInt = Variable(
         mod,

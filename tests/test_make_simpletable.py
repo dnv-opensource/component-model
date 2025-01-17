@@ -92,9 +92,9 @@ def test_inputtable_class(interpolate=False):
         interpolate=interpolate,
     )
     assert tbl.interpolate == interpolate, f"Interpolation={interpolate} expected. Found {tbl.interpolate}"
-    assert all(
-        tbl.times[i] == [0.0, 1.0, 3.0, 7.0][i] for i in range(tbl._rows)
-    ), f"Expected time array [0,1,3,7]. Found {tbl.times}"
+    assert all(tbl.times[i] == [0.0, 1.0, 3.0, 7.0][i] for i in range(tbl._rows)), (
+        f"Expected time array [0,1,3,7]. Found {tbl.times}"
+    )
     for r in range(tbl._rows):
         check_expected(
             all(tbl.outputs[r][c] == [[1, 2, 3], [4, 5, 6], [7, 8, 9], [8, 8, 8]][r][c] for c in range(tbl._cols)),
@@ -102,12 +102,12 @@ def test_inputtable_class(interpolate=False):
             f"Error in expected outputs, row {r}. Found {tbl.outputs[r]}",
         )
     if not interpolate:
-        assert all(
-            tbl._outs.range[0][c] == (float("-inf"), float("inf"))[c] for c in range(2)
-        ), f"Error in expected range of outputs, row 0. Found {tbl._outs.range[0]}"
-    assert all(
-        tbl.outs[c] == (1, 2, 3)[c] for c in range(tbl._cols)
-    ), f"Error in expected outs (row 0). Found {tbl.outs}"
+        assert all(tbl._outs.range[0][c] == (float("-inf"), float("inf"))[c] for c in range(2)), (
+            f"Error in expected range of outputs, row 0. Found {tbl._outs.range[0]}"
+        )
+    assert all(tbl.outs[c] == (1, 2, 3)[c] for c in range(tbl._cols)), (
+        f"Error in expected outs (row 0). Found {tbl.outs}"
+    )
     tbl.setup_experiment(1.0)
     check_expected(tbl.start_time, 1.0, "Start time")
     tbl.enter_initialization_mode()  # iterate to row 0 (start_time)
@@ -125,19 +125,19 @@ def test_inputtable_class(interpolate=False):
                 assert all(tbl.outs[k] == expected[k] for k in range(len(tbl.outs))), f"Got {tbl.outs} != {expected}"
         if not interpolate:
             if time <= tbl.times[0]:
-                assert all(
-                    tbl.outs[k] == tbl.outputs[0, :][k] for k in range(len(tbl.outs))
-                ), f"Got {tbl.outs} != {tbl.outputs[0,:]}"
+                assert all(tbl.outs[k] == tbl.outputs[0, :][k] for k in range(len(tbl.outs))), (
+                    f"Got {tbl.outs} != {tbl.outputs[0, :]}"
+                )
             elif time >= tbl.times[-1]:
-                assert all(
-                    tbl.outs[k] == tbl.outputs[-1, :][k] for k in range(len(tbl.outs))
-                ), f"Got {tbl.outs} != {tbl.outputs[-1,:]}"
+                assert all(tbl.outs[k] == tbl.outputs[-1, :][k] for k in range(len(tbl.outs))), (
+                    f"Got {tbl.outs} != {tbl.outputs[-1, :]}"
+                )
             else:  # inside
                 for i, t in enumerate(tbl.times):
                     if t > time:
-                        assert all(
-                            tbl.outs[k] == tbl.outputs[i - 1, :][k] for k in range(len(tbl.outs))
-                        ), f"time {time}, row {i}. Got {tbl.outs} != {tbl.outputs[i-1,:]}"
+                        assert all(tbl.outs[k] == tbl.outputs[i - 1, :][k] for k in range(len(tbl.outs))), (
+                            f"time {time}, row {i}. Got {tbl.outs} != {tbl.outputs[i - 1, :]}"
+                        )
                         break
 
 
@@ -150,9 +150,9 @@ def test_make_simpletable(simple_table_fmu):
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu(str(simple_table_fmu))
-    assert not len(
-        val
-    ), f"Validation of the modelDescription of {simple_table_fmu.name} was not successful. Errors: {val}"
+    assert not len(val), (
+        f"Validation of the modelDescription of {simple_table_fmu.name} was not successful. Errors: {val}"
+    )
 
 
 def test_use_fmu_interpolation(simple_table_fmu):
@@ -263,16 +263,16 @@ def test_run_osp_system_structure(simple_table_system_structure):
             assert observer.last_boolean_values(0, [3]) == [True]
         values = observer.last_real_values(0, [0, 1, 2])
         # print(f"Time {time/1e9}: {values}, linear x:{_linear(time-0.01, _t, _x)}")
-        check_expected(_linear(time - 0.01, _t, _x), values[0], f"Linear interpolated x at t={time-0.01}")
-        check_expected(_linear(time - 0.01, _t, _y), values[1], f"Linear interpolated y at t={time-0.01}")
-        check_expected(_linear(time - 0.01, _t, _z), values[2], f"Linear interpolated z at t={time-0.01}")
+        check_expected(_linear(time - 0.01, _t, _x), values[0], f"Linear interpolated x at t={time - 0.01}")
+        check_expected(_linear(time - 0.01, _t, _y), values[1], f"Linear interpolated y at t={time - 0.01}")
+        check_expected(_linear(time - 0.01, _t, _z), values[2], f"Linear interpolated z at t={time - 0.01}")
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0#pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_make_simpletable(_simple_table_fmu())
     # test_inputtable_class()
-    # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
+    test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
