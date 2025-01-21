@@ -41,7 +41,7 @@ class NewFeatures(Model):
         self.log("This is a __init__ debug message", debug=True)
         # self.log("This is a FATAL __init__ message", status=Fmi2Status.fatal, category="logStatusFatal", debug=False)
 
-    def do_step(self, time:int|float, dt:int|float):
+    def do_step(self, time: int | float, dt: int | float):
         super().do_step(time, dt)
         self.i += 1
         self.f = time
@@ -52,7 +52,7 @@ class NewFeatures(Model):
         self.log(f"do_step@{time}. logStatusWarning", Fmi2Status.warning, "logStatusWarning", True)
         self.log(f"do_step@{time}. logStatusDiscard", Fmi2Status.discard, "logStatusDiscard", True)
         self.log(f"do_step@{time}. logStatusError", Fmi2Status.error, "logStatusError", True)
-        #self.log(f"do_step@{time}. logStatusFatal", Fmi2Status.fatal, "logStatusFatal", True)
+        # self.log(f"do_step@{time}. logStatusFatal", Fmi2Status.fatal, "logStatusFatal", True)
         if time > 8:
             self.log(f"@{time}. Trying to terminate simulation", Fmi2Status.error, "logStatusError", True)
             return False

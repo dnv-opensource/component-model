@@ -323,12 +323,12 @@ def test_from_osp(plain_fmu, show):
     print("Simulate step 5. Log level ERROR : -= warning")
     assert sim.simulate_until(target_time=5e9), "Simulate for one base step did not work"
 
-    if show: # not in automatic mode, since it returns an error
+    if show:  # not in automatic mode, since it returns an error
         log_output_level(CosimLogLevel.FATAL)
         print("Simulate step 6. Log level FATAL : nothing??")
         assert sim.simulate_until(target_time=6e9), "Simulate for one base step did not work"
         assert observer.last_real_values(0, [variables["f"]])[0] == 5.0, "The current time at step 6"
-    
+
         log_output_level(CosimLogLevel.ERROR)
         print("Simulate steps >6. Log level ERROR. terminate() after 6")
         assert sim.simulate_until(target_time=7e9), "Simulate for one base step did not work"
