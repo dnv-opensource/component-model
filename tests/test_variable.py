@@ -616,9 +616,9 @@ def test_on_set():
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rP -s -v", __file__])
+    retcode = pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
-    test_range()
+    # test_range()
     # test_var_check()
     # test_spherical_cartesian()
     # test_auto_type()

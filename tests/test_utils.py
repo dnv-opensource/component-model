@@ -16,7 +16,7 @@ def _bouncing_ball_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+        str(Path(__file__).parent.parent / "examples" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
     )

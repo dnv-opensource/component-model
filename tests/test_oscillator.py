@@ -1,6 +1,5 @@
 from functools import partial
 from math import sin
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,10 +25,7 @@ def test_oscillator_class(show):
     If pytest is run from the command line, the current directory is the package root,
     but when it is run from the editor (__main__) it is run from /tests/.
     """
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from oscillator import HarmonicOscillator  # type: ignore
+    from examples.oscillator import HarmonicOscillator
 
     osc = HarmonicOscillator(k=1.0, c=0.1, m=1.0)
     osc.x[2] = 1.0

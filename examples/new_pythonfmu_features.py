@@ -4,7 +4,7 @@ from component_model import Model, Variable
 
 
 class NewFeatures(Model):
-    """Dummy model to test new features of component-model and pythonfmu
+    """Dummy model to test new features of component-model and pythonfmu.
 
     * logger messages to the user
     + handle __init__ parameters
@@ -21,6 +21,7 @@ class NewFeatures(Model):
             default_experiment={"startTime": 0, "stopTime": 9, "stepSize": 1},
             **kwargs,
         )
+        print("NAME", self, self.name)
         self._i = Variable(
             self,
             "i",

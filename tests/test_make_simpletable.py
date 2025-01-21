@@ -14,7 +14,7 @@ from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
 from sim_explorer.utils.osp import make_osp_system_structure
 
-from component_model.model import Model  # type: ignore
+from component_model.model import Model
 
 
 def check_expected(value, expected, feature: str):
@@ -34,8 +34,8 @@ def _simple_table_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent / "examples" / "simple_table.py"),
-        project_files=[Path(__file__).parent / "examples" / "input_table.py"],
+        str(Path(__file__).parent.parent / "examples" / "simple_table.py"),
+        project_files=[Path(__file__).parent.parent / "examples" / "input_table.py"],
         dest=build_path,
     )
     return fmu_path
@@ -79,10 +79,7 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 
 def test_inputtable_class(interpolate=False):
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from input_table import InputTable  # type: ignore
+    from examples.input_table import InputTable
 
     tbl = InputTable(
         "TestTable",
@@ -269,10 +266,10 @@ def test_run_osp_system_structure(simple_table_system_structure):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    # import os
-    # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    import os
+    os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_make_simpletable(_simple_table_fmu())
-    test_inputtable_class()
+    # test_inputtable_class()
     # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))

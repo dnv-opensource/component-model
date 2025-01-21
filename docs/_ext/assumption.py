@@ -38,7 +38,7 @@ class AssumptionDirective(SphinxDirective):
         self.state.nested_parse(self.content, self.content_offset, assumption_node)
 
         if not hasattr(self.env, "assumption_all_assumptions"):
-            self.env.assumptions_all_assumptions = [] # type: ignore[attr-defined]
+            self.env.assumptions_all_assumptions = []  # type: ignore[attr-defined]
 
         self.env.assumptions_all_assumptions.append(  # type: ignore[attr-defined]
             {

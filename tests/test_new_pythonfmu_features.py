@@ -12,7 +12,7 @@ from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
 from pythonfmu.fmi2slave import Fmi2Slave
 
-from component_model.model import Model  # type: ignore
+from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
 
 
@@ -126,18 +126,20 @@ def model_parameters(src: Path, newargs: dict | None = None) -> tuple[str, Fmi2S
 
 def test_model_parameters():
     with pytest.raises(ValueError) as err:
-        model_parameters(Path(__file__).parent / "examples" / "new_pythonfmu_features3.py", {})
+        model_parameters(Path(__file__).parent.parent / "examples" / "new_pythonfmu_features3.py", {})
     assert str(err.value).startswith("Non-unique Fmi2Slave-derived class in module")
     with pytest.raises(ValueError) as err:
-        model_parameters(Path(__file__).parent / "examples" / "new_pythonfmu_features4.py", {})
+        model_parameters(Path(__file__).parent.parent / "examples" / "new_pythonfmu_features4.py", {})
     assert str(err.value).startswith("No child class of Fmi2Slave found in module")
     module_code, model = model_parameters(
-        Path(__file__).parent / "examples" / "new_pythonfmu_features2.py", newargs={"i": 7, "f": -9.9, "s": "World"}
+        Path(__file__).parent.parent / "examples" / "new_pythonfmu_features2.py",
+        newargs={"i": 7, "f": -9.9, "s": "World"},
     )
     with open("test.py", "w") as f:
         f.write(module_code)
     module_code, model = model_parameters(
-        Path(__file__).parent / "examples" / "new_pythonfmu_features.py", newargs={"i": 7, "f": -9.9, "s": "World"}
+        Path(__file__).parent.parent / "examples" / "new_pythonfmu_features.py",
+        newargs={"i": 7, "f": -9.9, "s": "World"},
     )
 
 
@@ -170,7 +172,7 @@ def build_fmu(
     if newargs is not None:  # default arguments to be replaced
         new_script, model_class = model_parameters(Path(model), newargs)
         # Change that so that it points to the temp_dir
-        with open(model_class.name, "w") as f:
+        with open(model_class.__name__ + ".py", "w") as f:
             f.write(new_script)
     else:
         # Here we use the original shutil.copy2()
@@ -182,7 +184,7 @@ def build_fmu(
 
 
 def test_adapted():
-    src = Path(__file__).parent / "examples" / "new_pythonfmu_features.py"
+    src = Path(__file__).parent.parent / "examples" / "new_pythonfmu_features.py"
     build_fmu(src, newargs={"i": 8, "f": -9.91, "s": "World2"})
 
 
@@ -214,7 +216,7 @@ def _plain_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent / "examples" / "new_pythonfmu_features.py"),
+        str(Path(__file__).parent.parent / "examples" / "new_pythonfmu_features.py"),
         project_files=[],
         dest=build_path,
     )
@@ -228,10 +230,7 @@ def test_new_features_class():
     If pytest is run from the command line, the current directory is the package root,
     but when it is run from the editor (__main__) it is run from /tests/.
     """
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from new_pythonfmu_features import NewFeatures  # type: ignore
+    from examples.new_pythonfmu_features import NewFeatures
 
     nf = NewFeatures()
     assert isinstance(nf, Model)

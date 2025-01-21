@@ -35,6 +35,6 @@ def test_check():
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    test_ensure_enum()
+    # test_ensure_enum()

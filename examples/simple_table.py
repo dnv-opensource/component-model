@@ -1,4 +1,4 @@
-from input_table import InputTable
+from examples.input_table import InputTable
 
 
 class SimpleTable(InputTable):

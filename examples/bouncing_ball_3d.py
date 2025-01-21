@@ -115,7 +115,8 @@ class BouncingBall3D(Model):
             name (str): base name of the variable
             start (str|float|tuple): start value of the variable (optionally with units)
 
-        Returns:
+        Returns
+        -------
             the variable object. As a side effect the variable value is made available as self.<name>
         """
         if name == "pos":
