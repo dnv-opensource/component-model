@@ -260,7 +260,7 @@ def test_use_fmu(plain_fmu, show):
         plot_result(result)
 
 
-def test_from_osp(plain_fmu):
+def test_from_osp(plain_fmu, show):
     def get_status(sim):
         status = sim.status()
         return {
@@ -323,16 +323,17 @@ def test_from_osp(plain_fmu):
     print("Simulate step 5. Log level ERROR : -= warning")
     assert sim.simulate_until(target_time=5e9), "Simulate for one base step did not work"
 
-    log_output_level(CosimLogLevel.FATAL)
-    print("Simulate step 6. Log level FATAL : nothing??")
-    assert sim.simulate_until(target_time=6e9), "Simulate for one base step did not work"
-    assert observer.last_real_values(0, [variables["f"]])[0] == 5.0, "The current time at step 6"
-
-    log_output_level(CosimLogLevel.ERROR)
-    print("Simulate steps >6. Log level ERROR. terminate() after 6")
-    assert sim.simulate_until(target_time=7e9), "Simulate for one base step did not work"
-    assert sim.simulate_until(target_time=8e9), "Simulate for one base step did not work"
-    assert sim.simulate_until(target_time=9e9), "Simulate for one base step did not work"
+    if show: # not in automatic mode, since it returns an error
+        log_output_level(CosimLogLevel.FATAL)
+        print("Simulate step 6. Log level FATAL : nothing??")
+        assert sim.simulate_until(target_time=6e9), "Simulate for one base step did not work"
+        assert observer.last_real_values(0, [variables["f"]])[0] == 5.0, "The current time at step 6"
+    
+        log_output_level(CosimLogLevel.ERROR)
+        print("Simulate steps >6. Log level ERROR. terminate() after 6")
+        assert sim.simulate_until(target_time=7e9), "Simulate for one base step did not work"
+        assert sim.simulate_until(target_time=8e9), "Simulate for one base step did not work"
+        assert sim.simulate_until(target_time=9e9), "Simulate for one base step did not work"
 
 
 def test_from_fmu(plain_fmu):
@@ -359,7 +360,6 @@ if __name__ == "__main__":
 
     # test_new_features_class()
     # import os
-
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_model_parameters()
     # test_match_par()
@@ -367,6 +367,6 @@ if __name__ == "__main__":
     # adapted = _new_features_fmu()
     # test_use_fmu( new, show=False)
     # test_from_fmu(new)
-    # test_from_osp(new)
+    # test_from_osp(new, show=False)
     # test_from_osp(adapted)
     # test_adapted()
