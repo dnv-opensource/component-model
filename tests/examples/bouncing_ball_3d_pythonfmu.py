@@ -48,6 +48,7 @@ class BouncingBall3D(Fmi2Slave):
 
         self.p_bounceY = -1.0
         self.register_variable(Real("p_bounceY", causality=Fmi2Causality.output))
+        self.t_bounce = -1.0
 
         self.g = 9.81  # Gravitational acceleration
         self.register_variable(Real("g", causality=Fmi2Causality.parameter))

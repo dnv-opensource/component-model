@@ -72,7 +72,8 @@ def model_parameters(src: Path, newargs: dict | None = None) -> tuple[str, Fmi2S
     if src.parent not in sys.path:
         sys.path.insert(0, str(src.parent))
     module = importlib.import_module(modulename)
-    assert Path(inspect.getsourcefile(module)) == src
+    src_file = inspect.getsourcefile(module)
+    assert src_file is not None and Path(src_file) == src
     assert inspect.ismodule(module)
     modelclasses = {}
     for _, obj in inspect.getmembers(module):
@@ -167,9 +168,9 @@ def build_fmu(
     """
     # Replace "shutil.copy2(script_file, temp_dir)" code line
     if newargs is not None:  # default arguments to be replaced
-        new_script, _ = model_parameters(model, newargs)
+        new_script, model_class = model_parameters(Path(model), newargs)
         # Change that so that it points to the temp_dir
-        with open(model.name, "w") as f:
+        with open(model_class.name, "w") as f:
             f.write(new_script)
     else:
         # Here we use the original shutil.copy2()
@@ -343,7 +344,9 @@ def test_from_fmu(plain_fmu):
     assert model["author"] == "Siegfried Eisinger"
     assert model["version"] == "0.1"
     assert model["license"].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} Siegfried Eisinger", f"Found: {model.copyright}"
+    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} Siegfried Eisinger", (
+        f"Found: {model['copyright']}"
+    )
     de = model["default_experiment"]
     assert de is not None
     assert de["start_time"] == 0.0

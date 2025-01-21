@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy as np
 
 from component_model.model import Model
@@ -27,7 +29,7 @@ class HarmonicOscillator(Model):
         self.v = np.array((0, 0, 0), float)
         self.f = np.array((0, 0, 0), float)
 
-    def do_step(self, time: float, dt: float):
+    def do_step(self, time: int | float, dt: int | float):
         """Do one simulation step of size dt.
 
         We implement a very simplistic algoritm based on difference calculus.
@@ -37,8 +39,8 @@ class HarmonicOscillator(Model):
         self.x += self.v * dt  # + a* dt*dt
         self.v += a * dt
 
-    def setup_experiment(self):
-        super().setup_experiment()  # needed for FMU mechanism
+    def setup_experiment(self, start: float = 0.0):
+        super().setup_experiment(start)  # needed for FMU mechanism
 
 
 class DrivingForce(Model):
@@ -48,7 +50,7 @@ class DrivingForce(Model):
         func (callable)=lambda t:np.array( (0,0,0), float): A function of t, producing a 3D vector
     """
 
-    def __init__(self, func: callable):
+    def __init__(self, func: Callable):
         self.func = func
         self.out = np.array((0, 0, 0), float)
 

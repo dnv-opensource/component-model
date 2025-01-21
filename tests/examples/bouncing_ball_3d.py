@@ -31,8 +31,8 @@ class BouncingBall3D(Model):
         description="Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
         pos: tuple = ("0 m", "0 m", "10 inch"),
         speed: tuple = ("1 m/s", "0 m/s", "0 m/s"),
-        g: float = "9.81 m/s^2",
-        e: float = 0.9,
+        g="9.81 m/s^2",
+        e=0.9,
         min_speed_z: float = 1e-6,
         **kwargs,
     ):
@@ -46,10 +46,8 @@ class BouncingBall3D(Model):
         self.stopped = False
         self.time = 0.0
         self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
-        self.t_bounce, self.p_bounce = (
-            -1.0,
-            self.pos,
-        )  # provoke an update at simulation start
+        # provoke an update at simulation start:
+        self.t_bounce, self.p_bounce = (-1.0, self.pos)  # type: ignore
 
     def do_step(self, _, dt):
         """Perform a simulation step from `self.time` to `self.time + dt`.
@@ -99,7 +97,7 @@ class BouncingBall3D(Model):
             p_bounce[2] = 0
             return (self.time + dt_bounce, p_bounce)
 
-    def setup_experiment(self, start: float):
+    def setup_experiment(self, start: float = 0.0):
         """Set initial (non-interface) variables."""
         super().setup_experiment(start)
         self.stopped = False

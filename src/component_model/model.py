@@ -142,9 +142,9 @@ class Model(Fmi2Slave):
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
-        self.currentTime = 0  # keeping track of time when dynamic calculations are performed
+        self.currentTime = 0.0  # keeping track of time when dynamic calculations are performed
 
-    def setup_experiment(self, start: float):
+    def setup_experiment(self, start: int | float = 0.0):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
         self.start_time = start
 
@@ -154,7 +154,7 @@ class Model(Fmi2Slave):
         self.dirty_do()  # run on_set on all dirty variables
 
     @abstractmethod  # mark the class as 'still abstract'
-    def do_step(self, time, dt):
+    def do_step(self, time: int | float, dt: int | float):
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         """
@@ -202,8 +202,8 @@ class Model(Fmi2Slave):
         #. The call to super()... sets the value_reference, getter and setter of the variable
         """
         for idx, v in self.vars.items():
-            check = v is None or v.name != var.name
-            assert check, f"Variable name {var.name} already used as index {idx} in model {self.name}"
+            if v is not None and v.name == var.name:
+                raise KeyError(f"Variable {var.name} already used as index {idx} in model {self.name}") from None
         # ensure that the model has the value as attribute:
         setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
         if value_reference is None:  # automatic valueReference
@@ -336,7 +336,7 @@ class Model(Fmi2Slave):
     # =====================
     @staticmethod
     def build(
-        script: str = "",
+        script: str | Path = "",
         project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,

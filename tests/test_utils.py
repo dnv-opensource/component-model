@@ -80,37 +80,34 @@ def test_model_description(bouncing_ball_fmu):
     assert el.find("./SourceFiles") is not None, "SourceFiles expected"
     el = et.find("./UnitDefinitions")
     assert el is not None, "UnitDefinitions element expected"
-    assert len(el) == 4, (
-        f"4 UnitDefinitions expected. Found {''.join(x.get('name') + ', ' for x in el.findall('./Unit'))}"
-    )
+    assert len(el) == 4, f"4 UnitDefinitions expected. Found {el}"
+    # ''.join(x.get('name') + ', ' for x in e.findall('./UnitDefinitions'))
     el = et.find("./TypeDefinitions")
     assert el is None, "No TypeDefinitions expected (so far not implemented in component_model"
     el = et.find("./LogCategories")
     assert el is not None, "LogCategory element expected"
-    assert len(el) == 5, (
-        f"Five LogCategories expected. Found {''.join(x.get('name') + ', ' for x in el.findall('./Category'))}"
-    )
+    assert len(el) == 5, f"Five LogCategories expected. Found {el}"
+    #''.join(x.get('name') + ', ' for x in el.findall('./Category'))
     el = et.find("./DefaultExperiment")
-    assert el.attrib == {
+    assert el is not None and el.attrib == {
         "startTime": "0",
         "stopTime": "1.0",
         "stepSize": "0.01",
-    }, f"DefaultExperiment: {el.attrib}"
+    }, f"DefaultExperiment: {el.attrib if el is not None else '??'}"
     el = et.find("./ModelVariables")
     assert el is not None, "ModelVariables element expected"
-    assert len(el) == 11, (
-        f"11 ModelVariables expected. Found {''.join(x.get('name') + ', ' for x in el.findall('./ScalarVariable'))}"
-    )
+    assert len(el) == 11, f"11 ModelVariables expected. Found {el}"
+    # ''.join(x.get('name') + ', ' for x in el.findall('./ScalarVariable'))
     el = et.find("./ModelStructure")
     assert el is not None, "ModelStructure element expected"
     e = el.find("./Outputs")
     assert e is not None, "Outputs element expected"
-    assert len(e) == 9, f"9 Outputs expected. Found {''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))}"
+    assert len(e) == 9, f"9 Outputs expected. Found {el}"
+    # ''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))
     e = el.find("./InitialUnknowns")
     assert e is not None, "InitialUnknowns element expected"
-    assert len(e) == 3, (
-        f"3 InitialUnknowns expected. Found {''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))}"
-    )
+    assert len(e) == 3, f"3 InitialUnknowns expected. Found {el}"
+    # ''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))
 
 
 def test_model_from_fmu(bouncing_ball_fmu):

@@ -65,7 +65,7 @@ def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
 
 
-def _linear(t: float, tt: list, xx: list):
+def _linear(t: float, tt: tuple | list, xx: tuple | list):
     if t <= tt[-1]:
         return np.interp([t], tt, xx)[0]
     else:
@@ -82,7 +82,7 @@ def test_inputtable_class(interpolate=False):
     import sys
 
     sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from input_table import InputTable
+    from input_table import InputTable  # type: ignore
 
     tbl = InputTable(
         "TestTable",
@@ -274,5 +274,5 @@ if __name__ == "__main__":
     # import os
     # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_make_simpletable(_simple_table_fmu())
-    # test_inputtable_class()
-    test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))
+    test_inputtable_class()
+    # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))

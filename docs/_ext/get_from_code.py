@@ -25,7 +25,10 @@ class GetFromCode(SphinxDirective):
         obj = importlib.import_module(sPkg + "." + sMod)
         while len(sObj):
             sSub, _, sObj = sObj.partition(".")
-            obj = getattr(obj, sSub, "not found")
+            if not hasattr(obj, sSub):
+                raise KeyError(f"Attribute {sSub} not found in {obj}") from None
+            else:
+                obj = getattr(obj, sSub)
         print(
             "INFO [" + self.arguments[0] + "] Type:",
             type(obj),
@@ -43,7 +46,7 @@ class GetFromCode(SphinxDirective):
         elif isinstance(obj, (complex, float, int, str, list, dict, tuple)):  # no docstring
             text = str(obj).strip()
         else:  # if type(obj).__name__ in ('module','type','function') or isinstance( obj, type): # objects where docstring should be returned
-            text = obj.__doc__.strip()
+            text = obj.__doc__.strip() if obj.__doc__ is not None else ""
 
         self.content = nodes.paragraph(text=text)
         if self.typ is None:  # need to parse the extracted text

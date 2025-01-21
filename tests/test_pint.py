@@ -2,6 +2,7 @@
 
 import logging
 
+import pytest
 from pint import UnitRegistry
 
 from component_model.utils.logger import get_module_logger  # type: ignore
@@ -21,7 +22,7 @@ def test_needed_functions():
         "degrees_Celsius" in _reg,
     )
     print("Unit System", _reg.default_system)
-    print("Implicit and explicit def", 0.2 * _reg.kg, _reg.Quantity(0.2, _reg.kg))
+    print("Implicit and explicit def", 0.2 * _reg.kg, _reg.Quantity(0.2, "kg"))
     print("String parsing:", _reg("0.2kg"), _reg(" 0.2 kg"), _reg("kg"), _reg("1.3e5"))
     print(
         "Base Units",
@@ -36,7 +37,7 @@ def test_needed_functions():
     )
     print(
         "Temperature",
-        _reg.Quantity(38.0, _reg.degC),
+        _reg.Quantity(38.0, "degC"),
         _reg("38.0*degK"),
         _reg.Quantity(38.0, "degF"),
         _reg.Quantity(38.0, "degF").to_base_units(),
@@ -136,3 +137,8 @@ def test_needed_functions():
 #
 # def test_get_standard_unit():
 #     assert Unit.get_standard_unit("mass") == "kg"
+
+if __name__ == "__main__":
+    retcode = pytest.main(["-rA", "-v", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_needed_functions()

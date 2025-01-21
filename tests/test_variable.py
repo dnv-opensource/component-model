@@ -11,7 +11,7 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from component_model.caus_var_ini import Initial
 from component_model.model import Model  # type: ignore
 from component_model.utils.logger import get_module_logger  # type: ignore
-from component_model.variable import (  # type: ignore
+from component_model.variable import (
     Check,
     Variable,
     VariableInitError,
@@ -234,8 +234,8 @@ def test_init():
     assert mod.myInt == 110, f"Value {mod.myInt} should still be unchanged"
     myInt.setter(50)
     assert mod.myInt == 50, f"Value {mod.myInt} changed back."
-    mod.set_integer(((mod.variable_by_name("myInt").value_reference),), (99,))  # simulate setting from outside
-    assert mod.get_integer(((mod.variable_by_name("myInt").value_reference),)) == [99]
+    mod.set_integer([mod.variable_by_name("myInt").value_reference], [99])  # simulate setting from outside
+    assert mod.get_integer([mod.variable_by_name("myInt").value_reference]) == [99]
 
     assert myFloat.typ is float
     assert myFloat.causality == Causality.input
@@ -261,8 +261,8 @@ def test_init():
     assert mod.myFloat == 1.0, f"Value {mod.myFloat} should still be unchanged"
     myFloat.setter(50)
     assert mod.myFloat == 0.5, f"Value {mod.myFloat} changed back."
-    mod.set_real(((mod.variable_by_name("myFloat").value_reference),), (99,))  # simulate setting from outside
-    assert mod.get_real(((mod.variable_by_name("myFloat").value_reference),)) == [99]
+    mod.set_real([mod.variable_by_name("myFloat").value_reference], [99])  # simulate setting from outside
+    assert mod.get_real([mod.variable_by_name("myFloat").value_reference]) == [99]
 
     assert isinstance(myEnum.start[0], Enum), f"Type: {myEnum.typ}"
     assert issubclass(myEnum.typ, Enum), "Enums are always derived"
@@ -282,8 +282,8 @@ def test_init():
     assert mod.myEnum == Causality.input, "Not possible to supply a wrong value with the right type!"
     myEnum.setter(Causality.local)
     assert myEnum.getter() == 4, f"Value {myEnum.getter()}. Translated to int!"
-    mod.set_integer(((mod.variable_by_name("myEnum").value_reference),), (2,))  # simulate setting from outside
-    assert mod.get_integer(((mod.variable_by_name("myEnum").value_reference),)) == [2]
+    mod.set_integer([mod.variable_by_name("myEnum").value_reference], [2])  # simulate setting from outside
+    assert mod.get_integer([mod.variable_by_name("myEnum").value_reference]) == [2]
 
     assert myBool.typ is bool
     assert myBool.causality == Causality.parameter
@@ -304,8 +304,8 @@ def test_init():
     assert myBool.getter(), "Converted in getter()"
     myBool.setter(False)
     assert not mod.myBool, f"Value {mod.myBool} changed."
-    mod.set_boolean(((mod.variable_by_name("myBool").value_reference),), (True,))  # simulate setting from outside
-    assert mod.get_boolean(((mod.variable_by_name("myBool").value_reference),)) == [True]
+    mod.set_boolean([mod.variable_by_name("myBool").value_reference], [True])  # simulate setting from outside
+    assert mod.get_boolean([mod.variable_by_name("myBool").value_reference]) == [True]
 
     assert myStr.typ is str
     assert myStr.causality == Causality.parameter
@@ -324,8 +324,8 @@ def test_init():
     assert isinstance(myStr.getter(), str), "getter() converts to str"
     myStr.setter("Hei")
     assert mod.myStr == "Hei", f"New value {mod.myStr}."
-    mod.set_string(((mod.variable_by_name("myStr").value_reference),), ("Hello",))  # simulate setting from outside
-    assert mod.get_string(((mod.variable_by_name("myStr").value_reference),)) == ["Hello"]
+    mod.set_string([mod.variable_by_name("myStr").value_reference], ["Hello"])  # simulate setting from outside
+    assert mod.get_string([mod.variable_by_name("myStr").value_reference]) == ["Hello"]
 
     assert myNP.typ is float
     assert myNP == mod.variable_by_name("myNP")
@@ -359,11 +359,11 @@ def test_init():
     arrays_equal(mod.myNP, (1.0, math.radians(1.0), 1.0))
     arrays_equal(myNP.getter(), (1.0, 1.0, 1.0))  # getter shows display units
     vr0 = mod.variable_by_name("myNP").value_reference
-    mod.set_real((vr0, vr0 + 1, vr0 + 2), (2.0, 2.0, 2.0))  # simulate setting from outside
+    mod.set_real([vr0, vr0 + 1, vr0 + 2], [2.0, 2.0, 2.0])  # simulate setting from outside
     arrays_equal(mod.get_real((vr0, vr0 + 1, vr0 + 2)), [2.0, 2.0, 2.0])
     arrays_equal(mod.get_real((vr0, vr0 + 1, vr0 + 2)), [2.0, 2.0, 2.0])  # array not changed by getter (need copy)
 
-    with pytest.raises(Exception) as err:
+    with pytest.raises(KeyError) as err2:
         _ = Variable(
             mod,
             "myInt",
@@ -375,9 +375,9 @@ def test_init():
             rng=(0, "100%"),
             annotations=None,
         )
-    assert str(err.value).startswith("Variable name myInt already used as index 0 in model MyModel")
+    assert err2.value.args[0] == "Variable myInt already used as index 0 in model MyModel"
 
-    with pytest.raises(VariableInitError) as err:
+    with pytest.raises(VariableInitError) as err3:
         myInt = Variable(
             mod,
             "myBool",
@@ -389,7 +389,7 @@ def test_init():
             annotations=None,
             typ=int,
         )
-    assert str(err.value).startswith("Range must be specified for int variable")
+    assert err3.value.args[0].startswith("Range must be specified for int variable")
     assert myFloat.range[0][1] == 99.0
     assert myEnum.range[0] == (0, 4)
     assert myEnum.check_range(Causality.parameter)
@@ -408,15 +408,16 @@ def test_range():
     )
     int1 = Variable(mod, "int1", start=1, rng=(0, 5))  # that works
     mod.int1 = 6
-    with pytest.raises(VariableRangeError) as err:  # causes an error
+    with pytest.raises(VariableRangeError) as err2:  # causes an error
         _ = int1.getter()
-    assert str(err.value) == "getter(): Value 6.0 outside range."
+    assert str(err2.value) == "getter(): Value 6.0 outside range."
     float1 = Variable(mod, "float1", start=1, typ=float)  # explicit type
     assert float1.range == ((float("-inf"), float("inf")),), "Auto_extreme. Same as rng=()"
     float2 = Variable(mod, "float2", start=1.0, rng=None)  # implicit type through start value and no range
     assert float2.range == ((1.0, 1.0),), "No range."
-    with pytest.raises(VariableRangeError) as err:
+    with pytest.raises(VariableRangeError) as err3:
         float2.setter(2.0)
+    assert err3.value.args[0] == "set(): Value [2.0] outside range."
 
     np1 = Variable(mod, "np1", start=("1.0m", 2, 3), rng=((0, "3m"), None, tuple()))
     assert np1.range == ((0.0, 3.0), (2.0, 2.0), (float("-inf"), float("inf")))
@@ -569,12 +570,12 @@ def test_xml():
     )
     lst = myNP2.xml_scalarvariables()
     assert len(lst) == 3
-    expected = b'<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
-    assert ET.tostring(lst[0]) == expected, f"{ET.tostring(lst[0])}"
-    expected = b'<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="1.9999999999999993" max="2.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[1]) == expected, f"{ET.tostring(lst[1])}"
-    expected = b'<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="2.9999999999999996" max="3.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[2]) == expected, f"{ET.tostring(lst[2])}"
+    expected = '<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
+    assert ET.tostring(lst[0], encoding="unicode") == expected, ET.tostring(lst[0], encoding="unicode")
+    expected = '<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="1.9999999999999993" max="2.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    assert ET.tostring(lst[1], encoding="unicode") == expected, ET.tostring(lst[1], encoding="unicode")
+    expected = '<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="2.9999999999999996" max="3.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    assert ET.tostring(lst[2], encoding="unicode") == expected, ET.tostring(lst[2], encoding="unicode")
 
     myInt = Variable(
         mod,
@@ -588,8 +589,8 @@ def test_xml():
         value_check=Check.all,
     )
     lst = myInt.xml_scalarvariables()
-    expected = b'<ScalarVariable name="myInt" valueReference="3" description="A integer variable" causality="parameter" variability="fixed" initial="exact"><Real start="0.99" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
-    assert ET.tostring(lst[0]) == expected, ET.tostring(lst[0])
+    expected = '<ScalarVariable name="myInt" valueReference="3" description="A integer variable" causality="parameter" variability="fixed" initial="exact"><Real start="0.99" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
+    assert ET.tostring(lst[0], encoding="unicode") == expected, ET.tostring(lst[0], encoding="unicode")
 
 
 def test_on_set():
@@ -615,9 +616,9 @@ def test_on_set():
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
+    retcode = 0  # pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
-    # test_range()
+    test_range()
     # test_var_check()
     # test_spherical_cartesian()
     # test_auto_type()

@@ -1,9 +1,10 @@
 from functools import partial
-from math import pi, sin, sqrt
+from math import sin
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 
 def do_show(time: list, z: list, v: list):
@@ -28,7 +29,7 @@ def test_oscillator_class(show):
     import sys
 
     sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from oscillator import HarmonicOscillator
+    from oscillator import HarmonicOscillator  # type: ignore
 
     osc = HarmonicOscillator(k=1.0, c=0.1, m=1.0)
     osc.x[2] = 1.0
@@ -37,8 +38,8 @@ def test_oscillator_class(show):
     v = []
     _f = partial(force, ampl=1.0, omega=0.1)
     dt = 0.01
-    time = 0
-    print("Period", 2 * pi / sqrt(osc.k / osc.m))
+    time = 0.0
+    # print("Period", 2 * pi / sqrt(osc.k / osc.m))
     for _ in range(10000):
         osc.f = _f(time)
         osc.do_step(time, dt)
@@ -52,6 +53,6 @@ def test_oscillator_class(show):
 
 
 if __name__ == "__main__":
-    # retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
-    # assert retcode == 0, f"Non-zero return code {retcode}"
-    test_oscillator_class(show=True)
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_oscillator_class(show=True)

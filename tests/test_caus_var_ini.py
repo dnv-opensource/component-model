@@ -14,7 +14,7 @@ def test_combinations():
 def test_ensure_enum():
     assert cvi.ensure_enum("input", Causality, Causality.parameter) == Causality.input
     with pytest.raises(Exception) as err:
-        cvi.ensure_enum("input", cvi.Initial, Causality.output)
+        cvi.ensure_enum("input", Variability, Causality.output)
     assert str(err.value).startswith("The value input is not compatible with ")
     assert cvi.ensure_enum("discrete", Variability, None) == Variability.discrete
     assert cvi.ensure_enum("input", Causality, None) == Causality.input
@@ -35,5 +35,6 @@ def test_check():
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    test_ensure_enum()

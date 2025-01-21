@@ -420,7 +420,9 @@ def test_from_fmu(bouncing_ball_fmu):
     assert model["author"] == "DNV, SEACo project"
     assert model["version"] == "0.1"
     assert model["license"].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
+    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", (
+        f"Found: {model['copyright']}"
+    )
     assert model["default_experiment"] is not None
     assert (
         model["default_experiment"]["start_time"],

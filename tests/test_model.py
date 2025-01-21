@@ -90,25 +90,23 @@ def test_xml():
     assert el.tag == "UnitDefinitions"
     assert len(el) == 3
     # assert ET.tostring(el[0]) == b'<Unit name="dimensionless" />'
-    assert ET.tostring(el[0]) == b'<Unit name="meter"><BaseUnit m="1" factor="1" /></Unit>'
-    expected = b'<Unit name="radian"><BaseUnit rad="0" factor="1" /><DisplayUnit name="degree" factor="0.017453292519943292" offset="0.0" /></Unit>'
-    assert ET.tostring(el[1]) == expected, f"Found {ET.tostring(el[1])}"
-    expected = b'<Unit name="dimensionless"><BaseUnit factor="1" /><DisplayUnit name="percent" factor="0.01" offset="0.0" /></Unit>'
-    assert ET.tostring(el[2]) == expected, f"Found {ET.tostring(el[2])}"
+    assert ET.tostring(el[0], encoding="unicode") == '<Unit name="meter"><BaseUnit m="1" factor="1" /></Unit>'
+    expected = '<Unit name="radian"><BaseUnit rad="0" factor="1" /><DisplayUnit name="degree" factor="0.017453292519943292" offset="0.0" /></Unit>'
+    assert ET.tostring(el[1], encoding="unicode") == expected, f"Found {ET.tostring(el[1], encoding='unicode')}"
+    expected = '<Unit name="dimensionless"><BaseUnit factor="1" /><DisplayUnit name="percent" factor="0.01" offset="0.0" /></Unit>'
+    assert ET.tostring(el[2], encoding="unicode") == expected, f"Found {ET.tostring(el[2], encoding='unicode')}"
 
     et = mod.to_xml()
     # check that all expected elements are in ModelDescription
     assert et.tag == "fmiModelDescription"
     assert et.find(".//UnitDefinitions") is not None
-    assert et.find(".//UnitDefinitions").find(".//Unit") is not None
+    assert et.find(".//UnitDefinitions/Unit") is not None
     assert et.find(".//LogCategories") is not None
     assert et.find(".//DefaultExperiment") is not None
-    assert (
-        ET.tostring(et.find(".//DefaultExperiment"))
-        == b'<DefaultExperiment startTime="0" stopTime="1.0" stepSize="0.01" />'
-    )
+    de = et.find(".//DefaultExperiment")
+    assert de is not None and ET.tostring(de) == b'<DefaultExperiment startTime="0" stopTime="1.0" stepSize="0.01" />'
     assert et.find(".//ModelVariables") is not None
-    assert et.find(".//ModelVariables").find(".//ScalarVariable") is not None
+    assert et.find(".//ModelVariables/ScalarVariable") is not None
     assert et.find(".//ModelStructure") is not None
     # print( ET.tostring(et))
 
@@ -121,7 +119,9 @@ def test_from_fmu(bouncing_ball_fmu):
     assert model["author"] == "DNV, SEACo project"
     assert model["version"] == "0.1"
     assert model["license"].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
+    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", (
+        f"Found: {model['copyright']}"
+    )
     assert model["default_experiment"] is not None
     assert (
         model["default_experiment"]["start_time"],
