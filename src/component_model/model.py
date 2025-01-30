@@ -1,8 +1,10 @@
+"""Python module as container for a (FMU) component model."""
+
 import datetime
 import os
 import tempfile
 import uuid
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from abc import abstractmethod
 from enum import Enum
 from math import log
@@ -320,17 +322,16 @@ class Model(Fmi2Slave):
             requirements = ["numpy", "pint"]
             temp_file.write_text("\n".join(requirements))
             return temp_file
-        else:
-            with open(existing_file, "r") as file:
-                requirements = file.read().splitlines()
+        with open(existing_file) as file:
+            requirements = file.read().splitlines()
 
-            if "numpy" not in requirements:
-                requirements.append("numpy")
-            if "pint" not in requirements:
-                requirements.append("pint")
+        if "numpy" not in requirements:
+            requirements.append("numpy")
+        if "pint" not in requirements:
+            requirements.append("pint")
 
-            temp_file.write_text("\n".join(requirements))
-            return temp_file
+        temp_file.write_text("\n".join(requirements))
+        return temp_file
 
     # =====================
     # FMU-related functions
@@ -452,7 +453,18 @@ class Model(Fmi2Slave):
                     )
                 )
         if self.default_experiment is not None:
-            root.append(self._xml_default_experiment())
+            for a in self.default_experiment:  # check the dict
+                assert a in (
+                    "startTime",
+                    "stopTime",
+                    "stepSize",
+                    "tolerance",
+                ), f"DefaultExperiment key {a} unknown"
+            ET.SubElement(
+                root,
+                "DefaultExperiment",
+                {k: str(v) for k, v in self.default_experiment.items()},
+            )
 
         variables = self._xml_modelvariables()
         root.append(variables)  # append <ModelVariables>

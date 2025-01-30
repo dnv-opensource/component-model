@@ -1,2 +1,4 @@
-from component_model.model import Model  # noqa: F401
-from component_model.variable import Variable  # noqa: F401
+"""Python Package to create Component Models."""
+
+from component_model.model import Model
+from component_model.variable import Variable
