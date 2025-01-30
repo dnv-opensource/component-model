@@ -1,3 +1,23 @@
+.. image:: https://img.shields.io/pypi/v/component-model.svg?color=blue
+   :target: https://pypi.org/project/component-model
+   :alt: pypi
+
+.. image:: https://img.shields.io/pypi/pyversions/component-model.svg?color=blue
+   :target: https://pypi.org/project/component-model
+   :alt: versions
+
+.. image:: https://img.shields.io/pypi/l/component-model.svg
+   :target: https://github.com/dnv-opensource/component-model/blob/main/LICENSE
+   :alt: license
+
+.. image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/component-model/.github%2Fworkflows%2Fnightly_build.yml?label=ci
+   :alt: ci
+
+.. image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/component-model/.github%2Fworkflows%2Fpush_to_release.yml?label=docs
+   :target: https://dnv-opensource.github.io/component-model/README.html
+   :alt: docs
+
+
 Introduction
 ============
 The package extends the `PythonFMU package <https://github.com/NTNU-IHB/PythonFMU>`_.
@@ -337,11 +357,22 @@ Clone the component-model repository into your local development directory:
 
 ``git clone https://github.com/dnv-opensource/component-model path/to/your/dev/component-model``
 
+Change into the project directory after cloning:
+
+``cd component-model``
+
 4. Install dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
 Run ``uv sync`` to create a virtual environment and install all project dependencies into it:
 
 ``uv sync``
+
+Note: Using ``--no-dev`` will omit installing development dependencies.
+
+Note: ``uv`` will create a new virtual environment called ``.venv`` in the project root directory when running
+``uv sync`` the first time. Optionally, you can create your own virtual environment using e.g. ``uv venv``, before running
+``uv sync``.
+
 
 5. (Optional) Activate the virtual environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -372,6 +403,18 @@ To install the pre-commit hooks defined therein in your local git repository, ru
 
 All pre-commit hooks configured in ``.pre-commit-config.yam`` will now run each time you commit changes.
 
+pre-commit can also manually be invoked, at anytime, using:
+
+``uv run pre-commit run --all-files``
+
+To skip the pre-commit validation on commits (e.g. when intentionally committing broken code), run:
+
+``uv run git commit -m <MSG> --no-verify``
+
+To update the hooks configured in `.pre-commit-config.yaml` to their newest versions, run:
+
+``uv run pre-commit autoupdate``
+
 7. Test that the installation works
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To test that the installation works, run pytest in the project root folder:
@@ -395,6 +438,7 @@ Anybody in the FMU and OSP community is welcome to contribute to this code, to m
 and especially including other features from model assurance,
 as we firmly believe that trust in our models is needed
 if we want to base critical decisions on the support from these models.
+
 
 To contribute, follow these steps:
 
