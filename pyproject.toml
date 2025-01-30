@@ -28,7 +28,7 @@ name = "component-model"
 version = "0.1.0"
 description = "Constructs a Functional Mockup Interface component model from a python script (fulfilling some requirements)."
 readme = "README.rst"
-requires-python = ">= 3.10, < 3.14"
+requires-python = ">= 3.10, < 3.13"
 license = { file = "LICENSE" }
 authors = [
     { name = "Siegfried Eisinger", email = "Siegfried.Eisinger@dnv.com" },
@@ -45,7 +45,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    # "Programming Language :: Python :: 3.13",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
