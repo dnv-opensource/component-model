@@ -313,9 +313,10 @@ class Variable(ScalarVariable):
             for i in range(self._len):
                 value[i] = self._typ(value[i])
 
-        if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
-            if not self.check_range(value, idx):
-                raise VariableRangeError(f"set(): Value {value} outside range.") from None
+        # Check validity of range and units.
+        # NOTE: Do that before unit conversion, since range is stored in display units.
+        if self._check & Check.ranges and not self.check_range(value, idx):
+            raise VariableRangeError(f"set(): Value {value} outside range.") from None
 
         if self._check & Check.units:  #'value' expected as displayUnit. Convert to unit
             if isinstance(idx, int):  # explicit index of single value
@@ -351,9 +352,8 @@ class Variable(ScalarVariable):
                 value = value.value
             elif not isinstance(value, self._typ):  # other type conversion
                 value = self._typ(value)  # type: ignore[call-arg]
-            if self._check & Check.units:  # Convert 'value' display.u -> base unit
-                if self._display[0] is not None:
-                    value = self.display[0][2](value)
+            if self._check & Check.units and self._display[0] is not None:  # Convert 'value' display.u -> base unit
+                value = self.display[0][2](value)
 
         else:  # compound variable
             value = list(getattr(self.owner, self.local_name))  # make value available as copy

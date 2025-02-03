@@ -115,10 +115,9 @@ def test_inputtable_class(
     for i in range(90):
         time = -1.0 + 0.1 * i
         tbl.set_values(time)
-        if tbl.times[0] <= time <= tbl.times[-1]:  # no extrapolation
-            if interpolate:
-                expected = [np.interp(time, tbl.times, tbl.outputs[:, c]) for c in range(tbl._cols)]
-                assert all(tbl.outs[k] == expected[k] for k in range(len(tbl.outs))), f"Got {tbl.outs} != {expected}"
+        if tbl.times[0] <= time <= tbl.times[-1] and interpolate:  # no extrapolation, but interpolation
+            expected = np.array([np.interp(time, tbl.times, tbl.outputs[:, c]) for c in range(tbl._cols)])
+            assert all(tbl.outs[k] == expected[k] for k in range(len(tbl.outs))), f"Got {tbl.outs} != {expected}"
         if not interpolate:
             if time <= tbl.times[0]:
                 assert all(tbl.outs[k] == tbl.outputs[0, :][k] for k in range(len(tbl.outs))), (

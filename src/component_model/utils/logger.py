@@ -45,7 +45,7 @@ class MsgCounterHandler(logging.StreamHandler):
         super(MsgCounterHandler, self).__init__(*args, **kwargs)
         self.levelcount = {"DEBUG": 0, "INFO": 0, "WARNING": 0, "ERROR": 0}
         self.ideType = None
-        if "idlelib.run" in sys.modules.keys():  ## if idlelib.run exists
+        if "idlelib.run" in sys.modules:  # if idlelib.run exists
             self.ideType = "Idle"
             self.levelColor = {
                 "DEBUG": "DEFINITION",  # blue
@@ -54,9 +54,8 @@ class MsgCounterHandler(logging.StreamHandler):
                 "ERROR": "stderr",  # red
                 "CRITICAL": "ERROR",
             }  # red background (not yet fully implemented)
-        elif (
-            "thonny.tktextext" in sys.modules.keys()
-        ):  # use escape codes. See also https://en.wikipedia.org/wiki/ANSI_escape_code
+        elif "thonny.tktextext" in sys.modules:
+            # use escape codes. See also https://en.wikipedia.org/wiki/ANSI_escape_code
             self.ideType = "Thonny"
             self.levelColor = {
                 "DEBUG": "\033[34m",  # BLUE

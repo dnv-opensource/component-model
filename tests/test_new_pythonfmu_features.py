@@ -57,7 +57,7 @@ def test_match_par():
     assert txt[: res[1] + 1].endswith("12)),\n)")
 
 
-def model_parameters(  # noqa: C901, PLR0912
+def model_parameters(  # noqa: C901
     src: Path,
     newargs: dict | None = None,
 ) -> tuple[str, Fmi2Slave]:
@@ -115,10 +115,7 @@ def model_parameters(  # noqa: C901, PLR0912
     pars = sig.parameters
     newpars = []
     for p in pars:
-        if p in newargs:
-            par = pars[p].replace(default=newargs[p])
-        else:
-            par = pars[p]
+        par = pars[p].replace(default=newargs[p]) if p in newargs else pars[p]
         newpars.append(par)
         signew = inspect.Signature(parameters=newpars)
     init_line = inspect.getsourcelines(init)[1]

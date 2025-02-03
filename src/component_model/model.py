@@ -186,11 +186,11 @@ class Model(Fmi2Slave):
         for u, du in unit_display:
             if u not in self._units:  # the main unit is not yet registered
                 self._units[u] = []  # main unit has no factor
-            if du is not None:  # displays are defined
-                if not len(self._units[u]) or all(
-                    du[0] not in self._units[u][i][0] for i in range(len(self._units[u]))
-                ):
-                    self._units[u].append(du)
+            if du is not None and (
+                not len(self._units[u]) or all(du[0] not in self._units[u][i][0] for i in range(len(self._units[u])))
+            ):
+                # displays are defined.
+                self._units[u].append(du)
 
     def register_variable(
         self,
@@ -211,10 +211,7 @@ class Model(Fmi2Slave):
                 raise KeyError(f"Variable {var.name} already used as index {idx} in model {self.name}") from None
         # ensure that the model has the value as attribute:
         setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
-        if value_reference is None:  # automatic valueReference
-            vref = len(self.vars)
-        else:
-            vref = value_reference
+        vref = len(self.vars) if value_reference is None else value_reference
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
