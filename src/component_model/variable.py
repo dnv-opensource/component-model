@@ -153,7 +153,7 @@ class Variable(ScalarVariable):
         initial: str | None = None,
         typ: type | None = None,
         start: PyType | Compound | None = None,
-        rng: tuple | None = tuple(),
+        rng: tuple | None = (),
         annotations: dict | None = None,
         value_check: Check = Check.all,
         on_step: Callable | None = None,
@@ -399,7 +399,7 @@ class Variable(ScalarVariable):
         assert hasattr(self, "_unit"), "Missing self._unit"
         assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
         # Configure input. Could be None, () or (min,max) of scalar
-        if rng is None or rng == tuple() or (self._len == 1 and len(rng) == 2):  # noqa: PLR2004
+        if rng is None or rng == () or (self._len == 1 and len(rng) == 2):  # noqa: PLR2004
             rng = (rng,) * self._len
 
         _range = []
@@ -567,7 +567,7 @@ class Variable(ScalarVariable):
             raise VariableInitError(f"Range must be specified for int variable {cls} or use float.")
         if isinstance(var, Enum):
             return (min(x.value for x in type(var)), max(x.value for x in type(var)))
-        return tuple()  # return an empty tuple (no range specified, e.g. for str)
+        return ()  # return an empty tuple (no range specified, e.g. for str)
 
     def _disect_unit(self, quantity: PyType | Compound) -> tuple:
         """Disect the provided quantity in terms of magnitude and unit, if provided as string.
@@ -636,7 +636,7 @@ class Variable(ScalarVariable):
             from_base = partial(linear, b=1.0 / b, a=-a / b)
         return (val, str(qb.units), (str(q.units), to_base, from_base))
 
-    def xml_scalarvariables(self):
+    def xml_scalarvariables(self):  # noqa: C901
         """Generate <ScalarVariable> XML code with respect to this variable and return xml element.
         For compound variables, all elements are included.
 

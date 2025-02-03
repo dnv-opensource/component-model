@@ -436,7 +436,7 @@ def test_range():
         float2.setter(2.0)
     assert err3.value.args[0] == "set(): Value [2.0] outside range."
 
-    np1 = Variable(mod, "np1", start=("1.0m", 2, 3), rng=((0, "3m"), None, tuple()))
+    np1 = Variable(mod, "np1", start=("1.0m", 2, 3), rng=((0, "3m"), None, ()))
     assert np1.range == ((0.0, 3.0), (2.0, 2.0), (float("-inf"), float("inf")))
 
 

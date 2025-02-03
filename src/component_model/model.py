@@ -396,7 +396,10 @@ class Model(Fmi2Slave):
             )  # , xFunc=None)
             return asBuilt
 
-    def to_xml(self, model_options: dict | None = None) -> ET.Element:
+    def to_xml(  # noqa: C901
+        self,
+        model_options: dict | None = None,
+    ) -> ET.Element:
         """Build the XML FMI2 modelDescription.xml tree. (adapted from PythonFMU).
 
         Args:
@@ -411,14 +414,14 @@ class Model(Fmi2Slave):
         t = datetime.datetime.now(datetime.timezone.utc)
         date_str = t.isoformat(timespec="seconds")
 
-        attrib = dict(
-            fmiVersion="2.0",
-            modelName=self.modelName,
-            guid=f"{self.guid!s}",
-            generationTool=f"PythonFMU {pythonfmu_version}",
-            generationDateAndTime=date_str,
-            variableNamingConvention="structured",
-        )
+        attrib = {
+            "fmiVersion": "2.0",
+            "modelName": self.modelName,
+            "guid": f"{self.guid!s}",
+            "generationTool": f"PythonFMU {pythonfmu_version}",
+            "generationDateAndTime": date_str,
+            "variableNamingConvention": "structured",
+        }
         if self.description is not None:
             attrib["description"] = self.description
         if self.author is not None:
@@ -432,7 +435,7 @@ class Model(Fmi2Slave):
 
         root = ET.Element("fmiModelDescription", attrib)
 
-        options = dict()
+        options = {}
         for option in FMI2_MODEL_OPTIONS:
             value = model_options.get(option.name, option.value)
             options[option.name] = str(value).lower()
@@ -698,7 +701,7 @@ class Model(Fmi2Slave):
         """Get variables of all types based on references.
         This method is called by get_xxx and translates to fmi2GetXxx.
         """
-        values = list()
+        values = []
         for var, sub in self._var_iter(vrs):
             check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
@@ -759,7 +762,7 @@ class Model(Fmi2Slave):
         """Get the value of all referenced variables of the model.
         Note that also compound variables are saved in a single slot.
         """
-        state = dict()
+        state = {}
         for var in self.vars.values():
             if var is not None:
                 state[var.local_name] = getattr(self, var.local_name)

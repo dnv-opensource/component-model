@@ -70,7 +70,7 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     return ET.fromstring(xml)
 
 
-def test_inputtable_class(interpolate=False):
+def test_inputtable_class(interpolate=False):  # noqa: C901
     from examples.input_table import InputTable
 
     tbl = InputTable(

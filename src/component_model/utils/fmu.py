@@ -62,7 +62,10 @@ def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
     return kwargs
 
 
-def variables_from_fmu(el: ET.Element | None, sep: str = "["):
+def variables_from_fmu(  # noqa: C901
+    el: ET.Element | None,
+    sep: str = "[",
+):
     """From the supplied <ModelVariables> el subtree identify and define all variables.
     Return an iterator through variable arguments as dict,
     so that variables can be added to model through `.add_variable(**kwargs)`.
@@ -76,7 +79,7 @@ def variables_from_fmu(el: ET.Element | None, sep: str = "["):
     def range_from_fmu(el: ET.Element):
         """From the variable type sub-element (e.g. <Real>) of <ScalarVariable> deduce the variable range of a ScalarVariable."""
         if el.attrib.get("unbounded", "true"):
-            return tuple()
+            return ()
         if "min" in el.attrib and "max" in el.attrib:
             return (el.attrib["min"], el.attrib["max"])
         if "min" in el.attrib and el.tag == "Real":

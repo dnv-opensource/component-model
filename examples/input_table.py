@@ -40,14 +40,14 @@ class InputTable(Model):
         self._rows = len(table)
         self._cols = len(table[0]) - 1
         self.times = np.array(
-            list(row[0] for row in table), dtype="float64"
+            [row[0] for row in table], dtype="float64"
         )  # this is only internally defined, not as Variable
         assert all(self.times[i - 1] < self.times[i] for i in range(1, len(self.times))), (
             "The times in the input table are not properly sorted in ascending order"
         )
         assert self.times[0] == 0.0, "The initial output values are not defined. The first time point should be at zero"
         self.outputs = np.array(
-            list(row[1:] for row in table), dtype="float64"
+            [row[1:] for row in table], dtype="float64"
         )  # this is only internally defined, not as Variable
         self.output_name = output_name
         self._interface(table[0][1:], interpolate)
