@@ -128,10 +128,10 @@ def test_inputtable_class(
                     f"Got {tbl.outs} != {tbl.outputs[-1, :]}"
                 )
             else:  # inside
-                for i, t in enumerate(tbl.times):
+                for j, t in enumerate(tbl.times):
                     if t > time:
-                        assert all(tbl.outs[k] == tbl.outputs[i - 1, :][k] for k in range(len(tbl.outs))), (
-                            f"time {time}, row {i}. Got {tbl.outs} != {tbl.outputs[i - 1, :]}"
+                        assert all(tbl.outs[k] == tbl.outputs[j - 1, :][k] for k in range(len(tbl.outs))), (
+                            f"time {time}, row {j}. Got {tbl.outs} != {tbl.outputs[j - 1, :]}"
                         )
                         break
 

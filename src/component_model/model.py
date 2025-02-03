@@ -688,9 +688,12 @@ class Model(Fmi2Slave):
                 and len(var) > 1
                 and i + len(var) <= len(vrs)
                 and vr + len(var) - 1 == vrs[i + len(var) - 1]
-            ):  # compound variable and all elements included
+            ):
+                # compound variable and all elements included
                 for _ in range(len(var) - 1):  # spool to the last element
-                    i, vr = next(it)
+                    # TODO @ClaasRostock: Find a cleaner way to do this, without overwriting the loop variables.
+                    #      ClaasRostock, 2025-02-03
+                    i, vr = next(it)  # noqa: PLW2901
                 sub = None
             # print(f"VAR_ITER whole {var.name} at {vr}")
             # print(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
