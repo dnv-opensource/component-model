@@ -4,6 +4,7 @@ exclude = [
     "dist",
     "*cache",
     "**/__pycache__",
+    "docs/_ext/*.py",
     "src/folder_to_be_excluded",
 ]
 src = [

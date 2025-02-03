@@ -382,7 +382,12 @@ class Variable(ScalarVariable):
               Always for the whole variable with scalar variables packed in a singleton
         """
 
-        def ensure_display_limits(val: PyType, idx: int, right: bool):
+        def ensure_display_limits(
+            val: PyType,
+            idx: int,
+            *,
+            right: bool,
+        ):
             """Ensure that value is provided as display unit and that limits are included in range."""
             if self._display[idx] is not None:  # Range in display units!
                 _val = self._display[idx]
@@ -447,6 +452,7 @@ class Variable(ScalarVariable):
         self,
         value: PyType | Compound | None,
         idx: int | None = None,
+        *,
         disp: bool = True,
     ) -> bool:
         """Check the provided 'value' with respect to the range.
@@ -467,7 +473,7 @@ class Variable(ScalarVariable):
         if self._len > 1 and idx is None:  # check all components
             assert isinstance(value, (tuple, list, np.ndarray)), f"{value} is not a tuple, list, or ndarray"
             assert len(value) == self._len, f"{value} has no elements"
-            return all(self.check_range(value[i], i, disp) for i in range(self._len))
+            return all(self.check_range(value=value[i], idx=i, disp=disp) for i in range(self._len))
         # single component check
         assert idx is not None, "Need a proper idx here"
         if isinstance(value, (tuple, list, np.ndarray)):
@@ -509,6 +515,7 @@ class Variable(ScalarVariable):
     def auto_type(  # noqa: C901, PLR0912
         cls,
         val: PyType | Compound,
+        *,
         allow_int: bool = False,
     ):
         """Determine the Variable type from a provided example value.
@@ -519,7 +526,7 @@ class Variable(ScalarVariable):
         """
         assert val is not None, "'val is None'!"
         if isinstance(val, (tuple, list, np.ndarray)):
-            types = [cls.auto_type(x, allow_int) for x in val]
+            types = [cls.auto_type(val=x, allow_int=allow_int) for x in val]
             typ = None
             for t in types:
                 if t is not None and typ is None:
@@ -660,9 +667,9 @@ class Variable(ScalarVariable):
         svars = []
         for i in range(self._len):
             sv = ET.Element(
-                "ScalarVariable",
-                {
-                    "name": self.name + substr("", f"[{i}]"),
+                tag="ScalarVariable",
+                attrib={
+                    "name": self.name + substr(alt1="", alti=f"[{i}]"),
                     "valueReference": str(self.value_reference + i),
                     "description": "" if self.description is None else self.description,
                     "causality": self.causality.name,
@@ -674,7 +681,7 @@ class Variable(ScalarVariable):
             # if self.description is not None:
             #    sv.attrib.update({"description": self.description + substr("", f", [{i}]")})
             if self._annotations is not None and i == 0:
-                sv.append(ET.Element("annotations", self._annotations))
+                sv.append(ET.Element(tag="annotations", attrib=self._annotations))
             #             if self.display is None or (self._len>1 and self.display[i] is None):
             #                 "display" = (self.unit, 1.0)
 
@@ -703,7 +710,11 @@ class Variable(ScalarVariable):
 
 
 # Utility functions for handling special variable types
-def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def spherical_to_cartesian(
+    vec: np.ndarray | tuple,
+    *,
+    deg: bool = False,
+) -> np.ndarray:
     """Turn spherical vector 'vec' (defined according to ISO 80000-2 (r,polar,azimuth)) into cartesian coordinates."""
     if deg:
         theta = radians(vec[1])
@@ -719,7 +730,11 @@ def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.nda
     return np.array((r * sinTheta * cosPhi, r * sinTheta * sinPhi, r * cosTheta))
 
 
-def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def cartesian_to_spherical(
+    vec: np.ndarray | tuple,
+    *,
+    deg: bool = False,
+) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into spherical coordinates.
     (defined according to ISO 80000-2, (r, polar, azimuth)).
     """
@@ -733,7 +748,11 @@ def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.nda
     return np.array((r, acos(vec[2] / r), atan2(vec[1], vec[0])), dtype="float")
 
 
-def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def cartesian_to_cylindrical(
+    vec: np.ndarray | tuple,
+    *,
+    deg: bool = False,
+) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into cylindrical coordinates.
     (defined according to ISO, (r, phi, z), with phi right-handed wrt. x-axis).
     """
@@ -743,7 +762,11 @@ def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.n
     return np.array((sqrt(vec[0] * vec[0] + vec[1] * vec[1]), phi, vec[2]), dtype="float")
 
 
-def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def cylindrical_to_cartesian(
+    vec: np.ndarray | tuple,
+    *,
+    deg: bool = False,
+) -> np.ndarray:
     """Turn cylinder coordinate vector 'vec' (defined according to ISO (r,phi,z)) into cartesian coordinates.
     The angle phi is measured with respect to x-axis, right hand.
     """
@@ -751,7 +774,12 @@ def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.n
     return np.array((vec[0] * cos(phi), vec[0] * sin(phi), vec[2]), dtype="float")
 
 
-def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: bool = False) -> np.ndarray:
+def quantity_direction(
+    quantity_direction: tuple,
+    *,
+    spherical: bool = False,
+    deg: bool = False,
+) -> np.ndarray:
     """Turn a 4-tuple, consisting of quantity (float) and a direction 3-vector to a direction 3-vector,
     where the norm denotes the direction and the length denotes the quantity.
     The return vector is always a cartesian vector.

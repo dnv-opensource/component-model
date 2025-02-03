@@ -60,7 +60,7 @@ def _in_interval(x: float, x0: float, x1: float):
 
 def _linear(t: float, tt: tuple | list, xx: tuple | list):
     if t <= tt[-1]:
-        return np.interp([t], tt, xx)[0]
+        return np.interp(x=[t], xp=tt, fp=xx)[0]
     return xx[-1] + (t - tt[-1]) * (xx[-1] - xx[-2]) / (tt[-1] - tt[-2])
 
 
@@ -70,7 +70,10 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     return ET.fromstring(xml)
 
 
-def test_inputtable_class(interpolate=False):  # noqa: C901
+def test_inputtable_class(
+    *,
+    interpolate=False,
+):
     from examples.input_table import InputTable
 
     tbl = InputTable(
@@ -205,10 +208,10 @@ def test_run_osp(simple_table_fmu):
     ist = sim.add_local_slave(st)
     assert ist == 0, f"local slave number {ist}"
 
-    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ist)}
+    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(slave_index=ist)}
 
     # Set initial values
-    sim.boolean_initial_value(ist, reference_dict["interpolate"], True)
+    sim.boolean_initial_value(slave_index=ist, variable_reference=reference_dict["interpolate"], value=True)
 
     sim_status = sim.status()
     assert sim_status.current_time == 0
@@ -220,15 +223,15 @@ def test_run_osp(simple_table_fmu):
 
 def test_run_osp_system_structure(simple_table_system_structure):
     "Run an OSP simulation in the same way as the SimulatorInterface of case_study is implemented"
-    simulator = CosimExecution.from_osp_config_file(str(simple_table_system_structure))
+    simulator = CosimExecution.from_osp_config_file(osp_path=str(simple_table_system_structure))
     comps = []
     for comp in list(simulator.slave_infos()):
         name = comp.name.decode()
         comps.append(name)
     assert comps == ["tab"], f"Components: {comps}"
     variables = {}
-    for idx in range(simulator.num_slave_variables(0)):
-        struct = simulator.slave_variables(0)[idx]
+    for idx in range(simulator.num_slave_variables(slave_index=0)):
+        struct = simulator.slave_variables(slave_index=0)[idx]
         variables.update(
             {
                 struct.name.decode(): {
@@ -245,7 +248,7 @@ def test_run_osp_system_structure(simple_table_system_structure):
     # Instantiate a suitable manipulator for changing variables.
     manipulator = CosimManipulator.create_override()
     simulator.add_manipulator(manipulator=manipulator)
-    simulator.boolean_initial_value(0, 3, True)  # set 'interpolate'
+    simulator.boolean_initial_value(slave_index=0, variable_reference=3, value=True)  # set 'interpolate'
     # Instantiate a suitable observer for collecting results.
     observer = CosimObserver.create_last_value()
     simulator.add_observer(observer=observer)
@@ -256,8 +259,8 @@ def test_run_osp_system_structure(simple_table_system_structure):
     for time in range(1, 10):
         simulator.simulate_until(time * 1e9)
         if time == 1:
-            assert observer.last_boolean_values(0, [3]) == [True]
-        values = observer.last_real_values(0, [0, 1, 2])
+            assert observer.last_boolean_values(slave_index=0, variable_references=[3]) == [True]
+        values = observer.last_real_values(slave_index=0, variable_references=[0, 1, 2])
         # print(f"Time {time/1e9}: {values}, linear x:{_linear(time-0.01, _t, _x)}")
         assert abs(_linear(time - 0.01, _t, _x) - values[0]) < 1e-10, f"Linear interpolated x at t={time - 0.01}"
         assert abs(_linear(time - 0.01, _t, _y) - values[1]) < 1e-10, f"Linear interpolated y at t={time - 0.01}"
@@ -265,7 +268,7 @@ def test_run_osp_system_structure(simple_table_system_structure):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(args=["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 

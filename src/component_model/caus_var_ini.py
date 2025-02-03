@@ -82,6 +82,7 @@ def check_causality_variability_initial(
     causality: str | EnumType | None,
     variability: str | EnumType | None,
     initial: str | Enum | None,
+    *,
     msg: bool = True,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:
     _causality = ensure_enum(causality, Causality, Causality.parameter)  # type: ignore

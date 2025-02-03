@@ -27,6 +27,7 @@ class InputTable(Model):
         version="0.1",
         table: tuple = (),
         output_name: str = "out",
+        *,
         interpolate: bool = False,
         **kwargs,
     ):
@@ -52,7 +53,12 @@ class InputTable(Model):
         self.output_name = output_name
         self._interface(table[0][1:], interpolate)
 
-    def _interface(self, outs0: tuple, interpolate0: bool):
+    def _interface(
+        self,
+        outs0: tuple,
+        *,
+        interpolate0: bool,
+    ):
         self._outs = Variable(
             self,
             name="outs",
@@ -107,22 +113,26 @@ class InputTable(Model):
                     time,
                     self.times,
                     self.outputs[:, c],
-                    left=InputTable.extrap(time - self.times[0], self.times[:2], self.outputs[:2, c]),
-                    right=InputTable.extrap(time - self.times[-1], self.times[-2:], self.outputs[-2:, c]),
+                    left=InputTable.extrap(dt=time - self.times[0], tt=self.times[:2], yy=self.outputs[:2, c]),
+                    right=InputTable.extrap(dt=time - self.times[-1], tt=self.times[-2:], yy=self.outputs[-2:, c]),
                 )
 
-    def set_ranges(self, interpolate: bool):
+    def set_ranges(
+        self,
+        *,
+        interpolate: bool,
+    ):
         """Set the ranges of 'outs' from the table (min,max) and the 'interpolate' setting per column."""
         ranges = []
         for c in range(len(self.outputs[0])):
             ranges.append([np.min(self.outputs[:, c]), np.max(self.outputs[:, c])])
             if interpolate:
-                dleft = InputTable.extrap(-1.0, self.times[:2], self.outputs[:2, c]) - self.outputs[0, c]
+                dleft = InputTable.extrap(dt=-1.0, tt=self.times[:2], yy=self.outputs[:2, c]) - self.outputs[0, c]
                 if dleft < 0:
                     ranges[c][0] = float("-inf")
                 elif dleft > 0:
                     ranges[c][1] = float("inf")
-                dright = InputTable.extrap(1.0, self.times[-2:], self.outputs[-2:, c]) - self.outputs[-1, c]
+                dright = InputTable.extrap(dt=1.0, tt=self.times[-2:], yy=self.outputs[-2:, c]) - self.outputs[-1, c]
                 if dright < 0:
                     ranges[c][0] = float("-inf")
                 elif dright > 0:

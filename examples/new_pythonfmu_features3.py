@@ -32,9 +32,13 @@ class NewFeatures(Model):
             rng=(0, 10),
         )
 
-        self._f = Variable(self, "f", "My float", causality="input", variability="continuous", start=f)
+        self._f = Variable(
+            model=self, name="f", description="My float", causality="input", variability="continuous", start=f
+        )
 
-        self._s = Variable(self, "s", "My string", typ=str, causality="parameter", variability="fixed", start=s)
+        self._s = Variable(
+            model=self, name="s", description="My string", typ=str, causality="parameter", variability="fixed", start=s
+        )
 
         self.log("This is a __init__ debug message", debug=True)
         # self.log("This is a FATAL __init__ message", status=Fmi2Status.fatal, category="logStatusFatal", debug=False)
@@ -47,12 +51,21 @@ class NewFeatures(Model):
         # assert self.i < 8, "The range check would detect that with the next get message"
         # send log messages of all types. OSP makes them visible according to log_output_level setting
         self.log(f"do_step@{time}. logAll", status=Fmi2Status.ok, category="logAll", debug=True)
-        self.log(f"do_step@{time}. logStatusWarning", Fmi2Status.warning, "logStatusWarning", True)
-        self.log(f"do_step@{time}. logStatusDiscard", Fmi2Status.discard, "logStatusDiscard", True)
-        self.log(f"do_step@{time}. logStatusError", Fmi2Status.error, "logStatusError", True)
-        self.log(f"do_step@{time}. logStatusFatal", Fmi2Status.fatal, "logStatusFatal", True)
+        self.log(
+            f"do_step@{time}. logStatusWarning", status=Fmi2Status.warning, category="logStatusWarning", debug=True
+        )
+        self.log(
+            f"do_step@{time}. logStatusDiscard", status=Fmi2Status.discard, category="logStatusDiscard", debug=True
+        )
+        self.log(f"do_step@{time}. logStatusError", status=Fmi2Status.error, category="logStatusError", debug=True)
+        self.log(f"do_step@{time}. logStatusFatal", status=Fmi2Status.fatal, category="logStatusFatal", debug=True)
         if time > 8:  # noqa: PLR2004
-            self.log(f"@{time}. Trying to terminate simulation", Fmi2Status.error, "logStatusError", True)
+            self.log(
+                f"@{time}. Trying to terminate simulation",
+                status=Fmi2Status.error,
+                category="logStatusError",
+                debug=True,
+            )
             return False
         return True
 
