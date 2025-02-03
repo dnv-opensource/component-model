@@ -1,12 +1,15 @@
 """Python module as container for a (FMU) component model."""
 
+# ruff: noqa: A001  # Variable {name} is shadowing a Python builtin  (applies to usages of arguments `license` and `copyright`)
+# ruff: noqa: A002  # Function argument {name} is shadowing a Python builtin  (applies to usages of arguments `license` and `copyright`)
+
 import contextlib
-import datetime
 import os
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
 from abc import abstractmethod
+from datetime import datetime, timezone
 from enum import Enum
 from math import log
 from pathlib import Path
@@ -307,7 +310,7 @@ class Model(Fmi2Slave):
 
         if copyright is None:
             if copyright1 is None:  # make a new one
-                copyright = "Copyright (c) " + str(datetime.datetime.now().year) + " " + self.author
+                copyright = "Copyright (c) " + str(datetime.now(tz=timezone.utc).year) + " " + self.author
             else:
                 copyright = copyright1
 

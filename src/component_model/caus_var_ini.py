@@ -73,8 +73,8 @@ def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> 
         assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
         try:
             return typ[org]
-        except KeyError as err:
-            raise Exception(f"The value {org} is not compatible with the Enum {typ}: {err}") from err
+        except KeyError as e:
+            raise ValueError(f"The value {org} is not compatible with the Enum {typ}: {e}") from e
     else:
         assert isinstance(org, typ), f"{org} is not member of the Enum {typ}"
         return org
