@@ -1,3 +1,4 @@
+import logging
 import time
 from collections.abc import Iterable
 from pathlib import Path
@@ -14,6 +15,9 @@ from pythonfmu.fmi2slave import Fmi2Slave
 
 from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
+from component_model.utils.logger import get_module_logger
+
+logger = get_module_logger(__name__, level=logging.INFO)
 
 
 def match_par(txt: str, left: str = "(", right: str = ")"):
@@ -301,38 +305,38 @@ def test_from_osp(plain_fmu, show):
     manipulator = CosimManipulator.create_override()
     assert sim.add_manipulator(manipulator)
 
-    print("Simulate step 1. Log level TRACE : logAll")
+    logger.info("Simulate step 1. Log level TRACE : logAll")
     assert sim.simulate_until(target_time=1e9), "Simulate for one base step did not work"
-    # print(f"STATUS {get_status(sim)}")
+    # logger.info(f"STATUS {get_status(sim)}")
     assert get_status(sim)["currentTime"] == 1e9, "Time after simulation not correct"
     assert observer.last_real_values(0, [variables["f"]])[0] == 0.0, "The current time at step"
     assert observer.last_string_values(0, [variables["s"]])[0].decode() == "World"
 
     log_output_level(CosimLogLevel.DEBUG)
-    print("Simulate step 2. Log level DEBUG : -= ok")
+    logger.info("Simulate step 2. Log level DEBUG : -= ok")
     assert sim.simulate_until(target_time=2e9), "Simulate for one base step did not work"
     assert observer.last_real_values(0, [variables["f"]])[0] == 1.0, "The current time at step 2"
 
     log_output_level(CosimLogLevel.INFO)
-    print("Simulate step 3. Log level INFO : -= discard")
+    logger.info("Simulate step 3. Log level INFO : -= discard")
     assert sim.simulate_until(target_time=3e9), "Simulate for one base step did not work"
 
     log_output_level(CosimLogLevel.WARNING)
-    print("Simulate step 4. Log level WARNING : == INFO")
+    logger.info("Simulate step 4. Log level WARNING : == INFO")
     assert sim.simulate_until(target_time=4e9), "Simulate for one base step did not work"
 
     log_output_level(CosimLogLevel.ERROR)
-    print("Simulate step 5. Log level ERROR : -= warning")
+    logger.info("Simulate step 5. Log level ERROR : -= warning")
     assert sim.simulate_until(target_time=5e9), "Simulate for one base step did not work"
 
     if show:  # not in automatic mode, since it returns an error
         log_output_level(CosimLogLevel.FATAL)
-        print("Simulate step 6. Log level FATAL : nothing??")
+        logger.info("Simulate step 6. Log level FATAL : nothing??")
         assert sim.simulate_until(target_time=6e9), "Simulate for one base step did not work"
         assert observer.last_real_values(0, [variables["f"]])[0] == 5.0, "The current time at step 6"
 
         log_output_level(CosimLogLevel.ERROR)
-        print("Simulate steps >6. Log level ERROR. terminate() after 6")
+        logger.info("Simulate steps >6. Log level ERROR. terminate() after 6")
         assert sim.simulate_until(target_time=7e9), "Simulate for one base step did not work"
         assert sim.simulate_until(target_time=8e9), "Simulate for one base step did not work"
         assert sim.simulate_until(target_time=9e9), "Simulate for one base step did not work"

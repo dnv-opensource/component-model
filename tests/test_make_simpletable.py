@@ -1,3 +1,4 @@
+import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
@@ -15,6 +16,9 @@ from libcosimpy.CosimSlave import CosimLocalSlave
 from sim_explorer.utils.osp import make_osp_system_structure
 
 from component_model.model import Model
+from component_model.utils.logger import get_module_logger
+
+logger = get_module_logger(__name__, level=logging.INFO)
 
 
 @pytest.fixture(scope="session")
@@ -135,12 +139,12 @@ def test_inputtable_class(
 
 def test_make_simpletable(simple_table_fmu):
     info = fmu_info(simple_table_fmu)  # this is a formatted string. Not easy to check
-    print(f"Info: {info}")
+    logger.info(f"Info: {info}")
     et = _to_et(str(simple_table_fmu))
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
     # similarly other critical issues of the modelDescription can be checked
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
-    #    print(et.attrib)
+    #    logger.info(et.attrib)
     val = validate_fmu(str(simple_table_fmu))
     assert not len(val), (
         f"Validation of the modelDescription of {simple_table_fmu.name} was not successful. Errors: {val}"
@@ -148,7 +152,7 @@ def test_make_simpletable(simple_table_fmu):
 
 
 def test_use_fmu_interpolation(simple_table_fmu):
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         simple_table_fmu,
         stop_time=10.0,
         step_size=0.1,
@@ -171,7 +175,7 @@ def test_use_fmu_interpolation(simple_table_fmu):
 
 
 def test_use_fmu_no_interpolation(simple_table_fmu):
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         simple_table_fmu,
         stop_time=10.0,
         step_size=0.1,

@@ -1,7 +1,10 @@
+import logging
 from enum import Enum, EnumType
 
 from pythonfmu.enums import Fmi2Causality as Causality
 from pythonfmu.enums import Fmi2Variability as Variability
+
+logger = logging.getLogger(__name__)
 
 
 class Initial(Enum):
@@ -89,12 +92,14 @@ def check_causality_variability_initial(
     res = combination(var=_variability, caus=_causality)
     if res in ("a", "b", "c", "d", "e"):  # combination is not allowed
         if msg:
-            print(f"Combination causality {_causality} + variability {variability} is not allowed: {explanations[res]}")
+            logger.info(
+                f"Combination causality {_causality} + variability {variability} is not allowed: {explanations[res]}"
+            )
         return (None, None, None)
     # allowed
     _initial = ensure_enum(org=initial, typ=Initial, default=initial_default[res][0])
     if _initial not in initial_default[res][1]:
         if msg:
-            print(f"Causality {_causality} + variability {_variability} + Initial {_initial} is not allowed")
+            logger.info(f"Causality {_causality} + variability {_variability} + Initial {_initial} is not allowed")
         return (None, None, None)
     return (Causality(_causality), Variability(_variability), Initial(_initial))

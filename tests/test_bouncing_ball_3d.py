@@ -1,3 +1,4 @@
+import logging
 import time
 import xml.etree.ElementTree as ET
 from math import sqrt
@@ -18,6 +19,9 @@ from pythonfmu.default_experiment import DefaultExperiment
 
 from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
+from component_model.utils.logger import get_module_logger
+
+logger = get_module_logger(__name__, level=logging.INFO)
 
 
 def _in_interval(x: float, x0: float, x1: float):
@@ -107,13 +111,13 @@ def test_bouncing_ball_class(show):  # noqa: PLR0915
         bb._pos.setter((0, 0, 10))
     t_b, p_b = bb.next_bounce()
     assert t_bounce == t_b
-    # print("Bounce", t_bounce, x_bounce, p_b)
+    # logger.info(f"Bounce {t_bounce} {x_bounce} {p_b}")
     arrays_equal((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"
     get_result()
     # after one step
     bb.do_step(time, dt)
     get_result()
-    # print("After one step", result(bb))
+    # logger.info(f"After one step {result(bb)}")
     arrays_equal(
         result[-1],
         (
@@ -136,7 +140,7 @@ def test_bouncing_ball_class(show):  # noqa: PLR0915
     for _ in range(int(t_before / dt) - 1):
         bb.do_step(time, dt)
         get_result()
-    # print(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
+    # logger.info(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
     arrays_equal(
         result[-1],
         (
@@ -154,7 +158,7 @@ def test_bouncing_ball_class(show):  # noqa: PLR0915
         eps=0.003,
     )
     # just after bounce
-    # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
+    # logger.info(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
     bb.do_step(time, dt)
     get_result()
     ddt = t_before + dt - t_bounce  # time from bounce to end of step
@@ -182,19 +186,19 @@ def test_bouncing_ball_class(show):  # noqa: PLR0915
         t_bounce,
         x_bounce,
     )  # set start values (first bounce)
-    # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
+    # logger.info(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
     for n in range(2, 100):  # from bounce to bounce
         v_x = v_x * bb.e  # adjusted speeds
         v_z = v_z * bb.e
         delta_t = 2 * v_z / bb.g  # time for one bounce (parabola): v(t) = v0 - g*t/2 => 2*v0/g = t
         t_b += delta_t
         x_b += v_x * delta_t
-        print(f"Bounce {n} @{t_b}")
+        logger.info(f"Bounce {n} @{t_b}")
         while bb.time <= t_b:
-            # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
+            # logger.info(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
             bb.do_step(time, dt)
             get_result()
-        # print( f"Bounce {n}: {bb.pos}, steps:{len(result)}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
+        # logger.info( f"Bounce {n}: {bb.pos}, steps:{len(result)}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(bb.pos[2]) < 1e-2, f"z-position {bb.pos[2]} should be close to 0"
         if delta_t > 2 * dt:
             assert isinstance(result[-2][6], float)
@@ -212,7 +216,7 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
     # similarly other critical issues of the modelDescription can be checked
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
-    #    print(et.attrib)
+    #    logger.info(et.attrib)
     val = validate_fmu(str(bouncing_ball_fmu))
     assert not len(val), (
         f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
@@ -251,7 +255,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
     x_bounce = t_bounce / 1.0  # x-position where it bounces in m
     # Note: default values are reported at time 0!
     arrays_equal(list(result[0])[:7], [0, 0, 0, 10, 1, 0, 0])  # time,pos-3, speed-3(, p_bounce-3 not calculated)
-    # print(f"Result[1]: {result[1]}")
+    # logger.info(f"Result[1]: {result[1]}")
     arrays_equal(
         result[1],
         (
@@ -287,7 +291,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
     t_before = int(t_bounce / dt) * dt  # just before bounce
     if t_before == t_bounce:  # at the interval border
         t_before -= dt
-    # print(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
+    # logger.info(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
     arrays_equal(
         result[int(t_before / dt)],
         (
@@ -305,7 +309,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
         eps=0.003,
     )
     # just after bounce
-    # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
+    # logger.info(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
     ddt = t_before + dt - t_bounce  # time from bounce to end of step
     x_bounce2 = x_bounce + 2 * v_bounce * e * 1.0 * e / g
     arrays_equal(
@@ -332,19 +336,19 @@ def test_use_fmu(bouncing_ball_fmu, show):
         x_bounce,
     )  # set start values (first bounce)
     row = int((t_before + dt) / dt)
-    # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
+    # logger.info(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
     for n in range(2, 100):  # from bounce to bounce
         v_x = v_x * e  # adjusted speeds
         v_z = v_z * e
         delta_t = 2 * v_z / g  # time for one bounce (parabola): v(t) = v0 - g*t/2 => 2*v0/g = t
         t_b += delta_t
         x_b += v_x * delta_t
-        print(f"Bounce {n} @{t_b}")
+        logger.info(f"Bounce {n} @{t_b}")
         while result[row][0] <= t_b:  # spool to the time just after the bounce
             row += 1
             if row >= len(result):
                 return
-        # print( f"Bounce {n}: {result[row][3]}, steps:{row}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
+        # logger.info( f"Bounce {n}: {result[row][3]}, steps:{row}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(min(result[row - 1][3], result[row][3])) < 0.3, f"z-position {result[row][3]} should be close to 0"
         if delta_t > 2 * dt:
             assert result[row - 1][6] < 0, f"Expected negative speed before bounce, got {result[row - 1][6]}"
@@ -414,7 +418,7 @@ def test_from_osp(bouncing_ball_fmu):
 
 
 #     values = observer.last_real_values(0, list(range(11)))
-#     print("VALUES2", values)
+#     logger.info(f"VALUES2 {values}")
 #
 #     manipulator.reset_variables(0, CosimVariableType.REAL, [6])
 
