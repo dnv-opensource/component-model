@@ -180,11 +180,10 @@ class VisualSimulator:
         plt.ion()
         fig = plt.figure(figsize=(9, 9), layout="constrained")
         ax = Axes3D(fig=fig)
-        # ax = plt.Axes(projection="3d")
-        ax.set_xlim(-10, 10)
-        ax.set_ylim(-10, 10)
-        ax.set_zlim(0, 10)
-        ax.view_init(elev=60, azim=45, roll=0)
+        _ = ax.set_xlim(-10, 10)
+        _ = ax.set_ylim(-10, 10)
+        _ = ax.set_zlim(0, 10)
+        _ = ax.view_init(elev=60, azim=45, roll=0)
         (line,) = ax.plot([0], [0], [0], linewidth=5)
         time_ax = ax.text(
             ax.get_xlim()[0],

@@ -7,7 +7,7 @@ class SimpleTable(InputTable):
     """
 
     def __init__(self, **kwargs):
-        #        print("SimpleTable init", kwargs)
+        # print(f"SimpleTable init {kwargs}")  # noqa: ERA001
         super().__init__(
             name="TestTable",
             description="my description",

@@ -681,8 +681,6 @@ class Variable(ScalarVariable):
             )
             if self._initial != Initial.none:  # none is not part of the FMI2 specification
                 sv.attrib.update({"initial": self.initial.name})
-            # if self.description is not None:
-            #    sv.attrib.update({"description": self.description + substr("", f", [{i}]")})
             if self._annotations is not None and i == 0:
                 sv.append(ET.Element(tag="annotations", attrib=self._annotations))
             #             if self.display is None or (self._len>1 and self.display[i] is None):

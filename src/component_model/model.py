@@ -144,7 +144,7 @@ class Model(Fmi2Slave):
         self.ureg = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         self.guid = guid if guid is not None else uuid.uuid4().hex
-        #        logger.info("FLAGS", flags)
+        logger.debug(f"FLAGS {flags}")
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
@@ -215,7 +215,7 @@ class Model(Fmi2Slave):
         vref = len(self.vars) if value_reference is None else value_reference
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
-        # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
+        logger.debug(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
         for i in range(1, len(var)):
             self.vars[var.value_reference + i] = None  # marking that this is a sub-element
         self._unit_ensure_registered(var)
@@ -497,11 +497,12 @@ class Model(Fmi2Slave):
             }.items():
                 if "[" + key + "]" in dim:
                     exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if (
-                "radian" in str(ubase.units)
-            ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
-                # udeg = str(ubase.units).replace("radian", "degree")
-                # logger.info("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
+            if "radian" in str(ubase.units):
+                # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
+                udeg = str(ubase.units).replace("radian", "degree")
+                logger.debug(
+                    f"EXPONENT {ubase.units} {udeg} {log(ubase.magnitude)} {log(self.ureg('degree').to_base_units().magnitude)}"
+                )
                 exponents.update(
                     {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
                 )
@@ -696,8 +697,8 @@ class Model(Fmi2Slave):
                     #      ClaasRostock, 2025-02-03
                     i, vr = next(it)  # noqa: PLW2901
                 sub = None
-            # logger.info(f"VAR_ITER whole {var.name} at {vr}")
-            # logger.info(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
+            logger.info(f"VAR_ITER whole {var.name} at {vr}")
+            logger.info(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
             yield (var, sub)
 
     def _get(self, vrs: list[int] | tuple[int, ...], typ: type) -> list:

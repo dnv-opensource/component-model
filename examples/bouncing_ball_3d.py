@@ -78,7 +78,7 @@ class BouncingBall3D(Model):
             dt -= dt1
             self.t_bounce, self.p_bounce = self.next_bounce()  # update to the next bounce
         if dt > 0:
-            # print(f"pos={self.pos}, speed={self.speed}, a={self.a}, dt={dt}")
+            # print(f"pos={self.pos}, speed={self.speed}, a={self.a}, dt={dt}")  # noqa: ERA001
             self.pos += self.speed * dt + 0.5 * self.a * dt**2
             self.speed += self.a * dt
             self.time += dt
@@ -91,7 +91,6 @@ class BouncingBall3D(Model):
         """
         if self.stopped:  # stopped bouncing
             return (1e300, np.array((1e300, 1e300, 0), float))
-            # return ( float('inf'), np.array( (float('inf'), float('inf'), 0), float))
         dt_bounce = (self.speed[2] + sqrt(self.speed[2] ** 2 + 2 * self.g * self.pos[2])) / self.g
         p_bounce = self.pos + self.speed * dt_bounce  # linear. not correct for z-direction!
         p_bounce[2] = 0

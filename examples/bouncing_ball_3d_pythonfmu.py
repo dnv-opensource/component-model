@@ -113,7 +113,7 @@ class BouncingBall3D(Fmi2Slave):
     def setup_experiment(self, start: float):
         """Set initial (non-interface) variables."""
         super().setup_experiment(start)
-        # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
+        # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")  # noqa: ERA001
         self.stopped = False
         self.time = start
 

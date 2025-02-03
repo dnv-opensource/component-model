@@ -39,7 +39,7 @@ class NewFeatures(Model):
         self._s = Variable(self, "s", "My string", typ=str, causality="parameter", variability="fixed", start=s)
 
         self.log("This is a __init__ debug message", debug=True)
-        # self.log("This is a FATAL __init__ message", status=Fmi2Status.fatal, category="logStatusFatal", debug=False)
+        # self.log("This is a FATAL __init__ message", status=Fmi2Status.fatal, category="logStatusFatal", debug=False)  # noqa: ERA001
 
     def do_step(self, time: int | float, dt: int | float):
         super().do_step(time, dt)
@@ -56,8 +56,8 @@ class NewFeatures(Model):
             f"do_step@{time}. logStatusDiscard", status=Fmi2Status.discard, category="logStatusDiscard", debug=True
         )
         self.log(f"do_step@{time}. logStatusError", status=Fmi2Status.error, category="logStatusError", debug=True)
-        # self.log(f"do_step@{time}. logStatusFatal", status=Fmi2Status.fatal, category="logStatusFatal", debug=True)
-        if time > 8:  # noqa: PLR2004
+        # self.log(f"do_step@{time}. logStatusFatal", status=Fmi2Status.fatal, category="logStatusFatal", debug=True)  # noqa: ERA001
+        if time > 8:
             self.log(
                 f"@{time}. Trying to terminate simulation",
                 status=Fmi2Status.error,

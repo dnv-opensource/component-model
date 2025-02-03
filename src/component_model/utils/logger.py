@@ -15,7 +15,7 @@ To access error counting results use e.g.
 
 .. code:: python
 
-print("Count:", logger.handlers[0].get_count( ["ERROR"]))
+logger.info("Count:", logger.handlers[0].get_count( ["ERROR"]))
 
 To write a logger warning use
 
@@ -71,7 +71,6 @@ class MsgCounterHandler(logging.StreamHandler):
         if level not in self.levelcount:
             self.levelcount[level] = 0
         self.levelcount[level] += 1
-        # print( record.__dict__) #super().emit( record)
         fullMsg = (
             record.__dict__["filename"].partition(".")[0]
             + " "
@@ -111,20 +110,19 @@ class MsgCounterHandler(logging.StreamHandler):
 
 
 def get_module_logger(mod_name: str, level: int = logging.DEBUG):
-    #    print("Installing logger " +mod_name +" on level " +str(level))
     logger = logging.getLogger(mod_name)
     logger.setLevel(level)
+    # logger.info(f"Installing logger {mod_name} on level {level}")  # noqa: ERA001
     if len(logger.handlers) == 0:
         handler = MsgCounterHandler(logger)
         handler.setLevel(level)
-        # filename = os.path.basename(__file__).partition(".")[0]
         formatter = logging.Formatter(
             "%(name)s. %(levelname)s - %(message)s",
         )
         #             '%(asctime)s %(name)-12s %(levelname)s %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-    #    print("LOGGER " +mod_name +" on level " +str(level) +" installed:")
+        # logger.info(f"LOGGER {mod_name} on level {level} installed:")  # noqa: ERA001
     return logger
 
 
@@ -133,5 +131,5 @@ logger = get_module_logger('RP-log')
 logger.info("This is the counting logger '" +logger.name +"'")
 logger.warning("This is a warning")
 logger.error("An error looks like that")
-print("Count:", logger.handlers[0].get_count( ["ERROR"]))
+logger.info("Count:", logger.handlers[0].get_count( ["ERROR"]))
 """

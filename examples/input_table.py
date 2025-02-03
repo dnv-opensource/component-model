@@ -68,7 +68,7 @@ class InputTable(Model):
             start=outs0,
             typ=float,
         )
-        #        self.set_ranges( interpolate) # set the range separately, since it might change if 'interpolate' is changed
+        # self.set_ranges(interpolate) # set the range separately, since it might change if 'interpolate' is changed  # noqa: ERA001
         self._interpolate = Variable(
             self,
             name="interpolate",
@@ -86,7 +86,7 @@ class InputTable(Model):
         dt,  # noqa: ARG002
     ):
         """Do a simulation step of size 'stepSize at time 'time."""
-        # super().do_step( time, stepSize) # this is not called here, because there are no on_set and other general issues
+        # super().do_step( time, stepSize) # this is not called here, because there are no on_set and other general issues  # noqa: ERA001
         self.set_values(time)
         return True
 
