@@ -59,7 +59,7 @@ def bouncing_ball_fmu():
     return fmu_path
 
 
-def test_bouncing_ball_class(show):
+def test_bouncing_ball_class(show):  # noqa: PLR0915
     """Test the BouncingBall3D class in isolation.
 
     The first four lines are necessary to ensure that the BouncingBall3D class can be accessed:

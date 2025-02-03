@@ -92,7 +92,7 @@ class Model(Fmi2Slave):
 
     instances: list[str] = []
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         name,
         description: str = "A component model",
@@ -614,7 +614,10 @@ class Model(Fmi2Slave):
                     _flags.update({flag: flags[flag]})
         return _flags
 
-    def vars_iter(self, key=None):
+    def vars_iter(  # noqa: C901, PLR0912
+        self,
+        key=None,
+    ):
         """Iterate over model variables ('vars'). The returned variables depend on 'key' (see below).
 
         Args:

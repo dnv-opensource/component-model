@@ -52,7 +52,7 @@ class NewFeatures(Model):
         self.log(f"do_step@{time}. logStatusDiscard", Fmi2Status.discard, "logStatusDiscard", True)
         self.log(f"do_step@{time}. logStatusError", Fmi2Status.error, "logStatusError", True)
         self.log(f"do_step@{time}. logStatusFatal", Fmi2Status.fatal, "logStatusFatal", True)
-        if time > 8:
+        if time > 8:  # noqa: PLR2004
             self.log(f"@{time}. Trying to terminate simulation", Fmi2Status.error, "logStatusError", True)
             return False
         return True

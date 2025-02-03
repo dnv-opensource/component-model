@@ -216,7 +216,7 @@ def init_model_variables():
     return (mod, int1, int2, float1, enum1, str1, np1, np2, bool1)
 
 
-def test_init():
+def test_init():  # noqa: PLR0915
     mod = DummyModel("MyModel")
     (
         mod,

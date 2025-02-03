@@ -13,7 +13,7 @@ def test_combinations():
 
 def test_ensure_enum():
     assert cvi.ensure_enum("input", Causality, Causality.parameter) == Causality.input
-    with pytest.raises(Exception) as err:
+    with pytest.raises(Exception) as err:  # noqa: PT011
         cvi.ensure_enum("input", Variability, Causality.output)
     assert str(err.value).startswith("The value input is not compatible with ")
     assert cvi.ensure_enum("discrete", Variability, None) == Variability.discrete

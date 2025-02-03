@@ -53,7 +53,10 @@ def test_match_par():
     assert txt[: res[1] + 1].endswith("12)),\n)")
 
 
-def model_parameters(src: Path, newargs: dict | None = None) -> tuple[str, Fmi2Slave]:
+def model_parameters(  # noqa: C901, PLR0912
+    src: Path,
+    newargs: dict | None = None,
+) -> tuple[str, Fmi2Slave]:
     """Replace default parameters in model class __init__ and return adapted script as str.
     Function checks also that a unique FMI2Slave class exists in the script.
 

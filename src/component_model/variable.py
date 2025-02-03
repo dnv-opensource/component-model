@@ -143,7 +143,7 @@ class Variable(ScalarVariable):
            - the crane itself needs only to relate to the first boom.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         model,
         name: str,
@@ -290,7 +290,11 @@ class Variable(ScalarVariable):
         assert self._initial is not None, "Initial shall be properly set at this point"
         return self._initial
 
-    def setter(self, value: PyType | Compound, idx: int | None = None):
+    def setter(  # noqa: C901, PLR0912
+        self,
+        value: PyType | Compound,
+        idx: int | None = None,
+    ):
         """Set the value (input to model from outside), including range checking and unit conversion.
 
         For compound values, the whole 'array' should be provided,
@@ -331,7 +335,7 @@ class Variable(ScalarVariable):
         else:
             setattr(self.owner, self.local_name, value if self.on_set is None else self.on_set(value))
 
-    def getter(self) -> PyType | list[PyType]:
+    def getter(self) -> PyType | list[PyType]:  # noqa: C901, PLR0912
         """Get the value (output a value from the model), including range checking and unit conversion.
         The whole variable value is returned.
         The return value can be indexed/sliced to get elements of compound variables.
@@ -366,7 +370,10 @@ class Variable(ScalarVariable):
             raise VariableRangeError(f"getter(): Value {value} outside range.") from None
         return value
 
-    def _init_range(self, rng: tuple | None) -> tuple:
+    def _init_range(  # noqa: C901, PLR0912
+        self,
+        rng: tuple | None,
+    ) -> tuple:
         """Initialize the variable range(s) of the variable
         The _start and _unit shall exist when calling this.
 
@@ -392,7 +399,7 @@ class Variable(ScalarVariable):
         assert hasattr(self, "_unit"), "Missing self._unit"
         assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
         # Configure input. Could be None, () or (min,max) of scalar
-        if rng is None or rng == tuple() or (self._len == 1 and len(rng) == 2):
+        if rng is None or rng == tuple() or (self._len == 1 and len(rng) == 2):  # noqa: PLR2004
             rng = (rng,) * self._len
 
         _range = []
@@ -407,7 +414,7 @@ class Variable(ScalarVariable):
                 )  # no range
             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
                 _range.append(self._auto_extreme(self._start[idx]))
-            elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
+            elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple  # noqa: PLR2004
                 i_range: list = []  # collect range as list
                 for r in _rng:
                     if r is None:  # no range => fixed to initial value
@@ -436,7 +443,12 @@ class Variable(ScalarVariable):
                 raise AssertionError(f"init_range(): Unhandled range argument {rng}")
         return tuple(_range)
 
-    def check_range(self, value: PyType | Compound | None, idx: int | None = None, disp: bool = True) -> bool:
+    def check_range(  # noqa: C901, PLR0911, PLR0912
+        self,
+        value: PyType | Compound | None,
+        idx: int | None = None,
+        disp: bool = True,
+    ) -> bool:
         """Check the provided 'value' with respect to the range.
 
         Args:
@@ -494,7 +506,11 @@ class Variable(ScalarVariable):
         return str(val)
 
     @classmethod
-    def auto_type(cls, val: PyType | Compound, allow_int: bool = False):
+    def auto_type(  # noqa: C901, PLR0912
+        cls,
+        val: PyType | Compound,
+        allow_int: bool = False,
+    ):
         """Determine the Variable type from a provided example value.
         Since variables can be initialized using strings with units,
         the type can only be determined when the value is disected.
@@ -595,7 +611,7 @@ class Variable(ScalarVariable):
                 val = self._typ(val)
             except Exception as err:
                 raise VariableInitError(f"Value {val} is not of the correct type {self._typ}") from err
-        return (val, ub, display)
+        return val, ub, display
 
     def _get_transformation(self, q: Quantity) -> tuple[float, str, tuple | None]:
         """Identity base units and calculate the transformations between display and base units."""
@@ -610,8 +626,8 @@ class Variable(ScalarVariable):
         qb2 = q2.to_base_units()
         a = (qb.magnitude * q2.magnitude - qb2.magnitude * q.magnitude) / (q2.magnitude - q.magnitude)
         b = (qb2.magnitude - qb.magnitude) / (q2.magnitude - q.magnitude)
-        if abs(a) < 1e-9:  # multiplicative conversion
-            if abs(b - 1.0) < 1e-9:  # unit and display unit are compatible. No transformation
+        if abs(a) < 1e-9:  # multiplicative conversion  # noqa: PLR2004
+            if abs(b - 1.0) < 1e-9:  # unit and display unit are compatible. No transformation  # noqa: PLR2004
                 return (val, str(qb.units), None)
             to_base = partial(linear, b=b)
             from_base = partial(linear, b=1.0 / b)
@@ -746,7 +762,7 @@ def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: 
         spherical (bool)=False: Optional possibility to provide the input direction vector in spherical coordinates
         deg (bool)=False: Optional possibility to provide the input angle (of spherical coordinates) in degrees. Only relevant if spherical=True
     """
-    if quantity_direction[0] < 1e-15:
+    if quantity_direction[0] < 1e-15:  # noqa: PLR2004
         return np.array((0, 0, 0), dtype="float")
     if spherical:
         direction = spherical_to_cartesian(quantity_direction[1:], deg)  # turn to cartesian coordinates, if required
