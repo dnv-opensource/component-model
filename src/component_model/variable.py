@@ -488,7 +488,7 @@ class Variable(ScalarVariable):
         if self._typ is not type(value):
             try:
                 value = self._typ(value)  # try to cast the value
-            except Exception:  # give up
+            except Exception:  # give up  # noqa: BLE001
                 return False
         # special types (str checked above):
         if self._typ is str:  # no range checking on str
@@ -611,16 +611,16 @@ class Variable(ScalarVariable):
                 else:
                     raise VariableInitError(f"Unknown quantity {quantity} to disect") from None
             # no recognized units. Assume a free string. ??Maybe we should be more selective about the exact error type:
-            except Exception as warn:
-                logger.warning(f"Unhandled quantity {quantity}: {warn}. A str? Set explicit 'typ=str'.")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Unhandled quantity {quantity}: {e}. A str? Set explicit 'typ=str'.")
                 val, ub, display = (str(quantity), "", None)
         else:
             val, ub, display = (quantity, "dimensionless", None)
         if self._typ is not None and type(val) is not self._typ:  # check variable type
             try:  # try to convert the magnitude to the correct type.
                 val = self._typ(val)
-            except Exception as err:
-                raise VariableInitError(f"Value {val} is not of the correct type {self._typ}") from err
+            except Exception as e:
+                raise VariableInitError(f"Value {val} is not of the correct type {self._typ}") from e
         return val, ub, display
 
     def _get_transformation(self, q: Quantity) -> tuple[float, str, tuple | None]:

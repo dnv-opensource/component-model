@@ -12,10 +12,10 @@ def xml_to_python_val(val: str):
         return False
     try:
         return int(val)
-    except Exception:
+    except Exception:  # noqa: BLE001
         try:
             return float(val)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return {
                 "Real": float,
                 "Integer": int,
@@ -42,29 +42,27 @@ def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
             try:
                 with ZipFile(path) as zp:
                     xml_string = zp.read(sub).decode()
-            except Exception:
-                raise BadZipFile(f"Not able to read zip file {xml} or {sub} not found in zipfile") from None
+            except Exception as e:
+                raise BadZipFile(f"Not able to read zip file {xml} or {sub} not found in zipfile") from e
             el = ET.fromstring(xml_string)  # noqa: S314
         else:
             try:
                 # try to read the file directly, assuming a modelDescription.xml file
                 el = ET.parse(path).getroot()  # noqa: S314
-            except Exception:
-                raise AssertionError(f"Could not parse xml file {path}") from None
+            except Exception as e:
+                raise RuntimeError(f"Could not parse xml file {path}") from e
     elif Path(path, sub).exists():  # unzipped xml path was provided
         try:
             el = ET.parse(Path(path, sub)).getroot()  # noqa: S314
-        except ET.ParseError:
-            raise AssertionError(f"Could not parse xml file {Path(path, sub)}") from None
+        except ET.ParseError as e:
+            raise RuntimeError(f"Could not parse xml file {Path(path, sub)}") from e
     elif isinstance(xml, str):
         try:
             # try as literal string
             el = ET.fromstring(xml)  # noqa: S314
-        except ET.ParseError as err:
-            raise AssertionError(
-                f"Error when parsing {xml} as xml file. Error code {err.code} at {err.position}"
-            ) from err
+        except ET.ParseError as e:
+            raise RuntimeError(f"Error when parsing {xml} as xml file. Error code {e.code} at {e.position}") from e
     else:
-        raise Exception(f"Not possible to read model description from {xml}, {sub}") from None
+        raise RuntimeError(f"Not possible to read model description from {xml}, {sub}")
     assert el is not None, f"xml {xml} not found or {sub} could not be read"
     return el
