@@ -228,9 +228,9 @@ class Variable(ScalarVariable):
 
     @start.setter
     def start(self, val):
-        if isinstance(val, (str, int, float, bool, Enum)):
+        if isinstance(val, str | int | float | bool | Enum):
             self._start = (val,)
-        elif isinstance(val, (tuple, list, np.ndarray)):
+        elif isinstance(val, tuple | list | np.ndarray):
             self._start = tuple(val)
         else:
             raise VariableInitError(f"Unallowed start value setting {val} for variable {self.name}") from None
@@ -241,7 +241,7 @@ class Variable(ScalarVariable):
 
     @unit.setter
     def unit(self, val):
-        if isinstance(val, (tuple, list)):
+        if isinstance(val, tuple | list):
             self._unit = tuple(val)
         elif isinstance(val, str):
             self._unit = (val,)
@@ -269,7 +269,7 @@ class Variable(ScalarVariable):
     def range(self, val):
         if isinstance(val, tuple) and isinstance(val[0], tuple):  # compound variable
             self._range = val
-        elif isinstance(val, tuple) and all(isinstance(val[i], (int, float, bool, Enum, str)) for i in range(2)):
+        elif isinstance(val, tuple) and all(isinstance(val[i], int | float | bool | Enum | str) for i in range(2)):
             self._range = (val,)
 
     @property
@@ -305,7 +305,7 @@ class Variable(ScalarVariable):
         Alternatively, single elements can be set by providing the index explicitly.
         """
         assert self._typ is not None, "Need a proper type at this stage"
-        if self._len == 1 and not isinstance(value, (tuple, list, np.ndarray)):
+        if self._len == 1 and not isinstance(value, tuple | list | np.ndarray):
             value = [value]
             assert idx is None or idx == 0, f"Invalid idx {idx} for scalar"
 
@@ -474,12 +474,12 @@ class Variable(ScalarVariable):
         if isinstance(value, str):  # no range checking on strings
             return self._typ is str
         if self._len > 1 and idx is None:  # check all components
-            assert isinstance(value, (tuple, list, np.ndarray)), f"{value} is not a tuple, list, or ndarray"
+            assert isinstance(value, tuple | list | np.ndarray), f"{value} is not a tuple, list, or ndarray"
             assert len(value) == self._len, f"{value} has no elements"
             return all(self.check_range(value=value[i], idx=i, disp=disp) for i in range(self._len))
         # single component check
         assert idx is not None, "Need a proper idx here"
-        if isinstance(value, (tuple, list, np.ndarray)):
+        if isinstance(value, tuple | list | np.ndarray):
             if self._len == 1:
                 idx = 0
             value = value[idx]
@@ -498,7 +498,7 @@ class Variable(ScalarVariable):
         if isinstance(value, Enum):
             return isinstance(value, self._typ)
 
-        if isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
+        if isinstance(value, int | float) and all(isinstance(x, int | float) for x in self._range[idx]):
             if not disp and self._display[idx] is not None:  # check an internal unit value
                 _val = self._display[idx]
                 assert isinstance(_val, tuple)
@@ -528,7 +528,7 @@ class Variable(ScalarVariable):
         Therefore int Variables must be explicitly specified.
         """
         assert val is not None, "'val is None'!"
-        if isinstance(val, (tuple, list, np.ndarray)):
+        if isinstance(val, tuple | list | np.ndarray):
             types = [cls.auto_type(val=x, allow_int=allow_int) for x in val]
             typ = None
             for t in types:
@@ -556,7 +556,7 @@ class Variable(ScalarVariable):
             return bool
         if allow_int:
             return type(val)
-        if not allow_int and isinstance(val, (int, float)):
+        if not allow_int and isinstance(val, int | float):
             return float
         return type(val)
 
@@ -590,7 +590,7 @@ class Variable(ScalarVariable):
             the magnitude in base units, the base unit and the unit as given (display units),
             together with the conversion functions between the units.
         """
-        if isinstance(quantity, (tuple, list, np.ndarray)):  # handle composit values
+        if isinstance(quantity, tuple | list | np.ndarray):  # handle composit values
             _val, _ub, _disp = [], [], []
             for q in quantity:  # disect components and collect results
                 v, u, d = self._disect_unit(q)
@@ -603,7 +603,7 @@ class Variable(ScalarVariable):
             assert self.model.ureg is not None, f"UnitRegistry not found, while providing units: {quantity}"
             try:
                 q = self.model.ureg(quantity)  # parse the quantity-unit and return a Pint Quantity object
-                if isinstance(q, (int, float)):
+                if isinstance(q, int | float):
                     return q, "", None  # integer or float variable with no units provided
                 if isinstance(q, Quantity):  # pint.Quantity object
                     # transform to base units ('SI' units). All internal calculations will be performed with these

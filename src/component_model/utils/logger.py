@@ -42,7 +42,7 @@ class MsgCounterHandler(logging.StreamHandler):
                 self._out = sys.stdout
             except Exception:  # noqa: BLE001
                 self._out = sys.stderr
-        super(MsgCounterHandler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.levelcount = {"DEBUG": 0, "INFO": 0, "WARNING": 0, "ERROR": 0}
         self.ideType = None
         if "idlelib.run" in sys.modules:  # if idlelib.run exists
