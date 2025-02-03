@@ -141,8 +141,9 @@ def test_model_parameters():
         Path(__file__).parent.parent / "examples" / "new_pythonfmu_features2.py",
         newargs={"i": 7, "f": -9.9, "s": "World"},
     )
-    with open("test.py", "w") as f:
-        f.write(module_code)
+    test_file = Path("test.py")
+    with test_file.open(mode="w") as f:
+        _ = f.write(module_code)
     module_code, model = model_parameters(
         Path(__file__).parent.parent / "examples" / "new_pythonfmu_features.py",
         newargs={"i": 7, "f": -9.9, "s": "World"},
@@ -178,11 +179,9 @@ def build_fmu(
     if newargs is not None:  # default arguments to be replaced
         new_script, model_class = model_parameters(Path(model), newargs)
         # Change that so that it points to the temp_dir
-        with open(model_class.__name__ + ".py", "w") as f:
-            f.write(new_script)
-    else:
-        # Here we use the original shutil.copy2()
-        pass
+        script_file = Path(f"{model_class.__name__}.py")
+        with script_file.open(mode="w") as f:
+            _ = f.write(new_script)
 
     # Alternatively, 'model_parameters' can be used on the top of the function
     # (performing checks and returning the script as str, whether newargs are provided or not)

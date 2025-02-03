@@ -320,9 +320,11 @@ class Model(Fmi2Slave):
         """Return the path to the component-model requirements file."""
         if existing_file is None:
             requirements = ["numpy", "pint"]
-            temp_file.write_text("\n".join(requirements))
+            _ = temp_file.write_text("\n".join(requirements))
             return temp_file
-        with open(existing_file) as file:
+        if not isinstance(existing_file, Path):
+            existing_file = Path(existing_file)
+        with existing_file.open(mode="r") as file:
             requirements = file.read().splitlines()
 
         if "numpy" not in requirements:
@@ -330,7 +332,7 @@ class Model(Fmi2Slave):
         if "pint" not in requirements:
             requirements.append("pint")
 
-        temp_file.write_text("\n".join(requirements))
+        _ = temp_file.write_text("\n".join(requirements))
         return temp_file
 
     # =====================
