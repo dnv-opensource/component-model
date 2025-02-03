@@ -172,6 +172,10 @@ raises-require-match-for = [
 "**/utils/types.py" = [
     "A005", # Module `types` shadows a Python standard-library module
 ]
+# utils/types specific ignores
+"**/utils/xml.py" = [
+    "A005", # Module `xml` shadows a Python standard-library module
+]
 
 
 [lint.pydocstyle]
