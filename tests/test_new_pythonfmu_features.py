@@ -240,12 +240,12 @@ def test_new_features_class():
     assert isinstance(nf, Model)
 
 
-def test_use_fmu(plain_fmu, show):
+def test_use_fmu(plain_fmu: Path, *, show: bool):
     """Test and validate the NewFeatures using fmpy and not using OSP."""
     assert plain_fmu.exists(), f"File {plain_fmu} does not exist"
     dt = 1
     result = simulate_fmu(
-        plain_fmu,
+        filename=plain_fmu,
         start_time=0.0,
         stop_time=9.0,
         step_size=dt,
@@ -264,8 +264,8 @@ def test_use_fmu(plain_fmu, show):
         plot_result(result)
 
 
-def test_from_osp(plain_fmu, show):
-    def get_status(sim):
+def test_from_osp(plain_fmu: Path, *, show: bool):
+    def get_status(sim: CosimExecution) -> dict[str, Any]:
         status = sim.status()
         return {
             "currentTime": status.current_time,
@@ -340,9 +340,9 @@ def test_from_osp(plain_fmu, show):
         assert sim.simulate_until(target_time=9e9), "Simulate for one base step did not work"
 
 
-def test_from_fmu(plain_fmu):
+def test_from_fmu(plain_fmu: Path):
     assert plain_fmu.exists(), "FMU not found"
-    model = model_from_fmu(plain_fmu)
+    model = model_from_fmu(fmu=plain_fmu)
     assert model["name"] == "NewFeatures", f"Name: {model['name']}"
     assert model["description"] == "Dummy model for testing new features in PythonFMU"
     assert model["author"] == "Siegfried Eisinger"

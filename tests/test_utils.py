@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -16,14 +17,14 @@ def _bouncing_ball_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "examples" / "bouncing_ball_3d.py"),
+        script=str(Path(__file__).parent.parent / "examples" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
     )
     return fmu_path
 
 
-def dicts_equal(d1: dict, d2: dict):
+def dicts_equal(d1: dict[str, Any], d2: dict[str, Any]):
     assert isinstance(d1, dict), f"Dict expected. Found {d1}"
     assert isinstance(d2, dict), f"Dict expected. Found {d2}"
     for key in d1:  # noqa: PLC0206
@@ -47,8 +48,8 @@ def test_xml_to_python_val():
     assert xml_to_python_val("Hello World") == "Hello World", "Detect a literal string"
 
 
-def test_model_description(bouncing_ball_fmu):
-    et = read_xml(bouncing_ball_fmu)
+def test_model_description(bouncing_ball_fmu: Path):
+    et = read_xml(xml=bouncing_ball_fmu)
     assert et is not None, "No Model Description"
     for a in (
         "fmiVersion",
@@ -62,11 +63,11 @@ def test_model_description(bouncing_ball_fmu):
         "license",
     ):
         assert a in et.attrib, f"Attribute fmiModeldescription: {a} not found"
-    el = et.find("./CoSimulation")
+    el = et.find(path="./CoSimulation")
     assert el is not None, "CoSimulation element expected"
     dicts_equal(
-        el.attrib,
-        {
+        d1=el.attrib,
+        d2={
             "needsExecutionTool": "true",
             "canHandleVariableCommunicationStepSize": "true",
             "canInterpolateInputs": "false",
@@ -77,18 +78,18 @@ def test_model_description(bouncing_ball_fmu):
             "canNotUseMemoryManagementFunctions": "true",
         },
     )
-    assert el.find("./SourceFiles") is not None, "SourceFiles expected"
-    el = et.find("./UnitDefinitions")
+    assert el.find(path="./SourceFiles") is not None, "SourceFiles expected"
+    el = et.find(path="./UnitDefinitions")
     assert el is not None, "UnitDefinitions element expected"
     assert len(el) == 4, f"4 UnitDefinitions expected. Found {el}"
     # ''.join(x.get('name') + ', ' for x in e.findall('./UnitDefinitions'))
-    el = et.find("./TypeDefinitions")
+    el = et.find(path="./TypeDefinitions")
     assert el is None, "No TypeDefinitions expected (so far not implemented in component_model"
-    el = et.find("./LogCategories")
+    el = et.find(path="./LogCategories")
     assert el is not None, "LogCategory element expected"
     assert len(el) == 5, f"Five LogCategories expected. Found {el}"
     #''.join(x.get('name') + ', ' for x in el.findall('./Category'))
-    el = et.find("./DefaultExperiment")
+    el = et.find(path="./DefaultExperiment")
     assert el is not None, "DefaultExperiment element expected"
     expected_attrib = {
         "startTime": "0",
@@ -97,25 +98,25 @@ def test_model_description(bouncing_ball_fmu):
         "tolerance": "0.001",
     }
     assert el.attrib == expected_attrib, f"DefaultExperiment: {el.attrib}"
-    el = et.find("./ModelVariables")
+    el = et.find(path="./ModelVariables")
     assert el is not None, "ModelVariables element expected"
     assert len(el) == 11, f"11 ModelVariables expected. Found {el}"
     # ''.join(x.get('name') + ', ' for x in el.findall('./ScalarVariable'))
-    el = et.find("./ModelStructure")
+    el = et.find(path="./ModelStructure")
     assert el is not None, "ModelStructure element expected"
-    e = el.find("./Outputs")
+    e = el.find(path="./Outputs")
     assert e is not None, "Outputs element expected"
     assert len(e) == 9, f"9 Outputs expected. Found {el}"
     # ''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))
-    e = el.find("./InitialUnknowns")
+    e = el.find(path="./InitialUnknowns")
     assert e is not None, "InitialUnknowns element expected"
     assert len(e) == 3, f"3 InitialUnknowns expected. Found {el}"
     # ''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))
 
 
-def test_model_from_fmu(bouncing_ball_fmu):
-    kwargs = model_from_fmu(bouncing_ball_fmu)
-    kwargs.pop("guid")
+def test_model_from_fmu(bouncing_ball_fmu: Path):
+    kwargs = model_from_fmu(fmu=bouncing_ball_fmu)
+    _ = kwargs.pop("guid")
     expected = {
         "name": "BouncingBall3D",
         "description": "Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
@@ -141,9 +142,9 @@ def test_model_from_fmu(bouncing_ball_fmu):
     dicts_equal(kwargs, expected)
 
 
-def test_variables_from_fmu(bouncing_ball_fmu):
+def test_variables_from_fmu(bouncing_ball_fmu: Path):
     et = read_xml(bouncing_ball_fmu)
-    mv = et.find(".//ModelVariables")
+    mv = et.find(path=".//ModelVariables")
     collect = list(variables_from_fmu(mv))
     assert len(collect) == 5
     assert collect[0]["name"] == "pos"
@@ -152,7 +153,7 @@ def test_variables_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(args=["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir( Path(__file__).parent / "test_working_directory")

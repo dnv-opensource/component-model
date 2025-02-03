@@ -28,7 +28,10 @@ class PythonSlave(Fmi2Slave):
     author = "John Doe"
     description = "A simple description"
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         super().__init__(**kwargs)
 
         self.intOut = 1
@@ -109,7 +112,7 @@ class PythonSlave(Fmi2Slave):
     def exit_initialization_mode(self):
         pass
 
-    def do_step(self, current_time, step_size):
+    def do_step(self, current_time: float, step_size: float) -> bool:
         """N. Happens at every communication point.
         a. Inputs (signals) are set
         b. Perform calculations
@@ -122,13 +125,13 @@ class PythonSlave(Fmi2Slave):
         return True
 
 
-def test_make_fmu(build_fmu):
+def test_make_fmu(build_fmu: Path):
     assert build_fmu.name == "PythonSlave.fmu"
 
 
-def test_use_fmu(build_fmu):
+def test_use_fmu(build_fmu: Path):
     _ = simulate_fmu(
-        build_fmu,
+        filename=build_fmu,
         stop_time=1,
         step_size=0.1,
         validate=True,
@@ -140,5 +143,5 @@ def test_use_fmu(build_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(args=["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"

@@ -3,9 +3,11 @@ import time
 import xml.etree.ElementTree as ET
 from math import sqrt
 from pathlib import Path
+from typing import Any
 from zipfile import ZipFile
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 from fmpy import plot_result, simulate_fmu
 from fmpy.util import fmu_info
@@ -28,7 +30,12 @@ def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
 
 
-def arrays_equal(arr1, arr2, eps=1e-7):
+def arrays_equal(
+    arr1: np.ndarray[Any, np.dtype[Any]],
+    arr2: np.ndarray[Any, np.dtype[Any]],
+    dtype: type[np.dtype[Any]] = np.dtype[np.float64],
+    eps: float = 1e-7,
+):
     assert len(arr1) == len(arr2), "Length not equal!"
 
     for i in range(len(arr1)):
@@ -42,20 +49,20 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
     return ET.fromstring(xml)  # noqa: S314
 
 
-def do_show(result: list):
+def do_show(result: list[float]):
     fig, ax = plt.subplots()
-    ax.plot([res[3] for res in result], label="z-position")
-    ax.plot([res[4] for res in result], label="x-speed")
-    ax.plot([res[6] for res in result], label="z-speed")
-    ax.legend()
+    _ = ax.plot([res[3] for res in result], label="z-position")
+    _ = ax.plot([res[4] for res in result], label="x-speed")
+    _ = ax.plot([res[6] for res in result], label="z-speed")
+    _ = ax.legend()
     plt.show()
 
 
 @pytest.fixture(scope="session")
-def bouncing_ball_fmu():
+def bouncing_ball_fmu() -> Path:
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(
+    fmu_path: Path = Model.build(
         str(Path(__file__).parent.parent / "examples" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
@@ -63,7 +70,7 @@ def bouncing_ball_fmu():
     return fmu_path
 
 
-def test_bouncing_ball_class(show):  # noqa: PLR0915
+def test_bouncing_ball_class(*, show: bool):  # noqa: PLR0915
     """Test the BouncingBall3D class in isolation.
 
     The first four lines are necessary to ensure that the BouncingBall3D class can be accessed:
@@ -210,7 +217,7 @@ def test_bouncing_ball_class(show):  # noqa: PLR0915
         do_show(result)
 
 
-def test_make_bouncing_ball(bouncing_ball_fmu):
+def test_make_bouncing_ball(bouncing_ball_fmu: Path):
     _ = fmu_info(bouncing_ball_fmu)  # not necessary, but it lists essential properties of the FMU
     et = _to_et(bouncing_ball_fmu)
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
@@ -223,12 +230,12 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     )
 
 
-def test_use_fmu(bouncing_ball_fmu, show):
+def test_use_fmu(bouncing_ball_fmu: Path, *, show: bool):
     """Test and validate the basic BouncingBall using fmpy and not using OSP or case_study."""
     assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
     dt = 0.01
     result = simulate_fmu(
-        bouncing_ball_fmu,
+        filename=bouncing_ball_fmu,
         start_time=0.0,
         stop_time=3.0,
         step_size=dt,
@@ -356,8 +363,8 @@ def test_use_fmu(bouncing_ball_fmu, show):
             assert abs(result[row - 1][4] * e - result[row][4]) < 1e-15, "Reduced speed in x-direction"
 
 
-def test_from_osp(bouncing_ball_fmu):
-    def get_status(sim):
+def test_from_osp(bouncing_ball_fmu: Path):
+    def get_status(sim: CosimExecution) -> dict[str, Any]:
         status = sim.status()
         return {
             "currentTime": status.current_time,
@@ -425,7 +432,7 @@ def test_from_osp(bouncing_ball_fmu):
 #    sim.simulate_until(target_time=3e9)
 
 
-def test_from_fmu(bouncing_ball_fmu):
+def test_from_fmu(bouncing_ball_fmu: Path):
     assert bouncing_ball_fmu.exists(), "FMU not found"
     model = model_from_fmu(bouncing_ball_fmu)
     assert model["name"] == "BouncingBall3D", f"Name: {model['name']}"

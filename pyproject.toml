@@ -68,6 +68,7 @@ dependencies = [
     "flexparser<0.4",
     "pdfminer>=20191125",
     "pypdf2>=3.0.1",
+    "parent-lookup>=0.2.0",
 ]
 
 [project.optional-dependencies]

@@ -19,7 +19,7 @@ def model_from_fmu(
     *,
     provide_msg: bool = False,  # TODO @EisDNV: This argument is not used. Remove?  # noqa: ARG001
     sep: str = ".",  # TODO @EisDNV: This argument is not used. Remove?  # noqa: ARG001
-) -> dict:
+) -> dict[str, Any]:
     """Generate a Model from an FMU (excluding the inner working functions like `do_step()`),
     i.e. partially reverse-engineering a FMU.
     This can be useful for convenient access to model information like variables

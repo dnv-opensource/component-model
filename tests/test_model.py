@@ -27,7 +27,7 @@ class DummyModel(Model):
 
 
 @pytest.fixture(scope="session")
-def bouncing_ball_fmu(tmp_path_factory):
+def bouncing_ball_fmu(tmp_path_factory: pytest.TempPathFactory):
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
@@ -60,8 +60,8 @@ def test_xml():
     Model.instances = []  # reset
     mod = DummyModel("MyModel")
     _ = Variable(
-        mod,
-        "Test9",
+        model=mod,
+        name="Test9",
         description="A NP variable with units included in initial values and partially fixed range",
         causality="output",
         variability="continuous",
@@ -69,8 +69,8 @@ def test_xml():
         rng=((0, "3m"), None, None),
     )
     _ = Variable(
-        mod,
-        "myInt",
+        model=mod,
+        name="myInt",
         description="A integer variable",
         causality="parameter",
         variability="fixed",
@@ -119,7 +119,7 @@ def test_xml():
     # print( ET.tostring(et))
 
 
-def test_from_fmu(bouncing_ball_fmu):
+def test_from_fmu(bouncing_ball_fmu: Path):
     model = model_from_fmu(bouncing_ball_fmu)
     assert model["name"] == "BouncingBall3D", f"Name:{model['name']}"
     expected = "Another Python-based BouncingBall model, using Model and Variable to construct a FMU"

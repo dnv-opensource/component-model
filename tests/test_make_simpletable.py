@@ -1,6 +1,7 @@
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 from zipfile import ZipFile
 
 import numpy as np
@@ -22,15 +23,15 @@ logger = get_module_logger(__name__, level=logging.INFO)
 
 
 @pytest.fixture(scope="session")
-def simple_table_fmu():
+def simple_table_fmu() -> Path:
     return _simple_table_fmu()
 
 
-def _simple_table_fmu():
+def _simple_table_fmu() -> Path:
     """Make FMU and return .fmu file with path."""
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(
+    fmu_path: Path = Model.build(
         script=str(Path(__file__).parent.parent / "examples" / "simple_table.py"),
         project_files=[Path(__file__).parent.parent / "examples" / "input_table.py"],
         dest=build_path,
@@ -39,13 +40,13 @@ def _simple_table_fmu():
 
 
 @pytest.fixture(scope="session")
-def simple_table_system_structure(simple_table_fmu):
+def simple_table_system_structure(simple_table_fmu: Path) -> Path:
     return _simple_table_system_structure(simple_table_fmu)
 
 
-def _simple_table_system_structure(simple_table_fmu):
+def _simple_table_system_structure(simple_table_fmu: Path) -> Path:
     """Make a structure file and return the path"""
-    path = make_osp_system_structure(
+    path: Path = make_osp_system_structure(
         name="OspSystemStructure",
         simulators={"tab": {"source": "SimpleTable.fmu", "stepSize": 0.01, "interpolate": False}},
         version="0.1",
@@ -76,7 +77,7 @@ def _to_et(file: str, sub: str = "modelDescription.xml"):
 
 def test_inputtable_class(  # noqa: C901
     *,
-    interpolate=False,
+    interpolate: bool = False,
 ):
     from examples.input_table import InputTable
 
@@ -136,7 +137,7 @@ def test_inputtable_class(  # noqa: C901
                         break
 
 
-def test_make_simpletable(simple_table_fmu):
+def test_make_simpletable(simple_table_fmu: Path):
     info = fmu_info(simple_table_fmu)  # this is a formatted string. Not easy to check
     logger.info(f"Info: {info}")
     et = _to_et(str(simple_table_fmu))
@@ -150,7 +151,7 @@ def test_make_simpletable(simple_table_fmu):
     )
 
 
-def test_use_fmu_interpolation(simple_table_fmu):
+def test_use_fmu_interpolation(simple_table_fmu: Path):
     result = simulate_fmu(
         simple_table_fmu,
         stop_time=10.0,
@@ -173,7 +174,7 @@ def test_use_fmu_interpolation(simple_table_fmu):
         tt = t
 
 
-def test_use_fmu_no_interpolation(simple_table_fmu):
+def test_use_fmu_no_interpolation(simple_table_fmu: Path):
     result = simulate_fmu(
         simple_table_fmu,
         stop_time=10.0,
@@ -204,7 +205,7 @@ def test_use_fmu_no_interpolation(simple_table_fmu):
             assert z == 3, f"Value for z at t>0 wrong. Found {z} at t={t}"
 
 
-def test_run_osp(simple_table_fmu):
+def test_run_osp(simple_table_fmu: Path):
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos
     st = CosimLocalSlave(fmu_path=str(simple_table_fmu), instance_name="st")
 
@@ -224,7 +225,7 @@ def test_run_osp(simple_table_fmu):
     sim.simulate_until(target_time=15e9)
 
 
-def test_run_osp_system_structure(simple_table_system_structure):
+def test_run_osp_system_structure(simple_table_system_structure: Path):
     "Run an OSP simulation in the same way as the SimulatorInterface of case_study is implemented"
     simulator = CosimExecution.from_osp_config_file(osp_path=str(simple_table_system_structure))
     comps = []
@@ -264,7 +265,7 @@ def test_run_osp_system_structure(simple_table_system_structure):
         if time == 1:
             assert observer.last_boolean_values(slave_index=0, variable_references=[3]) == [True]
         values = observer.last_real_values(slave_index=0, variable_references=[0, 1, 2])
-        # print(f"Time {time/1e9}: {values}, linear x:{_linear(time-0.01, _t, _x)}")
+        # logger.info(f"Time {time/1e9}: {values}, linear x:{_linear(time-0.01, _t, _x)}")
         assert abs(_linear(time - 0.01, _t, _x) - values[0]) < 1e-10, f"Linear interpolated x at t={time - 0.01}"
         assert abs(_linear(time - 0.01, _t, _y) - values[1]) < 1e-10, f"Linear interpolated y at t={time - 0.01}"
         assert abs(_linear(time - 0.01, _t, _z) - values[2]) < 1e-10, f"Linear interpolated z at t={time - 0.01}"

@@ -12,6 +12,7 @@ from pythonfmu.variables import ScalarVariable
 
 from component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
 from component_model.utils.logger import get_module_logger
+from component_model.utils.types import TValue
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -19,10 +20,9 @@ if TYPE_CHECKING:
     from pythonfmu.enums import Fmi2Causality as Causality
     from pythonfmu.enums import Fmi2Variability as Variability
 
+
 logger = get_module_logger(__name__, level=0)
-PyType: TypeAlias = str | int | float | bool | Enum
-Numeric: TypeAlias = int | float
-Compound: TypeAlias = tuple[PyType, ...] | list[PyType] | np.ndarray
+Compound: TypeAlias = tuple[TValue, ...] | list[TValue] | np.ndarray[Any, np.dtype[np.float64]]
 
 
 class Check(IntFlag):
@@ -111,7 +111,7 @@ class Variable(ScalarVariable):
         typ (type)=None: Optional explicit type of variable to expect as start and value.
            Since initial values are often set with strings (with units, see below), this is set explicitly.
            If None, _typ is set to Enum/str if derived from these after disection or float if a number. 'int' is not automatically detected.
-        start (PyType): The initial value of the variable.
+        start (TValue): The initial value of the variable.
 
            Optionally, the unit can be included, providing the initial value as string, evaluating to quantity of type typ a display unit and base unit.
            Note that the quantities are always converted to standard units of the same type, while the display unit may be different, i.e. the preferred user communication.
@@ -155,7 +155,7 @@ class Variable(ScalarVariable):
         variability: str | None = "fixed",
         initial: str | None = None,
         typ: type | None = None,
-        start: PyType | Compound | None = None,
+        start: TValue | Compound | None = None,
         rng: tuple | None = (),
         annotations: dict | None = None,
         value_check: Check = Check.all,
@@ -164,7 +164,7 @@ class Variable(ScalarVariable):
         owner: Any | None = None,
         value_reference: int | None = None,
     ):
-        self.model = model
+        self.model: Model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
             causality, variability, initial
         )
@@ -189,7 +189,10 @@ class Variable(ScalarVariable):
         self.on_set = on_set
         # Note: the _len is a central property, distinguishing scalar and compound variables.
 
-        self._start: tuple
+        self._start: tuple[TValue, ...]
+        self._range: tuple[tuple[TValue, ...], ...]
+        self._display: tuple[tuple[str, ...], ...]
+        self._unit: tuple[str, ...]
         # First we check for str (since these are also iterable), then we can check for the presence of __getitem__
         # Determine the (element) type (unique for all elements in compound variables)
         if self._typ is str:  # explicit free string
@@ -223,12 +226,12 @@ class Variable(ScalarVariable):
         return self._len  # This works also compound variables, as long as _len is properly set
 
     @property
-    def start(self):
+    def start(self) -> TValue | tuple[TValue, ...]:
         return self._start
 
     @start.setter
-    def start(self, val):
-        if isinstance(val, str | int | float | bool | Enum):
+    def start(self, val: TValue | tuple[TValue, ...]) -> None:
+        if isinstance(val, TValue):
             self._start = (val,)
         elif isinstance(val, tuple | list | np.ndarray):
             self._start = tuple(val)
@@ -236,11 +239,11 @@ class Variable(ScalarVariable):
             raise VariableInitError(f"Unallowed start value setting {val} for variable {self.name}") from None
 
     @property
-    def unit(self):
+    def unit(self) -> str | tuple[str, ...]:
         return self._unit
 
     @unit.setter
-    def unit(self, val):
+    def unit(self, val: str | tuple[str, ...]) -> None:
         if isinstance(val, tuple | list):
             self._unit = tuple(val)
         elif isinstance(val, str):
@@ -249,11 +252,11 @@ class Variable(ScalarVariable):
             raise VariableInitError(f"Unallowed unit setting {val} for variable {self.name}") from None
 
     @property
-    def display(self):
+    def display(self) -> tuple[tuple[str, ...], ...]:
         return self._display
 
     @display.setter
-    def display(self, val):
+    def display(self, val: tuple[str, ...] | tuple[tuple[str, ...], ...]) -> None:
         if val is None or (isinstance(val, tuple) and isinstance(val[0], str)):  # single variable
             self._display = (val,)
         elif isinstance(val, tuple) and (val[0] is None or isinstance(val[0], (tuple))):  # compound variable
@@ -262,22 +265,22 @@ class Variable(ScalarVariable):
             raise VariableInitError(f"Unallowed display setting {val} for variable {self.name}") from None
 
     @property
-    def range(self):
+    def range(self) -> tuple[tuple[TValue, ...], ...]:
         return self._range
 
     @range.setter
-    def range(self, val):
+    def range(self, val: tuple[TValue, ...] | tuple[tuple[TValue, ...], ...]) -> None:
         if isinstance(val, tuple) and isinstance(val[0], tuple):  # compound variable
             self._range = val
-        elif isinstance(val, tuple) and all(isinstance(val[i], int | float | bool | Enum | str) for i in range(2)):
+        elif isinstance(val, tuple) and all(isinstance(val[i], TValue) for i in range(2)):
             self._range = (val,)
 
     @property
-    def typ(self):
+    def typ(self) -> type | None:
         return self._typ
 
     @property
-    def check(self):
+    def check(self) -> Check:
         return self._check
 
     @property
@@ -295,9 +298,9 @@ class Variable(ScalarVariable):
 
     def setter(  # noqa: C901, PLR0912
         self,
-        value: PyType | Compound,
+        value: TValue | Compound,
         idx: int | None = None,
-    ):
+    ) -> None:
         """Set the value (input to model from outside), including range checking and unit conversion.
 
         For compound values, the whole 'array' should be provided,
@@ -339,7 +342,7 @@ class Variable(ScalarVariable):
         else:
             setattr(self.owner, self.local_name, value if self.on_set is None else self.on_set(value))
 
-    def getter(self) -> PyType | list[PyType]:  # noqa: C901, PLR0912
+    def getter(self) -> TValue | Compound:  # noqa: C901, PLR0912
         """Get the value (output a value from the model), including range checking and unit conversion.
         The whole variable value is returned.
         The return value can be indexed/sliced to get elements of compound variables.
@@ -386,11 +389,11 @@ class Variable(ScalarVariable):
         """
 
         def ensure_display_limits(
-            val: PyType,
+            val: TValue,
             idx: int,
             *,
             right: bool,
-        ):
+        ) -> TValue:
             """Ensure that value is provided as display unit and that limits are included in range."""
             if self._display[idx] is not None:  # Range in display units!
                 _val = self._display[idx]
@@ -453,7 +456,7 @@ class Variable(ScalarVariable):
 
     def check_range(  # noqa: C901, PLR0911, PLR0912
         self,
-        value: PyType | Compound | None,
+        value: TValue | Compound | None,
         idx: int | None = None,
         *,
         disp: bool = True,
@@ -461,7 +464,7 @@ class Variable(ScalarVariable):
         """Check the provided 'value' with respect to the range.
 
         Args:
-            value (PyType|Compound): the value to check. Scalars may be wrapped into a vector
+            value (TValue|Compound): the value to check. Scalars may be wrapped into a vector
             disp (bool) = True: denotes whether the value is expected in display units (default) or units
 
         Returns
@@ -506,7 +509,7 @@ class Variable(ScalarVariable):
             return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]
         raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
 
-    def fmi_type_str(self, val: PyType) -> str:
+    def fmi_type_str(self, val: TValue) -> str:
         """Translate the provided type to a proper fmi type and return it as string.
         See types defined in schema fmi2Unit.xsd.
         """
@@ -517,10 +520,10 @@ class Variable(ScalarVariable):
     @classmethod
     def auto_type(  # noqa: C901, PLR0912
         cls,
-        val: PyType | Compound,
+        val: TValue | Compound,
         *,
         allow_int: bool = False,
-    ):
+    ) -> type[Any]:
         """Determine the Variable type from a provided example value.
         Since variables can be initialized using strings with units,
         the type can only be determined when the value is disected.
@@ -561,7 +564,7 @@ class Variable(ScalarVariable):
         return type(val)
 
     @classmethod
-    def _auto_extreme(cls, var: PyType) -> tuple:
+    def _auto_extreme(cls, var: TValue) -> tuple:
         """Return the extreme values of the variable.
 
         Args:
@@ -579,12 +582,12 @@ class Variable(ScalarVariable):
             return (min(x.value for x in type(var)), max(x.value for x in type(var)))
         return ()  # return an empty tuple (no range specified, e.g. for str)
 
-    def _disect_unit(self, quantity: PyType | Compound) -> tuple:
+    def _disect_unit(self, quantity: TValue | Compound) -> tuple:
         """Disect the provided quantity in terms of magnitude and unit, if provided as string.
         If another type is provided, dimensionless units are assumed.
 
         Args:
-            quantity (PyType): the quantity to disect. Should be provided as string, but also the trivial cases (int,float,Enum) are allowed.
+            quantity (TValue): the quantity to disect. Should be provided as string, but also the trivial cases (int,float,Enum) are allowed.
             A free string should not be used and leads to a warning
         Returns:
             the magnitude in base units, the base unit and the unit as given (display units),
@@ -648,7 +651,7 @@ class Variable(ScalarVariable):
             from_base = partial(linear, b=1.0 / b, a=-a / b)
         return (val, str(qb.units), (str(q.units), to_base, from_base))
 
-    def xml_scalarvariables(self):  # noqa: C901
+    def xml_scalarvariables(self) -> list[ET.Element]:  # noqa: C901
         """Generate <ScalarVariable> XML code with respect to this variable and return xml element.
         For compound variables, all elements are included.
 
@@ -661,7 +664,7 @@ class Variable(ScalarVariable):
             List of ScalarVariable xml elements
         """
 
-        def substr(alt1: str, alti: str):
+        def substr(alt1: str, alti: str) -> str:
             return alt1 if self._len == 1 else alti
 
         declaredType = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
@@ -669,7 +672,7 @@ class Variable(ScalarVariable):
         ]  # translation of python to FMI primitives. Same for all components
         assert self._initial is not None, "Initial shall be properly set at this point"
         do_use_start = use_start(causality=self._causality, variability=self._variability, initial=self._initial)
-        svars = []
+        svars: list[ET.Element] = []
         for i in range(self._len):
             sv = ET.Element(
                 tag="ScalarVariable",

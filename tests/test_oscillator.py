@@ -16,20 +16,20 @@ def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ..
     return True
 
 
-def do_show(time: list, z: list, v: list, compare1: list | None = None, compare2: list | None = None):
+def do_show(time: list[float], z: list[float], v: list[float], compare1: list | None = None, compare2: list | None = None):
     fig, ax = plt.subplots()
-    ax.plot(time, z, label="z-position")
-    ax.plot(time, v, label="z-speed")
+    _ = ax.plot(time, z, label="z-position")
+    _ = ax.plot(time, v, label="z-speed")
     if compare1 is not None:
-        ax.plot(time, compare1, label="compare1")
+        _ = ax.plot(time, compare1, label="compare1")
     if compare2 is not None:
-        ax.plot(time, compare2, label="compare2")
-    ax.legend()
+        _ = ax.plot(time, compare2, label="compare2")
+    _ = ax.legend()
     plt.show()
 
 
 def force(t: float, ampl: float = 1.0, omega: float = 0.1):
-    return np.array((0, 0, ampl * sin(omega * t)), float)
+    return np.array((0, 0, ampl * sin(omega * t)), dtype=np.dtype[np.float64])
 
 
 def osc_(t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0):
