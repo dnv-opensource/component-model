@@ -85,7 +85,7 @@ def test_needed_functions():
         q,
         q.to_base_units(),
         q.dimensionality,
-        _reg.get_base_units(list(_reg.get_compatible_units(q.dimensionality))[0]),
+        _reg.get_base_units(next(iter(_reg.get_compatible_units(q.dimensionality)))),
     )
     q = _reg("9 degrees/s")
     print(

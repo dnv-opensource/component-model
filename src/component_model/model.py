@@ -9,7 +9,7 @@ from abc import abstractmethod
 from enum import Enum
 from math import log
 from pathlib import Path
-from typing import TypeAlias
+from typing import ClassVar, TypeAlias
 
 import numpy as np
 from pint import UnitRegistry
@@ -90,7 +90,7 @@ class Model(Fmi2Slave):
         flags (dict)=None: Any of the defined FMI flags with a non-default value (see FMI 2.0.4, Section 4.3.1)
     """
 
-    instances: list[str] = []
+    instances: ClassVar[list[str]] = []
 
     def __init__(  # noqa: PLR0913
         self,

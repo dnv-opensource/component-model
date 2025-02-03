@@ -27,10 +27,11 @@ logger.warning("A message string. Note that only string concatenation with + wor
 
 import logging
 import sys
+from typing import ClassVar
 
 
 class MsgCounterHandler(logging.StreamHandler):
-    levelcount: dict[str, int] = {}
+    levelcount: ClassVar[dict[str, int]] = {}
 
     def __init__(self, logger, *args, **kwargs):
         self.logger = logger
