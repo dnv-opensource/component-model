@@ -2,6 +2,7 @@ import logging
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -14,7 +15,11 @@ logger = get_module_logger(__name__, level=logging.INFO)
 
 
 class DummyModel(Model):
-    def __init__(self, name, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
 
     def do_step(self, time: int | float, dt: int | float):

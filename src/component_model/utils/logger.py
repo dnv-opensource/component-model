@@ -27,13 +27,19 @@ logger.warning("A message string. Note that only string concatenation with + wor
 
 import logging
 import sys
-from typing import ClassVar
+from logging import Logger
+from typing import Any, ClassVar
 
 
 class MsgCounterHandler(logging.StreamHandler):
     levelcount: ClassVar[dict[str, int]] = {}
 
-    def __init__(self, logger, *args, **kwargs):
+    def __init__(
+        self,
+        logger: Logger,
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         self.logger = logger
         try:
             self._out = sys.stdout.shell  # type: ignore[union-attr]

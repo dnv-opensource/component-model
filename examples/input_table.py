@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 from component_model.model import Model
@@ -23,14 +25,14 @@ class InputTable(Model):
         self,
         name: str,
         description: str,  # noqa: ARG002
-        author="Siegfried Eisinger",
-        version="0.1",
-        table: tuple = (),
+        author: str = "Siegfried Eisinger",
+        version: str = "0.1",
+        table: tuple | None = None,
         output_name: str = "out",
         *,
         interpolate: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         super().__init__(
             name=name,
             description="At given times (specified in column 0 of the table a new vector of output values is generated and made available on output",
@@ -38,6 +40,7 @@ class InputTable(Model):
             version=version,
             **kwargs,
         )
+        table = table or ()
         self._rows = len(table)
         self._cols = len(table[0]) - 1
         self.times = np.array(

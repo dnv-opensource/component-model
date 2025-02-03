@@ -1,3 +1,5 @@
+from typing import Any
+
 from examples.input_table import InputTable
 
 
@@ -6,7 +8,10 @@ class SimpleTable(InputTable):
     Exposed interface variables are 'outs' (array) and 'interpolate'.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         # print(f"SimpleTable init {kwargs}")  # noqa: ERA001
         super().__init__(
             name="TestTable",

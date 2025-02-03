@@ -1,4 +1,5 @@
 from math import sqrt
+from typing import Any
 
 import numpy as np
 from pythonfmu import Fmi2Causality, Fmi2Slave, Real
@@ -16,7 +17,10 @@ class BouncingBall3D(Fmi2Slave):
     * Internal units are assumed as SI (m,s,rad)
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         super().__init__(
             name="BouncingBall3D",
             description="Another Python-based BouncingBall model, using Model and Variable to construct a FMU",

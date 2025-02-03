@@ -2,6 +2,7 @@ import logging
 import math
 import xml.etree.ElementTree as ET
 from enum import Enum
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,7 +25,11 @@ logger = get_module_logger(__name__, level=logging.INFO)
 
 
 class DummyModel(Model):
-    def __init__(self, name, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
         # the following satisfies the linter. Variables are automatically registered through register_variable()
         self.int1: int
@@ -40,7 +45,12 @@ class DummyModel(Model):
         return True
 
 
-def arrays_equal(arr1: np.ndarray | tuple | list, arr2: np.ndarray | tuple | list, dtype="float", eps=1e-7):
+def arrays_equal(
+    arr1: np.ndarray[Any, np.dtype[Any]] | tuple | list,
+    arr2: np.ndarray[Any, np.dtype[Any]] | tuple | list,
+    dtype: type[np.dtype[Any]] = np.dtype[np.float64],
+    eps: float = 1e-7,
+):
     assert len(arr1) == len(arr2), "Length not equal!"
 
     for i in range(len(arr1)):
@@ -48,7 +58,7 @@ def arrays_equal(arr1: np.ndarray | tuple | list, arr2: np.ndarray | tuple | lis
         assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
 
 
-def tuples_nearly_equal(tuple1: tuple, tuple2: tuple, eps=1e-10):
+def tuples_nearly_equal(tuple1: tuple, tuple2: tuple, eps: float = 1e-10):
     """Check whether the values in tuples (of any tuple-structure) are nearly equal"""
     assert isinstance(tuple1, tuple), f"{tuple1} is not a tuple"
     assert isinstance(tuple2, tuple), f"{tuple2} is not a tuple"
@@ -119,7 +129,7 @@ def test_spherical_cartesian():
     ]:
         sVec = cartesian_to_spherical(vec)
         _vec = spherical_to_cartesian(sVec)
-        arrays_equal(np.array(vec, dtype="float"), _vec)
+        arrays_equal(arr1=np.array(vec, dtype=np.dtype[np.float64]), arr2=_vec)
 
 
 def init_model_variables():
@@ -240,8 +250,8 @@ def test_init():  # noqa: PLR0915
     assert int1.range == ((0, 100),)
     assert int1.unit == ("dimensionless",)
     assert int1.display == (None,)
-    assert int1.check_range(50)
-    assert not int1.check_range(110)
+    assert int1.check_range(value=50)
+    assert not int1.check_range(value=110)
     assert mod.int1 == 99, "Value directly accessible as model variable"
     mod.int1 = 110
     assert mod.int1 == 110, "Internal changes not range-checked!"
@@ -251,8 +261,8 @@ def test_init():  # noqa: PLR0915
     assert mod.int1 == 110, f"Value {mod.int1} should still be unchanged"
     int1.setter(50)
     assert mod.int1 == 50, f"Value {mod.int1} changed back."
-    mod.set_integer([mod.variable_by_name("int1").value_reference], [99])  # simulate setting from outside
-    assert mod.get_integer([mod.variable_by_name("int1").value_reference]) == [99]
+    mod.set_integer(vrs=[mod.variable_by_name("int1").value_reference], values=[99])  # simulate setting from outside
+    assert mod.get_integer(vrs=[mod.variable_by_name("int1").value_reference]) == [99]
 
     assert float1.typ is float
     assert float1.causality == Causality.input
@@ -266,9 +276,9 @@ def test_init():  # noqa: PLR0915
     assert float1.display[0][0] == "percent", f"Display: {float1.display[0][0]}"
     assert float1.display[0][1](99) == 0.99, "Transform from dimensionless to percent"
     assert float1.display[0][2](0.99) == 99, "... and back."
-    assert float1.check_range(0.5)
-    assert not float1.check_range(1.0, disp=False), "Check as internal units"
-    assert not float1.check_range(100.0), "Check as display units"
+    assert float1.check_range(value=0.5)
+    assert not float1.check_range(value=1.0, disp=False), "Check as internal units"
+    assert not float1.check_range(value=100.0), "Check as display units"
     assert mod.float1 == 0.99, "Value directly accessible as model variable"
     mod.float1 = 1.0
     assert mod.float1 == 1.0, "Internal changes not range-checked!"
@@ -312,17 +322,18 @@ def test_init():  # noqa: PLR0915
     assert bool1.range == ((False, True),)
     assert bool1.unit == ("dimensionless",)
     assert bool1.display == (None,)
-    assert bool1.check_range(True)
-    assert bool1.check_range(100.5), "Any number will work"
-    assert not bool1.check_range("Hei"), "But non-numbers are rejected"
+    assert bool1.check_range(value=True)
+    assert bool1.check_range(value=100.5), "Any number will work"
+    assert not bool1.check_range(value="Hei"), "But non-numbers are rejected"
     assert mod.bool1, "Value directly accessible as model variable"
     mod.bool1 = 100  # type: ignore # just to demonstrate that range checking is not done on internal variables
     assert mod.bool1 == 100, "Internal changes not range-checked!"
     assert bool1.getter(), "Converted in getter()"
-    bool1.setter(False)
+    bool1.setter(value=False)
     assert not mod.bool1, f"Value {mod.bool1} changed."
-    mod.set_boolean([mod.variable_by_name("bool1").value_reference], [True])  # simulate setting from outside
-    assert mod.get_boolean([mod.variable_by_name("bool1").value_reference]) == [True]
+    mod.set_boolean(
+        vrs=[mod.variable_by_name("bool1").value_reference], values=[True])  # simulate setting from outside
+    assert mod.get_boolean(vrs=[mod.variable_by_name("bool1").value_reference]) == [True]
 
     assert str1.typ is str
     assert str1.causality == Causality.parameter
@@ -334,15 +345,16 @@ def test_init():  # noqa: PLR0915
     assert str1.range == (("", ""),), f"Range: {str1.range}. Basically irrelevant"
     assert str1.unit == ("dimensionless",), f"Unit {str1.unit}"
     assert str1.display[0] is None, f"Display: {str1.display[0]}"
-    assert str1.check_range(0.5), "Everything is ok"
+    assert str1.check_range(value=0.5), "Everything is ok"
     assert mod.str1 == "Hello World!", f"Value {mod.str1} directly accessible as model variable"
     mod.str1 = 1.0
     assert mod.str1 == 1.0, f"Not converted to str when internally set: {mod.str1}"
     assert isinstance(str1.getter(), str), "getter() converts to str"
-    str1.setter("Hei")
+    str1.setter(value="Hei")
     assert mod.str1 == "Hei", f"New value {mod.str1}."
-    mod.set_string([mod.variable_by_name("str1").value_reference], ["Hello"])  # simulate setting from outside
-    assert mod.get_string([mod.variable_by_name("str1").value_reference]) == ["Hello"]
+    mod.set_string(
+        vrs=[mod.variable_by_name("str1").value_reference], values=["Hello"])  # simulate setting from outside
+    assert mod.get_string(vrs=[mod.variable_by_name("str1").value_reference]) == ["Hello"]
 
     assert np1.typ is float
     assert np1 == mod.variable_by_name("np1")
@@ -355,14 +367,14 @@ def test_init():  # noqa: PLR0915
     # internally packed into tuple:
     assert np1.start == (1, math.radians(2), 3)
     tuples_nearly_equal(np1.range, ((0, 3), (1, 5), (float("-inf"), 5)))
-    assert not np1.check_range(5.1, idx=1), "Checks performed on display units!"
-    assert not np1.check_range(0.9, idx=1), "Checks performed on display units!"
+    assert not np1.check_range(value=5.1, idx=1), "Checks performed on display units!"
+    assert not np1.check_range(value=0.9, idx=1), "Checks performed on display units!"
     assert np1.unit == ("meter", "radian", "radian"), f"Units: {np1.unit}"
     assert np1.display[0] is None
     assert np1.display[1][0] == "degree"
     assert np1.display[2] is None
-    assert np1.check_range((2, 3.5, 4.5))
-    assert not np1.check_range((2, 3.5, 6.3))
+    assert np1.check_range(value=(2, 3.5, 4.5))
+    assert not np1.check_range(value=(2, 3.5, 6.3))
     assert mod.np1[1] == math.radians(2), "Value directly accessible as model variable"
     mod.np1[1] = -1.0
     assert mod.np1[1] == -1.0, "Internal changes not range-checked!"
@@ -370,20 +382,21 @@ def test_init():  # noqa: PLR0915
         _ = np1.getter()
     #       assert str(err.value) == "getter(): Value [1.0, -57.29577951308233, 3.0] outside range."
     assert mod.np1[1] == -1.0, f"Value {mod.np1} should still be unchanged"
-    mod.np1 = np.array((1.5, 2.5, 3.5), float)
+    mod.np1 = np.array((1.5, 2.5, 3.5), dtype=np.dtype[np.float64])
     assert np.linalg.norm(mod.np1) == math.sqrt(1.5**2 + 2.5**2 + 3.5**2), "np calculations are done on value"
-    np1.setter((1.0, 1.0, 1.0))
-    arrays_equal(mod.np1, (1.0, math.radians(1.0), 1.0))
-    arrays_equal(np1.getter(), (1.0, 1.0, 1.0))  # getter shows display units
+    np1.setter(value=(1.0, 1.0, 1.0))
+    arrays_equal(arr1=mod.np1, arr2=(1.0, math.radians(1.0), 1.0))
+    arrays_equal(arr1=np1.getter(), arr2=(1.0, 1.0, 1.0))  # getter shows display units
     vr0 = mod.variable_by_name("np1").value_reference
-    mod.set_real([vr0, vr0 + 1, vr0 + 2], [2.0, 2.0, 2.0])  # simulate setting from outside
-    arrays_equal(mod.get_real((vr0, vr0 + 1, vr0 + 2)), [2.0, 2.0, 2.0])
-    arrays_equal(mod.get_real([vr0, vr0 + 1, vr0 + 2]), [2.0, 2.0, 2.0])  # array not changed by getter (need copy)
+    mod.set_real(vrs=[vr0, vr0 + 1, vr0 + 2], values=[2.0, 2.0, 2.0])  # simulate setting from outside
+    arrays_equal(arr1=mod.get_real(vrs=(vr0, vr0 + 1, vr0 + 2)), arr2=[2.0, 2.0, 2.0])
+    arrays_equal(
+        arr1=mod.get_real(vrs=(vr0, vr0 + 1, vr0 + 2)), arr2=[2.0, 2.0, 2.0])  # array not changed by getter (need copy)
 
     with pytest.raises(KeyError) as err2:
         _ = Variable(
-            mod,
-            "int1",
+            model=mod,
+            name="int1",
             description="An integer variable with a non-unique name",
             causality="input",
             variability="continuous",
@@ -444,8 +457,8 @@ def test_dirty():
     """Test the dirty mechanism"""
     mod = DummyModel("MyModel2", instance_name="MyModel2")
     np1 = Variable(
-        mod,
-        "np1",
+        model=mod,
+        name="np1",
         description="A NP variable",
         causality="parameter",
         variability="fixed",
@@ -454,18 +467,18 @@ def test_dirty():
         rng=((0, "3m"), (0, float("inf")), (float("-inf"), "5rad")),
     )
     assert np1.typ is float, f"Type {np1.typ}"
-    np1.setter(np.array((2, 1, 4), float))
+    np1.setter(np.array((2, 1, 4), dtype=np.dtype[np.float64]))
     assert np1 not in mod.dirty, "Not dirty, because the whole variable was changed"
-    arrays_equal(mod.np1, [0.5 * 2.0, 0.5 * math.radians(1), 0.5 * 4])  # ... and on_set has been run
-    mod.set_real([1], [9.9])
+    arrays_equal(arr1=mod.np1, arr2=[0.5 * 2.0, 0.5 * math.radians(1), 0.5 * 4])  # ... and on_set has been run
+    mod.set_real(vrs=[1], values=[9.9])
     assert np1 in mod.dirty, "Dirty. on_set has not been run."
     res = np1.getter()
     assert isinstance(res, list), f"List expected. Got {np1.getter()}"
-    arrays_equal(res, [1, 9.9, 2])  # on_set not yet run
+    arrays_equal(arr1=res, arr2=[1, 9.9, 2])  # on_set not yet run
     mod.dirty_do()
     res = np1.getter()
     assert isinstance(res, list), f"List expected. Got {np1.getter()}"
-    arrays_equal(res, [0.5 * 1, 0.5 * 9.9, 0.5 * 2])  # on_set run
+    arrays_equal(arr1=res, arr2=[0.5 * 1, 0.5 * 9.9, 0.5 * 2])  # on_set run
 
 
 def test_var_ref():
@@ -531,25 +544,25 @@ def test_get():
         bool1,
     ) = init_model_variables()
     # print( "".join( str(i)+":"+mod.vars[i].name+", " for i in range( len(mod.vars)) if mod.vars[i] is not None))
-    assert mod._get([0, 99], int) == [99, 99]
-    assert mod.get_integer([0, 99]) == [99, 99]
-    assert mod.get_integer([0, 99]) == [99, 99]
+    assert mod._get(vrs=[0, 99], typ=int) == [99, 99]
+    assert mod.get_integer(vrs=[0, 99]) == [99, 99]
+    assert mod.get_integer(vrs=[0, 99]) == [99, 99]
     with pytest.raises(AssertionError) as err:
-        _ = mod.get_real([0, 99])
+        _ = mod.get_real(vrs=[0, 99])
     assert str(err.value).startswith("Invalid type in 'get_")
-    assert mod.get_real([2]) == [99.0], f"Got value {mod.get_real([2])} (converted to %)"
-    assert mod.get_string([5])[0] == "Hello World!"
-    assert abs(mod.get_real([7])[0] - 2.0) < 1e-14, "Second element of compound variable"
-    assert mod.get_real([6])[0] == 1.0
+    assert mod.get_real(vrs=[2]) == [99.0], f"Got value {mod.get_real([2])} (converted to %)"
+    assert mod.get_string(vrs=[5])[0] == "Hello World!"
+    assert abs(mod.get_real(vrs=[7])[0] - 2.0) < 1e-14, "Second element of compound variable"
+    assert mod.get_real(vrs=[6])[0] == 1.0
     assert mod.vars[6].name == "np1"
-    var, sub = mod.ref_to_var(7)
+    var, sub = mod.ref_to_var(vr=7)
     assert var.name == "np1", "Variable name should be 'np1'"
     assert sub == 1, "Second element of NP variable"
     assert len(var) == 3
     assert mod.variable_by_name("np1").value_reference == 6
-    arrays_equal(mod.get_real([6, 7, 8]), [1.0, 2.0, 3.0])  # translated back to degrees
+    arrays_equal(arr1=mod.get_real(vrs=[6, 7, 8]), arr2=[1.0, 2.0, 3.0])  # translated back to degrees
     with pytest.raises(AssertionError) as err:
-        _ = mod.get_real([9, 12])
+        _ = mod.get_real(vrs=[9, 12])
     assert str(err.value) == "Variable with valueReference=12 does not exist in model MyModel"
 
 
@@ -628,13 +641,13 @@ def test_on_set():
         bool1,
     ) = init_model_variables()
     # print( "".join( str(i)+":"+mod.vars[i].name+", " for i in range( len(mod.vars)) if mod.vars[i] is not None))
-    arrays_equal(mod.np2, (1, 2, 3))
-    np2.setter(np.array((4, 5, 6), float))
-    arrays_equal(mod.np2, (0.9 * 4, 0.9 * 5, 0.9 * 6))  # on_set run, because whole array is set
-    mod.set_real([10, 11], [7, 8])
-    arrays_equal(mod.np2, (0.9 * 4, 7, 8))
+    arrays_equal(arr1=mod.np2, arr2=(1, 2, 3))
+    np2.setter(value=np.array((4, 5, 6), dtype=np.dtype[np.float64]))
+    arrays_equal(arr1=mod.np2, arr2=(0.9 * 4, 0.9 * 5, 0.9 * 6))  # on_set run, because whole array is set
+    mod.set_real(vrs=[10, 11], values=[7, 8])
+    arrays_equal(arr1=mod.np2, arr2=(0.9 * 4, 7, 8))
     mod.dirty_do()
-    arrays_equal(mod.np2, (0.9 * 0.9 * 4, 0.9 * 7, 0.9 * 8))
+    arrays_equal(arr1=mod.np2, arr2=(0.9 * 0.9 * 4, 0.9 * 7, 0.9 * 8))
 
 
 if __name__ == "__main__":

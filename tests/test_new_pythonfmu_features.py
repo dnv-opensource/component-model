@@ -2,6 +2,7 @@ import logging
 import time
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fmpy import plot_result, simulate_fmu
@@ -150,10 +151,10 @@ def test_model_parameters():
 def build_fmu(
     model: str | Path,
     dest: str | Path = ".",
-    project_files: Iterable[str | Path] = set(),
+    project_files: Iterable[str | Path] | None = None,
     documentation_folder: str | Path | None = None,
-    newargs: dict | None = None,
-    **options,
+    newargs: dict[str, Any] | None = None,
+    **options: Any,  # noqa: ANN401
 ):
     """PythonFMU build function with additional argument to replace default argument values
 
@@ -172,6 +173,7 @@ def build_fmu(
            and the values must have the correct type.
         **options: As in FMUBuilder.build_fmu
     """
+    project_files = project_files or set()
     # Replace "shutil.copy2(script_file, temp_dir)" code line
     if newargs is not None:  # default arguments to be replaced
         new_script, model_class = model_parameters(Path(model), newargs)

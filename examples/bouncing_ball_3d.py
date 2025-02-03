@@ -1,4 +1,5 @@
 from math import sqrt
+from typing import Any
 
 import numpy as np
 
@@ -28,24 +29,24 @@ class BouncingBall3D(Model):
     def __init__(
         self,
         name: str = "BouncingBall3D",
-        description="Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
-        pos: tuple = ("0 m", "0 m", "10 inch"),
-        speed: tuple = ("1 m/s", "0 m/s", "0 m/s"),
-        g="9.81 m/s^2",
-        e=0.9,
+        description: str = "Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
+        pos: tuple[str, str, str] = ("0 m", "0 m", "10 inch"),
+        speed: tuple[str, str, str] = ("1 m/s", "0 m/s", "0 m/s"),
+        g: str = "9.81 m/s^2",
+        e: float = 0.9,
         min_speed_z: float = 1e-6,
-        **kwargs,
-    ):
-        super().__init__(name, description, author="DNV, SEACo project", **kwargs)
-        self._pos = self._interface("pos", pos)
-        self._speed = self._interface("speed", speed)
-        self._g = self._interface("g", g)
-        self.a = np.array((0, 0, -self.g), float)
-        self._e = self._interface("e", e)
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(name=name, description=description, author="DNV, SEACo project", **kwargs)
+        self._pos = self._interface(name="pos", start=pos)
+        self._speed = self._interface(name="speed", start=speed)
+        self._g = self._interface(name="g", start=g)
+        self.a = np.array((0, 0, -self.g), dtype=np.dtype[np.float64])
+        self._e = self._interface(name="e", start=e)
         self.min_speed_z = min_speed_z
         self.stopped = False
         self.time = 0.0
-        self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
+        self._p_bounce = self._interface(name="p_bounce", start=("0m", "0m", "0m"))  # Note: 3D, but z always 0
         # provoke an update at simulation start:
         self.t_bounce, self.p_bounce = (-1.0, self.pos)
 

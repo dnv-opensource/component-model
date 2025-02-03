@@ -6,7 +6,6 @@
 import contextlib
 import os
 import tempfile
-import uuid
 import xml.etree.ElementTree as ET
 from abc import abstractmethod
 from datetime import datetime, timezone
@@ -14,6 +13,7 @@ from enum import Enum
 from math import log
 from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
+from uuid import UUID, uuid4
 
 import numpy as np
 from pint import UnitRegistry
@@ -98,18 +98,18 @@ class Model(Fmi2Slave):
 
     def __init__(  # noqa: PLR0913
         self,
-        name,
+        name: str,
         description: str = "A component model",
         author: str = "anonymous",
         version: str = "0.1",
-        unit_system="SI",
+        unit_system: str = "SI",
         license: str | None = None,
         copyright: str | None = None,
         default_experiment: dict[str, float] | None = None,
-        flags: dict | None = None,
-        guid=None,
+        flags: dict[str, Any] | None = None,
+        guid: UUID | None = None,
         **kwargs: Any,  # noqa: ANN401
-    ):
+    ) -> None:
         kwargs.update(
             {
                 "modelName": name,
@@ -248,7 +248,11 @@ class Model(Fmi2Slave):
     def units(self):
         return self._units
 
-    def add_variable(self, *args, **kwargs):
+    def add_variable(
+        self,
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
+    ) -> Variable:
         """Add a variable, automatically including the owner model in the instantiation call.
         The function represents an alternative method for defining interface variables
         automatically adding the mandatory first `model` argument.
