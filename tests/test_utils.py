@@ -144,9 +144,7 @@ def test_model_from_fmu(bouncing_ball_fmu):
 def test_variables_from_fmu(bouncing_ball_fmu):
     et = read_xml(bouncing_ball_fmu)
     mv = et.find(".//ModelVariables")
-    collect = []
-    for kwargs in variables_from_fmu(mv):
-        collect.append(kwargs)
+    collect = list(variables_from_fmu(mv))
     assert len(collect) == 5
     assert collect[0]["name"] == "pos"
     assert len(collect[1]["start"]) == 3
