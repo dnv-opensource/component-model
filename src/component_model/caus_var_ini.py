@@ -67,7 +67,7 @@ def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> 
     if org is None:
         assert default is not None, "default value needed at this stage"
         return default
-    elif isinstance(org, str):
+    if isinstance(org, str):
         assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
         try:
             return typ[org]
@@ -91,10 +91,10 @@ def check_causality_variability_initial(
         if msg:
             print(f"Combination causality {_causality} + variability {variability} is not allowed: {explanations[res]}")
         return (None, None, None)
-    else:  # allowed
-        _initial = ensure_enum(initial, Initial, initial_default[res][0])  # type: ignore
-        if _initial not in initial_default[res][1]:
-            if msg:
-                print(f"Causality {_causality} + variability {_variability} + Initial {_initial} is not allowed")
-            return (None, None, None)
-        return (Causality(_causality), Variability(_variability), Initial(_initial))
+    # allowed
+    _initial = ensure_enum(initial, Initial, initial_default[res][0])  # type: ignore
+    if _initial not in initial_default[res][1]:
+        if msg:
+            print(f"Causality {_causality} + variability {_variability} + Initial {_initial} is not allowed")
+        return (None, None, None)
+    return (Causality(_causality), Variability(_variability), Initial(_initial))

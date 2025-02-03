@@ -1,2 +1,2 @@
-class NewFeatures(object):
+class NewFeatures:
     pass

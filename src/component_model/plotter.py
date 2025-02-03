@@ -2,7 +2,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from multiprocessing import Process, Queue
-from typing import Any, List, Tuple
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +38,7 @@ class Variable:
 
 
 # OSPSignal type := A tuple consisting of instance name (OSP simulator name) and the name of the output port
-OSPSignal = Tuple[str, str]
+OSPSignal = tuple[str, str]
 
 
 class VisualSimulator:
@@ -70,10 +70,10 @@ class VisualSimulator:
     def get_step_values(
         self,
         observer: CosimObserver,
-        signals: List[Tuple[Variable, Variable, Variable]],
-    ) -> List[Tuple[float, float, float]]:
+        signals: list[tuple[Variable, Variable, Variable]],
+    ) -> list[tuple[float, float, float]]:
         variables = list(sum(signals, ()))
-        slave_map: dict[int, List[int]] = {}
+        slave_map: dict[int, list[int]] = {}
 
         for var in variables:
             if var.slave_index in slave_map:
@@ -90,7 +90,7 @@ class VisualSimulator:
                 value = time_series_values[idx]
                 results[f"{slave_index},{var_ref}"] = value
 
-        cartesian_points: List[Tuple[float, float, float]] = []
+        cartesian_points: list[tuple[float, float, float]] = []
 
         for x_signal, y_signal, z_signal in signals:
             x_pos = results[f"{x_signal.slave_index},{x_signal.value_reference}"]
@@ -149,7 +149,7 @@ class VisualSimulator:
     def run_simulation(
         self,
         message_queue: Queue,
-        points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]],
+        points_3d: list[tuple[OSPSignal, OSPSignal, OSPSignal]],
         osp_xml: str = "",
     ):
         cosim_execution = CosimExecution.from_osp_config_file(osp_path=osp_xml)
@@ -159,7 +159,7 @@ class VisualSimulator:
 
         # Map model instance name to slave indexes
         slave_map = {slave_info.name.decode(): slave_info for slave_info in cosim_execution.slave_infos()}
-        signals: List[tuple[Variable, Variable, Variable]] = []
+        signals: list[tuple[Variable, Variable, Variable]] = []
 
         # Add metadata to 3d configuration signals and group them together following the same order
         for x_signal, y_signal, z_signal in points_3d:
@@ -220,7 +220,7 @@ class VisualSimulator:
     def start(
         self,
         osp_system_structure: str,
-        points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]],
+        points_3d: list[tuple[OSPSignal, OSPSignal, OSPSignal]],
     ):
         message_queue: Queue = Queue(maxsize=5)
         simulation_process = Process(

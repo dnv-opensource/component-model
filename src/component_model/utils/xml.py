@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from enum import Enum
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile, is_zipfile
@@ -8,22 +8,21 @@ def xml_to_python_val(val: str):
     """Translate the xml (string) value to a python value and type."""
     if val == "true":
         return True
-    elif val == "false":
+    if val == "false":
         return False
-    else:
+    try:
+        return int(val)
+    except Exception:
         try:
-            return int(val)
+            return float(val)
         except Exception:
-            try:
-                return float(val)
-            except Exception:
-                return {
-                    "Real": float,
-                    "Integer": int,
-                    "Boolean": bool,
-                    "String": str,
-                    "Enumeration": Enum,
-                }.get(val, val)
+            return {
+                "Real": float,
+                "Integer": int,
+                "Boolean": bool,
+                "String": str,
+                "Enumeration": Enum,
+            }.get(val, val)
 
 
 def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:

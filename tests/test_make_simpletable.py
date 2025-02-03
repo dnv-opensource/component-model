@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -61,8 +61,7 @@ def _in_interval(x: float, x0: float, x1: float):
 def _linear(t: float, tt: tuple | list, xx: tuple | list):
     if t <= tt[-1]:
         return np.interp([t], tt, xx)[0]
-    else:
-        return xx[-1] + (t - tt[-1]) * (xx[-1] - xx[-2]) / (tt[-1] - tt[-2])
+    return xx[-1] + (t - tt[-1]) * (xx[-1] - xx[-2]) / (tt[-1] - tt[-2])
 
 
 def _to_et(file: str, sub: str = "modelDescription.xml"):
@@ -182,13 +181,21 @@ def test_use_fmu_no_interpolation(simple_table_fmu):
 
     for t, x, y, z in result:
         if t > 7:
-            assert x == 8 and y == 7 and z == 6, f"Values for t>7 wrong. Found ({x}, {y}, {z}) at t={t}"
+            assert x == 8, f"Value for x at t>7 wrong. Found {x} at t={t}"
+            assert y == 7, f"Value for y at t>7 wrong. Found {y} at t={t}"
+            assert z == 6, f"Value for z at t>7 wrong. Found {z} at t={t}"
         elif t > 3:
-            assert x == 7 and y == 8 and z == 9, f"Values for t>3 wrong. Found ({x}, {y}, {z}) at t={t}"
+            assert x == 7, f"Value for x at t>3 wrong. Found {x} at t={t}"
+            assert y == 8, f"Value for y at t>3 wrong. Found {y} at t={t}"
+            assert z == 9, f"Value for z at t>3 wrong. Found {z} at t={t}"
         elif t > 1:
-            assert x == 4 and y == 5 and z == 6, f"Values for t>1 wrong. Found ({x}, {y}, {z}) at t={t}"
+            assert x == 4, f"Value for x at t>1 wrong. Found {x} at t={t}"
+            assert y == 5, f"Value for y at t>1 wrong. Found {y} at t={t}"
+            assert z == 6, f"Value for z at t>1 wrong. Found {z} at t={t}"
         elif t > 0:
-            assert x == 1 and y == 2 and z == 3, f"Values for t>0 wrong. Found ({x}, {y}, {z}) at t={t}"
+            assert x == 1, f"Value for x at t>0 wrong. Found {x} at t={t}"
+            assert y == 2, f"Value for y at t>0 wrong. Found {y} at t={t}"
+            assert z == 3, f"Value for z at t>0 wrong. Found {z} at t={t}"
 
 
 def test_run_osp(simple_table_fmu):

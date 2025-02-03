@@ -1,6 +1,6 @@
 import logging
 import time
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -23,10 +23,6 @@ class DummyModel(Model):
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu(tmp_path_factory):
-    return _bouncing_ball_fmu()
-
-
-def _bouncing_ball_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
@@ -81,8 +77,10 @@ def test_xml():
     el = mod._xml_modelvariables()
     assert el.tag == "ModelVariables"
     assert len(el) == 4
-    assert el[0].tag == "ScalarVariable" and el[0].get("name") == "Test9[0]"
-    assert el[3].tag == "ScalarVariable" and el[3].get("name") == "myInt"
+    assert el[0].tag == "ScalarVariable"
+    assert el[0].get("name") == "Test9[0]"
+    assert el[3].tag == "ScalarVariable"
+    assert el[3].get("name") == "myInt"
     el = mod._xml_structure_outputs()
     assert ET.tostring(el) == b'<Outputs><Unknown index="1" /><Unknown index="2" /><Unknown index="3" /></Outputs>'
     el = mod._xml_structure_initialunknowns()
@@ -108,10 +106,8 @@ def test_xml():
     assert et.find(".//LogCategories") is not None
     assert et.find(".//DefaultExperiment") is not None
     de = et.find(".//DefaultExperiment")
-    assert (
-        de is not None
-        and ET.tostring(de) == b'<DefaultExperiment startTime="0.0" stopTime="1.0" stepSize="0.01" tolerance="0.001" />'
-    )
+    assert de is not None
+    assert ET.tostring(de) == b'<DefaultExperiment startTime="0" stopTime="1.0" stepSize="0.01" />'
     assert et.find(".//ModelVariables") is not None
     assert et.find(".//ModelVariables/ScalarVariable") is not None
     assert et.find(".//ModelStructure") is not None

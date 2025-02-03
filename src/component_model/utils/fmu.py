@@ -6,7 +6,7 @@ to make an OSP system structure file, or to reverse-engineer the interface of a 
 
 """
 
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -77,16 +77,15 @@ def variables_from_fmu(el: ET.Element | None, sep: str = "["):
         """From the variable type sub-element (e.g. <Real>) of <ScalarVariable> deduce the variable range of a ScalarVariable."""
         if el.attrib.get("unbounded", "true"):
             return tuple()
-        elif "min" in el.attrib and "max" in el.attrib:
+        if "min" in el.attrib and "max" in el.attrib:
             return (el.attrib["min"], el.attrib["max"])
-        elif "min" in el.attrib and el.tag == "Real":
+        if "min" in el.attrib and el.tag == "Real":
             return (el.attrib["min"], float("inf"))
-        elif "max" in el.attrib and el.tag == "Real":
+        if "max" in el.attrib and el.tag == "Real":
             return (float("-inf"), el.attrib["max"])
-        else:
-            raise AssertionError(
-                f"Invalid combination of attributes with respect to variable range. Type:{el.tag}, attributes: {el.attrib}"
-            )
+        raise AssertionError(
+            f"Invalid combination of attributes with respect to variable range. Type:{el.tag}, attributes: {el.attrib}"
+        )
 
     def rsplit_sep(txt: str, sep: str = sep):
         if sep in txt:
@@ -98,8 +97,7 @@ def variables_from_fmu(el: ET.Element | None, sep: str = "["):
             except ValueError:
                 sub = None
             return (base, sub)
-        else:
-            return (txt, None)
+        return (txt, None)
 
     def get_start(v, _typ):
         start = v.attrib.get("start", None)

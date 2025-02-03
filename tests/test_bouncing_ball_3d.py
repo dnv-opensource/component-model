@@ -1,7 +1,5 @@
-# pyright: reportAttributeAccessIssue=false
-# pyright: reportOptionalMemberAccess=false
 import time
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from math import sqrt
 from pathlib import Path
 from zipfile import ZipFile
@@ -51,10 +49,6 @@ def do_show(result: list):
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
-    return _bouncing_ball_fmu()
-
-
-def _bouncing_ball_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
@@ -203,10 +197,10 @@ def test_bouncing_ball_class(show):
         # print( f"Bounce {n}: {bb.pos}, steps:{len(result)}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(bb.pos[2]) < 1e-2, f"z-position {bb.pos[2]} should be close to 0"
         if delta_t > 2 * dt:
-            assert isinstance(result[-2][6], float) and isinstance(result[-1][6], float)
-            assert result[-2][6] < 0.0 and result[-1][6] > 0.0, (
-                f"Expected speed sign change {result[-2][6]}-{result[-1][6]}when bouncing"
-            )
+            assert isinstance(result[-2][6], float)
+            assert isinstance(result[-1][6], float)
+            assert result[-2][6] < 0, f"Expected negative speed before bounce, got {result[-2][6]}"
+            assert result[-1][6] > 0, f"Expected positive speed after bounce, got {result[-1][6]}"
             assert bb.speed[0] == result[-2][4] * bb.e, "Reduced speed in x-direction"
     if show:
         do_show(result)
@@ -229,7 +223,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
     """Test and validate the basic BouncingBall using fmpy and not using OSP or case_study."""
     assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
     dt = 0.01
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         bouncing_ball_fmu,
         start_time=0.0,
         stop_time=3.0,
@@ -353,9 +347,8 @@ def test_use_fmu(bouncing_ball_fmu, show):
         # print( f"Bounce {n}: {result[row][3]}, steps:{row}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(min(result[row - 1][3], result[row][3])) < 0.3, f"z-position {result[row][3]} should be close to 0"
         if delta_t > 2 * dt:
-            assert result[row - 1][6] < 0 and result[row][6] > 0, (
-                f"Expected speed sign change {result[row - 1][6]}-{result[row][6]}when bouncing"
-            )
+            assert result[row - 1][6] < 0, f"Expected negative speed before bounce, got {result[row - 1][6]}"
+            assert result[row][6] > 0, f"Expected positive speed after bounce, got {result[row][6]}"
             assert abs(result[row - 1][4] * e - result[row][4]) < 1e-15, "Reduced speed in x-direction"
 
 
@@ -453,7 +446,11 @@ if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_bouncing_ball_class(show=False)
-    # test_use_fmu( _bouncing_ball_fmu(), False)
-    # test_from_fmu( _bouncing_ball_fmu())
-    # test_from_osp( _bouncing_ball_fmu())
-    # test_make_bouncing_ball( _bouncing_ball_fmu())
+    # Model.build(
+    #    str(Path(__file__).parent.parent / "examples" / "bouncing_ball_3d.py"),
+    #    dest=(Path(__file__).parent / "test_working_directory"),
+    # )
+    # test_use_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu", False)
+    # test_from_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
+    # test_from_osp(Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
+    # test_make_bouncing_ball(Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")

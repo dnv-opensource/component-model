@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from enum import Enum, IntFlag
 from functools import partial
 from math import acos, atan2, cos, degrees, radians, sin, sqrt
-from typing import Any, Callable, TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 from pint import Quantity  # management of units
@@ -54,19 +55,13 @@ def linear(x: float, b: float, a: float = 0.0):
 class VariableInitError(Exception):
     """Special error indicating that something is wrong with the variable definition."""
 
-    pass
-
 
 class VariableRangeError(Exception):
     """Special Exception class signalling that a value is not within the range."""
 
-    pass
-
 
 class VariableUseError(Exception):
     """Special Exception class signalling that variable use was not in accordance with settings."""
-
-    pass
 
 
 class Variable(ScalarVariable):
@@ -393,7 +388,8 @@ class Variable(ScalarVariable):
                     val -= 1e-15
             return val
 
-        assert hasattr(self, "_start") and hasattr(self, "_unit"), "Missing self._start / self._unit"
+        assert hasattr(self, "_start"), "Missing self._start"
+        assert hasattr(self, "_unit"), "Missing self._unit"
         assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
         # Configure input. Could be None, () or (min,max) of scalar
         if rng is None or rng == tuple() or (self._len == 1 and len(rng) == 2):
@@ -423,7 +419,7 @@ class Variable(ScalarVariable):
                             u = self._unit[idx]
                         elif self._unit[idx] != u:
                             raise VariableInitError(
-                                f"The supplied range value {str(r)} does not conform to the unit type {self._unit[idx]}"
+                                f"The supplied range value {r!s} does not conform to the unit type {self._unit[idx]}"
                             )
                         elif du is not None and self._display[idx] is not None and du[0] != self._display[idx][0]:  # type: ignore[index]
                             raise VariableInitError(f"Range unit {du[0]} != start {self._display[idx][0]}!")  # type: ignore[index]
@@ -456,38 +452,38 @@ class Variable(ScalarVariable):
             idx = 0
         if isinstance(value, str):  # no range checking on strings
             return self._typ is str
-        elif self._len > 1 and idx is None:  # check all components
-            assert isinstance(value, (tuple, list, np.ndarray)) and len(value) == self._len, f"{value} has no elements"
+        if self._len > 1 and idx is None:  # check all components
+            assert isinstance(value, (tuple, list, np.ndarray)), f"{value} is not a tuple, list, or ndarray"
+            assert len(value) == self._len, f"{value} has no elements"
             return all(self.check_range(value[i], i, disp) for i in range(self._len))
-        else:  # single component check
-            assert idx is not None, "Need a proper idx here"
-            if isinstance(value, (tuple, list, np.ndarray)):
-                if self._len == 1:
-                    idx = 0
-                value = value[idx]
-            if value is None:  # denotes unchanged values (of compound variables)
-                return True
-            if self._typ is not type(value):
-                try:
-                    value = self._typ(value)  # try to cast the value
-                except Exception:  # give up
-                    return False
-            # special types (str checked above):
-            if self._typ is str:  # no range checking on str
-                return True
-            elif self._typ is bool:
-                return isinstance(value, bool)
-            elif isinstance(value, Enum):
-                return isinstance(value, self._typ)
+        # single component check
+        assert idx is not None, "Need a proper idx here"
+        if isinstance(value, (tuple, list, np.ndarray)):
+            if self._len == 1:
+                idx = 0
+            value = value[idx]
+        if value is None:  # denotes unchanged values (of compound variables)
+            return True
+        if self._typ is not type(value):
+            try:
+                value = self._typ(value)  # try to cast the value
+            except Exception:  # give up
+                return False
+        # special types (str checked above):
+        if self._typ is str:  # no range checking on str
+            return True
+        if self._typ is bool:
+            return isinstance(value, bool)
+        if isinstance(value, Enum):
+            return isinstance(value, self._typ)
 
-            elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
-                if not disp and self._display[idx] is not None:  # check an internal unit value
-                    _val = self._display[idx]
-                    assert isinstance(_val, tuple)
-                    value = _val[2](value)
-                return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
-            else:
-                raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
+        if isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
+            if not disp and self._display[idx] is not None:  # check an internal unit value
+                _val = self._display[idx]
+                assert isinstance(_val, tuple)
+                value = _val[2](value)
+            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
+        raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
 
     def fmi_type_str(self, val: PyType) -> str:
         """Translate the provided type to a proper fmi type and return it as string.
@@ -495,8 +491,7 @@ class Variable(ScalarVariable):
         """
         if self._typ is bool:
             return "true" if val else "false"
-        else:
-            return str(val)
+        return str(val)
 
     @classmethod
     def auto_type(cls, val: PyType | Compound, allow_int: bool = False):
@@ -530,15 +525,14 @@ class Variable(ScalarVariable):
                 else:
                     raise ValueError(f"auto_type(). Unhandled {t}, {typ}")
             return typ
-        else:  # single value
-            if isinstance(val, bool):
-                return bool
-            elif allow_int:
-                return type(val)
-            elif not allow_int and isinstance(val, (int, float)):
-                return float
-            else:
-                return type(val)
+        # single value
+        if isinstance(val, bool):
+            return bool
+        if allow_int:
+            return type(val)
+        if not allow_int and isinstance(val, (int, float)):
+            return float
+        return type(val)
 
     @classmethod
     def _auto_extreme(cls, var: PyType) -> tuple:
@@ -551,14 +545,13 @@ class Variable(ScalarVariable):
         """
         if isinstance(var, bool):
             return (False, True)
-        elif isinstance(var, float):
+        if isinstance(var, float):
             return (float("-inf"), float("inf"))
-        elif isinstance(var, int):
+        if isinstance(var, int):
             raise VariableInitError(f"Range must be specified for int variable {cls} or use float.")
-        elif isinstance(var, Enum):
+        if isinstance(var, Enum):
             return (min(x.value for x in type(var)), max(x.value for x in type(var)))
-        else:
-            return tuple()  # return an empty tuple (no range specified, e.g. for str)
+        return tuple()  # return an empty tuple (no range specified, e.g. for str)
 
     def _disect_unit(self, quantity: PyType | Compound) -> tuple:
         """Disect the provided quantity in terms of magnitude and unit, if provided as string.
@@ -580,13 +573,13 @@ class Variable(ScalarVariable):
                 _disp.append(d)
             return (tuple(_val), tuple(_ub), None if _disp is None else tuple(_disp))
 
-        elif isinstance(quantity, str):  # only string variable make sense to disect
+        if isinstance(quantity, str):  # only string variable make sense to disect
             assert self.model.ureg is not None, f"UnitRegistry not found, while providing units: {quantity}"
             try:
                 q = self.model.ureg(quantity)  # parse the quantity-unit and return a Pint Quantity object
                 if isinstance(q, (int, float)):
                     return q, "", None  # integer or float variable with no units provided
-                elif isinstance(q, Quantity):  # pint.Quantity object
+                if isinstance(q, Quantity):  # pint.Quantity object
                     # transform to base units ('SI' units). All internal calculations will be performed with these
                     val, ub, display = self._get_transformation(q)
                 else:
@@ -610,22 +603,22 @@ class Variable(ScalarVariable):
         val = qb.magnitude  # Note: numeric types are not converted, e.g. int to float
         if qb.units == q.units:  # no conversion
             return (val, str(qb.units), None)
-        else:  # calculate the conversion functions
-            # we generate a second value and calculate the straight line conversion function
-            # did not find a better way in pint
-            q2 = self.model.ureg.Quantity(10.0 * (q.magnitude + 10.0), q.units)
-            qb2 = q2.to_base_units()
-            a = (qb.magnitude * q2.magnitude - qb2.magnitude * q.magnitude) / (q2.magnitude - q.magnitude)
-            b = (qb2.magnitude - qb.magnitude) / (q2.magnitude - q.magnitude)
-            if abs(a) < 1e-9:  # multiplicative conversion
-                if abs(b - 1.0) < 1e-9:  # unit and display unit are compatible. No transformation
-                    return (val, str(qb.units), None)
-                to_base = partial(linear, b=b)
-                from_base = partial(linear, b=1.0 / b)
-            else:  # there is a constant (e.g. Celsius to Fahrenheit)
-                to_base = partial(linear, b, a)
-                from_base = partial(linear, b=1.0 / b, a=-a / b)
-            return (val, str(qb.units), (str(q.units), to_base, from_base))
+        # calculate the conversion functions
+        # we generate a second value and calculate the straight line conversion function
+        # did not find a better way in pint
+        q2 = self.model.ureg.Quantity(10.0 * (q.magnitude + 10.0), q.units)
+        qb2 = q2.to_base_units()
+        a = (qb.magnitude * q2.magnitude - qb2.magnitude * q.magnitude) / (q2.magnitude - q.magnitude)
+        b = (qb2.magnitude - qb.magnitude) / (q2.magnitude - q.magnitude)
+        if abs(a) < 1e-9:  # multiplicative conversion
+            if abs(b - 1.0) < 1e-9:  # unit and display unit are compatible. No transformation
+                return (val, str(qb.units), None)
+            to_base = partial(linear, b=b)
+            from_base = partial(linear, b=1.0 / b)
+        else:  # there is a constant (e.g. Celsius to Fahrenheit)
+            to_base = partial(linear, b, a)
+            from_base = partial(linear, b=1.0 / b, a=-a / b)
+        return (val, str(qb.units), (str(q.units), to_base, from_base))
 
     def xml_scalarvariables(self):
         """Generate <ScalarVariable> XML code with respect to this variable and return xml element.
@@ -718,12 +711,10 @@ def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.nda
     if vec[0] == vec[1] == 0:
         if vec[2] == 0:
             return np.array((0, 0, 0), dtype="float")
-        else:
-            return np.array((r, 0, 0), dtype="float")
-    elif deg:
+        return np.array((r, 0, 0), dtype="float")
+    if deg:
         return np.array((r, degrees(acos(vec[2] / r)), degrees(atan2(vec[1], vec[0]))), dtype="float64")
-    else:
-        return np.array((r, acos(vec[2] / r), atan2(vec[1], vec[0])), dtype="float")
+    return np.array((r, acos(vec[2] / r), atan2(vec[1], vec[0])), dtype="float")
 
 
 def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:

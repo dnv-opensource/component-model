@@ -99,9 +99,9 @@ class MsgCounterHandler(logging.StreamHandler):
                 if level in self.levelcount:
                     msg += level + "s:" + str(self.levelcount[level])
             return msg
-        elif len(levels) > 1:  # return the raw numbers as dictionary
+        if len(levels) > 1:  # return the raw numbers as dictionary
             return self.levelcount
-        elif len(levels) == 1:  # return only the requested number
+        if len(levels) == 1:  # return only the requested number
             return self.levelcount[levels[0]]
 
 

@@ -82,8 +82,7 @@ class BouncingBall3D(Model):
             self.pos += self.speed * dt + 0.5 * self.a * dt**2
             self.speed += self.a * dt
             self.time += dt
-        if self.pos[2] < 0:
-            self.pos[2] = 0
+        self.pos[2] = max(self.pos[2], 0)
         return True
 
     def next_bounce(self):
@@ -93,11 +92,10 @@ class BouncingBall3D(Model):
         if self.stopped:  # stopped bouncing
             return (1e300, np.array((1e300, 1e300, 0), float))
             # return ( float('inf'), np.array( (float('inf'), float('inf'), 0), float))
-        else:
-            dt_bounce = (self.speed[2] + sqrt(self.speed[2] ** 2 + 2 * self.g * self.pos[2])) / self.g
-            p_bounce = self.pos + self.speed * dt_bounce  # linear. not correct for z-direction!
-            p_bounce[2] = 0
-            return (self.time + dt_bounce, p_bounce)
+        dt_bounce = (self.speed[2] + sqrt(self.speed[2] ** 2 + 2 * self.g * self.pos[2])) / self.g
+        p_bounce = self.pos + self.speed * dt_bounce  # linear. not correct for z-direction!
+        p_bounce[2] = 0
+        return (self.time + dt_bounce, p_bounce)
 
     def setup_experiment(self, start: float = 0.0):
         """Set initial (non-interface) variables."""
@@ -132,7 +130,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=((0, "100 m"), None, (0, "10 m")),
             )
-        elif name == "speed":
+        if name == "speed":
             return Variable(
                 self,
                 name="speed",
@@ -143,7 +141,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=((0, "1 m/s"), None, ("-100 m/s", "100 m/s")),
             )
-        elif name == "g":
+        if name == "g":
             return Variable(
                 self,
                 name="g",
@@ -153,7 +151,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
-        elif name == "e":
+        if name == "e":
             return Variable(
                 self,
                 name="e",
@@ -163,7 +161,7 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
-        elif name == "p_bounce":
+        if name == "p_bounce":
             return Variable(
                 self,
                 name="p_bounce",

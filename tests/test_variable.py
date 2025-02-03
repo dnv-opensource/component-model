@@ -1,6 +1,6 @@
 import logging
 import math
-import xml.etree.ElementTree as ET  # noqa: N817
+import xml.etree.ElementTree as ET
 from enum import Enum
 
 import numpy as np
@@ -543,7 +543,8 @@ def test_get():
     assert mod.get_real([6])[0] == 1.0
     assert mod.vars[6].name == "np1"
     var, sub = mod.ref_to_var(7)
-    assert var.name == "np1" and sub == 1, "Second element of NP variable"
+    assert var.name == "np1", "Variable name should be 'np1'"
+    assert sub == 1, "Second element of NP variable"
     assert len(var) == 3
     assert mod.variable_by_name("np1").value_reference == 6
     arrays_equal(mod.get_real([6, 7, 8]), [1.0, 2.0, 3.0])  # translated back to degrees

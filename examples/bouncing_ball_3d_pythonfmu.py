@@ -96,8 +96,7 @@ class BouncingBall3D(Fmi2Slave):
             self.posZ += self.speedZ * dt + 0.5 * self.accelerationZ * dt**2
             self.speedZ += self.accelerationZ * dt
             self.time += dt
-        if self.posZ < 0:  # avoid numeric issues
-            self.posZ = 0
+        self.posZ = max(self.posZ, 0)
         return True
 
     def next_bounce(self):
@@ -106,11 +105,10 @@ class BouncingBall3D(Fmi2Slave):
         """
         if self.stopped:  # stopped bouncing
             return (1e300, np.array((1e300, 1e300, 0), float))
-        else:
-            dt_bounce = (self.speedZ + sqrt(self.speedZ**2 + 2 * self.g * self.posZ)) / self.g
-            p_bounceX = self.posX + self.speedX * dt_bounce  # linear in x and y!
-            p_bounceY = self.posY + self.speedY * dt_bounce
-            return (self.time + dt_bounce, p_bounceX, p_bounceY)
+        dt_bounce = (self.speedZ + sqrt(self.speedZ**2 + 2 * self.g * self.posZ)) / self.g
+        p_bounceX = self.posX + self.speedX * dt_bounce  # linear in x and y!
+        p_bounceY = self.posY + self.speedY * dt_bounce
+        return (self.time + dt_bounce, p_bounceX, p_bounceY)
 
     def setup_experiment(self, start: float):
         """Set initial (non-interface) variables."""

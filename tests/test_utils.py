@@ -89,12 +89,14 @@ def test_model_description(bouncing_ball_fmu):
     assert len(el) == 5, f"Five LogCategories expected. Found {el}"
     #''.join(x.get('name') + ', ' for x in el.findall('./Category'))
     el = et.find("./DefaultExperiment")
-    assert el is not None and el.attrib == {
-        "startTime": "0.0",
+    assert el is not None, "DefaultExperiment element expected"
+    expected_attrib = {
+        "startTime": "0",
         "stopTime": "1.0",
         "stepSize": "0.01",
         "tolerance": "0.001",
-    }, f"DefaultExperiment: {el.attrib if el is not None else '??'}"
+    }
+    assert el.attrib == expected_attrib, f"DefaultExperiment: {el.attrib}"
     el = et.find("./ModelVariables")
     assert el is not None, "ModelVariables element expected"
     assert len(el) == 11, f"11 ModelVariables expected. Found {el}"

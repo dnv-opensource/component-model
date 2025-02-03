@@ -27,8 +27,7 @@ class GetFromCode(SphinxDirective):
             sSub, _, sObj = sObj.partition(".")
             if not hasattr(obj, sSub):
                 raise KeyError(f"Attribute {sSub} not found in {obj}") from None
-            else:
-                obj = getattr(obj, sSub)
+            obj = getattr(obj, sSub)
         print(
             "INFO [" + self.arguments[0] + "] Type:",
             type(obj),
