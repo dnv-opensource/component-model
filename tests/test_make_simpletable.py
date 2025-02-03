@@ -98,13 +98,13 @@ def test_inputtable_class(
         )
 
     if not interpolate:
-        assert tbl._outs.range[0] == (float("-inf"), float("inf")), (
+        assert all(tbl._outs.range[0][c] == (float("-inf"), float("inf"))[c] for c in range(2)), (
             f"Error in expected range of outputs, row 0. Found {tbl._outs.range[0]}"
         )
     assert all(tbl.outs[c] == (1, 2, 3)[c] for c in range(tbl._cols)), (
         f"Error in expected outs (row 0). Found {tbl.outs}"
     )
-    tbl.setup_experiment(1.0)
+    tbl.setup_experiment(start=1.0)
     assert tbl.start_time == 1.0, f"Start time {tbl.start_time}?"
     tbl.enter_initialization_mode()  # iterate to row 0 (start_time)
     tbl.set_values(time=5.0)  # should iterate to row 2 and return interval (3,7)
