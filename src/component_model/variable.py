@@ -609,7 +609,9 @@ class Variable(ScalarVariable):
                     # transform to base units ('SI' units). All internal calculations will be performed with these
                     val, ub, display = self._get_transformation(q)
                 else:
-                    raise VariableInitError(f"Unknown quantity {quantity} to disect") from None
+                    # TODO @ClaasRostock: Improve the program logic / flow here. The ruff error TRY301 is valid.
+                    #      ClaasRostock, 2025-02-03
+                    raise VariableInitError(f"Unknown quantity {quantity} to disect")  # noqa: TRY301
             # no recognized units. Assume a free string. ??Maybe we should be more selective about the exact error type:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"Unhandled quantity {quantity}: {e}. A str? Set explicit 'typ=str'.")

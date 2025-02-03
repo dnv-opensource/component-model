@@ -90,15 +90,15 @@ def model_parameters(  # noqa: C901
             if Fmi2Slave in mro and not inspect.isabstract(obj):
                 modelclasses.update({obj: len(mro)})
     if not len(modelclasses):
-        raise ValueError(f"No child class of Fmi2Slave found in module {src}") from None
+        raise ValueError(f"No child class of Fmi2Slave found in module {src}")
     model = None
     init = None
     maxlen = max(n for n in modelclasses.values())
     classes = [c for c, n in modelclasses.items() if n == maxlen]
     if not len(classes):
-        raise ValueError(f"No child class of Fmi2Slave found in module {src}") from None
+        raise ValueError(f"No child class of Fmi2Slave found in module {src}")
     if len(classes) > 1:
-        raise ValueError(f"Non-unique Fmi2Slave-derived class in module {src}. Found {classes}.") from None
+        raise ValueError(f"Non-unique Fmi2Slave-derived class in module {src}. Found {classes}.")
     model = classes[0]
     for name, obj in inspect.getmembers(model):
         if inspect.isfunction(obj) and name == "__init__":
