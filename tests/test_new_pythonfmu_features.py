@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
-from fmpy import plot_result, simulate_fmu  # type: ignore
+from fmpy import plot_result, simulate_fmu
 from libcosimpy.CosimEnums import CosimErrorCode, CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimLogging import CosimLogLevel, log_output_level

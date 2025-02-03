@@ -1,8 +1,7 @@
 from enum import Enum, EnumType
 
-# import pythonfmu.enums # type: ignore
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Variability as Variability
 
 
 class Initial(Enum):
@@ -85,15 +84,15 @@ def check_causality_variability_initial(
     *,
     msg: bool = True,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:
-    _causality = ensure_enum(causality, Causality, Causality.parameter)  # type: ignore
-    _variability = ensure_enum(variability, Variability, Variability.constant)  # type: ignore
-    res = combination(_variability, _causality)  # type: ignore
+    _causality = ensure_enum(org=causality, typ=Causality, default=Causality.parameter)
+    _variability = ensure_enum(org=variability, typ=Variability, default=Variability.constant)
+    res = combination(var=_variability, caus=_causality)
     if res in ("a", "b", "c", "d", "e"):  # combination is not allowed
         if msg:
             print(f"Combination causality {_causality} + variability {variability} is not allowed: {explanations[res]}")
         return (None, None, None)
     # allowed
-    _initial = ensure_enum(initial, Initial, initial_default[res][0])  # type: ignore
+    _initial = ensure_enum(org=initial, typ=Initial, default=initial_default[res][0])
     if _initial not in initial_default[res][1]:
         if msg:
             print(f"Causality {_causality} + variability {_variability} + Initial {_initial} is not allowed")

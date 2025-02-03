@@ -6,9 +6,9 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from libcosimpy.CosimExecution import CosimExecution  # type: ignore
-from libcosimpy.CosimObserver import CosimObserver  # type: ignore
-from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
+from libcosimpy.CosimExecution import CosimExecution
+from libcosimpy.CosimObserver import CosimObserver
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 
 class SimulatorStatus(Enum):

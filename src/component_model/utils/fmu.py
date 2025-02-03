@@ -127,7 +127,7 @@ def variables_from_fmu(  # noqa: C901
         return (kwa, sub)
 
     idx = 0
-    while el is not None and len(el) and idx < len(el) - 1:  # type: ignore
+    while el is not None and len(el) and idx < len(el) - 1:
         var = el[idx]
         kwargs, sub = get_basic_kwargs(var)
         start = [get_start(var[0], kwargs["_typ"])]

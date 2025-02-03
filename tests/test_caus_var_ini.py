@@ -1,8 +1,8 @@
 import pytest
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Variability as Variability
 
-import component_model.caus_var_ini as cvi  # type: ignore
+import component_model.caus_var_ini as cvi
 
 
 def test_combinations():

@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from collections.abc import Callable
 from enum import Enum, IntFlag
 from functools import partial
 from math import acos, atan2, cos, degrees, radians, sin, sqrt
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from pint import Quantity  # management of units
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
-from pythonfmu.variables import ScalarVariable  # type: ignore
+from pythonfmu.variables import ScalarVariable
 
 from component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
 from component_model.utils.logger import get_module_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pythonfmu.enums import Fmi2Causality as Causality
+    from pythonfmu.enums import Fmi2Variability as Variability
 
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum
@@ -308,7 +311,7 @@ class Variable(ScalarVariable):
 
         if issubclass(self._typ, Enum):  # Enum types are supplied as int. Convert
             for i in range(self._len):
-                value[i] = self._typ(value[i])  # type: ignore
+                value[i] = self._typ(value[i])
 
         if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
             if not self.check_range(value, idx):
@@ -322,11 +325,11 @@ class Variable(ScalarVariable):
                 if isinstance(value, tuple):  # tuples cannot be changed
                     value = list(value)
                 for i in range(self._len):
-                    if value[i] is not None and self._display[i] is not None:  # type: ignore
-                        value[i] = self.display[i][1](value[i])  # type: ignore
+                    if value[i] is not None and self._display[i] is not None:
+                        value[i] = self.display[i][1](value[i])
 
         if self._len == 1:
-            setattr(self.owner, self.local_name, value[0] if self.on_set is None else self.on_set(value[0]))  # type: ignore
+            setattr(self.owner, self.local_name, value[0] if self.on_set is None else self.on_set(value[0]))
         elif isinstance(idx, int):
             if value is not None:
                 getattr(self.owner, self.local_name)[idx] = value
@@ -443,7 +446,7 @@ class Variable(ScalarVariable):
                 except Exception as err:
                     raise VariableRangeError(f"Incompatible types range {rng} - {self.start}") from err
                 assert all(isinstance(x, self._typ) for x in i_range)
-                _range.append(tuple(i_range))  # type: ignore
+                _range.append(tuple(i_range))
             else:
                 raise AssertionError(f"init_range(): Unhandled range argument {rng}")
         return tuple(_range)
@@ -500,7 +503,7 @@ class Variable(ScalarVariable):
                 _val = self._display[idx]
                 assert isinstance(_val, tuple)
                 value = _val[2](value)
-            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
+            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]
         raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
 
     def fmi_type_str(self, val: PyType) -> str:
@@ -610,9 +613,9 @@ class Variable(ScalarVariable):
             # no recognized units. Assume a free string. ??Maybe we should be more selective about the exact error type:
             except Exception as warn:
                 logger.warning(f"Unhandled quantity {quantity}: {warn}. A str? Set explicit 'typ=str'.")
-                val, ub, display = (str(quantity), "", None)  # type: ignore
+                val, ub, display = (str(quantity), "", None)
         else:
-            val, ub, display = (quantity, "dimensionless", None)  # type: ignore
+            val, ub, display = (quantity, "dimensionless", None)
         if self._typ is not None and type(val) is not self._typ:  # check variable type
             try:  # try to convert the magnitude to the correct type.
                 val = self._typ(val)

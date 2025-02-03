@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-from fmpy import simulate_fmu  # type: ignore
-from pythonfmu import (  # type: ignore
+from fmpy import simulate_fmu
+from pythonfmu import (
     Boolean,
     DefaultExperiment,
     Fmi2Causality,

@@ -6,9 +6,9 @@ from zipfile import ZipFile
 
 import matplotlib.pyplot as plt
 import pytest
-from fmpy import plot_result, simulate_fmu  # type: ignore
-from fmpy.util import fmu_info  # type: ignore
-from fmpy.validation import validate_fmu  # type: ignore
+from fmpy import plot_result, simulate_fmu
+from fmpy.util import fmu_info
+from fmpy.validation import validate_fmu
 from libcosimpy.CosimEnums import CosimErrorCode, CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator

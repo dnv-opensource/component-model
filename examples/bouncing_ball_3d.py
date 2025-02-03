@@ -49,7 +49,7 @@ class BouncingBall3D(Model):
         self.time = 0.0
         self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
         # provoke an update at simulation start:
-        self.t_bounce, self.p_bounce = (-1.0, self.pos)  # type: ignore
+        self.t_bounce, self.p_bounce = (-1.0, self.pos)
 
     def do_step(self, _, dt):
         """Perform a simulation step from `self.time` to `self.time + dt`.

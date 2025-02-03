@@ -4,13 +4,13 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from fmpy import simulate_fmu  # type: ignore
-from fmpy.util import fmu_info  # type: ignore
-from fmpy.validation import validate_fmu  # type: ignore
+from fmpy import simulate_fmu
+from fmpy.util import fmu_info
+from fmpy.validation import validate_fmu
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution
-from libcosimpy.CosimManipulator import CosimManipulator  # type: ignore
-from libcosimpy.CosimObserver import CosimObserver  # type: ignore
+from libcosimpy.CosimManipulator import CosimManipulator
+from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
 from sim_explorer.utils.osp import make_osp_system_structure
 
