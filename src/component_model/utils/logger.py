@@ -107,6 +107,7 @@ class MsgCounterHandler(logging.StreamHandler):
             return self.levelcount
         if len(levels) == 1:  # return only the requested number
             return self.levelcount[levels[0]]
+        return None
 
 
 def get_module_logger(mod_name: str, level: int = logging.DEBUG):

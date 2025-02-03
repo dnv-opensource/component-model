@@ -1,5 +1,3 @@
-# pyright: reportAttributeAccessIssue=false
-# pyright: reportOptionalMemberAccess=false
 from math import sqrt
 
 import numpy as np
