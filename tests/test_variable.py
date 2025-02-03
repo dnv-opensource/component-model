@@ -210,7 +210,7 @@ def init_model_variables():
         start=("1.0", "2.0", "3.0"),
         rng=((0, float("inf")), (0, float("inf")), (0, float("inf"))),
         on_set=lambda val: 0.9 * val,
-        on_step=lambda t, dt: mod.np2[0](dt * mod.np2[0]),
+        on_step=lambda dt: mod.np2[0](dt * mod.np2[0]),
     )
     assert hasattr(mod, "np2")
     return (mod, int1, int2, float1, enum1, str1, np1, np2, bool1)

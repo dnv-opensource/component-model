@@ -9,7 +9,7 @@ from abc import abstractmethod
 from enum import Enum
 from math import log
 from pathlib import Path
-from typing import ClassVar, TypeAlias
+from typing import Any, ClassVar, TypeAlias
 
 import numpy as np
 from pint import UnitRegistry
@@ -104,7 +104,7 @@ class Model(Fmi2Slave):
         default_experiment: dict[str, float] | None = None,
         flags: dict | None = None,
         guid=None,
-        **kwargs,
+        **kwargs: Any,  # noqa: ANN401
     ):
         kwargs.update(
             {
@@ -341,7 +341,7 @@ class Model(Fmi2Slave):
         script: str | Path = "",
         project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
-        documentation_folder: Path | None = None,
+        documentation_folder: Path | None = None,  # TODO @EisDNV: This argument is not used. Remove?  # noqa: ARG004
     ):
         """Build the FMU, resulting in the model-name.fmu file.
 

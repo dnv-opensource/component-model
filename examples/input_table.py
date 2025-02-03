@@ -22,7 +22,7 @@ class InputTable(Model):
     def __init__(
         self,
         name: str,
-        description: str,
+        description: str,  # noqa: ARG002
         author="Siegfried Eisinger",
         version="0.1",
         table: tuple = (),
@@ -80,7 +80,11 @@ class InputTable(Model):
             on_set=self.set_ranges,  # need to adapt ranges when 'interpolate' changes
         )
 
-    def do_step(self, time, dt):
+    def do_step(
+        self,
+        time,
+        dt,  # noqa: ARG002
+    ):
         """Do a simulation step of size 'stepSize at time 'time."""
         # super().do_step( time, stepSize) # this is not called here, because there are no on_set and other general issues
         self.set_values(time)

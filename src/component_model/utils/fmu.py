@@ -17,8 +17,8 @@ from component_model.utils.xml import read_xml, xml_to_python_val
 def model_from_fmu(
     fmu: str | Path,
     *,
-    provideMsg: bool = False,
-    sep=".",
+    provide_msg: bool = False,  # TODO @EisDNV: This argument is not used. Remove?  # noqa: ARG001
+    sep: str = ".",  # TODO @EisDNV: This argument is not used. Remove?  # noqa: ARG001
 ) -> dict:
     """Generate a Model from an FMU (excluding the inner working functions like `do_step()`),
     i.e. partially reverse-engineering a FMU.

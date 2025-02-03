@@ -95,5 +95,9 @@ class DrivingForce:
         self.func = func
         self.out = np.array((0, 0, 0), float)
 
-    def do_step(self, time: float, dt: float):
+    def do_step(
+        self,
+        time: float,
+        dt: float,  # noqa: ARG002
+    ):
         self.out = self.func(time)
