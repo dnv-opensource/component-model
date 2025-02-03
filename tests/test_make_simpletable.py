@@ -71,10 +71,10 @@ def _linear(t: float, tt: tuple | list, xx: tuple | list):
 def _to_et(file: str, sub: str = "modelDescription.xml"):
     with ZipFile(file) as zp:
         xml = zp.read(sub)
-    return ET.fromstring(xml)
+    return ET.fromstring(xml)  # noqa: S314
 
 
-def test_inputtable_class(
+def test_inputtable_class(  # noqa: C901
     *,
     interpolate=False,
 ):

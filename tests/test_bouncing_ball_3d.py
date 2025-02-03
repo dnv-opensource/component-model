@@ -39,7 +39,7 @@ def arrays_equal(arr1, arr2, eps=1e-7):
 def _to_et(file: str, sub: str = "modelDescription.xml"):
     with ZipFile(file) as zp:
         xml = zp.read(sub)
-    return ET.fromstring(xml)
+    return ET.fromstring(xml)  # noqa: S314
 
 
 def do_show(result: list):

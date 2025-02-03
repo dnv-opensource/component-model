@@ -1,5 +1,6 @@
 """Python module as container for a (FMU) component model."""
 
+import contextlib
 import datetime
 import os
 import tempfile
@@ -143,7 +144,7 @@ class Model(Fmi2Slave):
         self.ureg = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         self.guid = guid if guid is not None else uuid.uuid4().hex
-        #        print("FLAGS", flags)
+        #        logger.info("FLAGS", flags)
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
@@ -500,7 +501,7 @@ class Model(Fmi2Slave):
                 "radian" in str(ubase.units)
             ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
                 # udeg = str(ubase.units).replace("radian", "degree")
-                # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
+                # logger.info("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
                 exponents.update(
                     {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
                 )
@@ -695,8 +696,8 @@ class Model(Fmi2Slave):
                     #      ClaasRostock, 2025-02-03
                     i, vr = next(it)  # noqa: PLW2901
                 sub = None
-            # print(f"VAR_ITER whole {var.name} at {vr}")
-            # print(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
+            # logger.info(f"VAR_ITER whole {var.name} at {vr}")
+            # logger.info(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
             yield (var, sub)
 
     def _get(self, vrs: list[int] | tuple[int, ...], typ: type) -> list:

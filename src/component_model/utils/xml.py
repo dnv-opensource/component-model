@@ -44,20 +44,22 @@ def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
                     xml_string = zp.read(sub).decode()
             except Exception:
                 raise BadZipFile(f"Not able to read zip file {xml} or {sub} not found in zipfile") from None
-            el = ET.fromstring(xml_string)
+            el = ET.fromstring(xml_string)  # noqa: S314
         else:
             try:
-                el = ET.parse(path).getroot()  # try to read the file directly, assuming a modelDescription.xml file
+                # try to read the file directly, assuming a modelDescription.xml file
+                el = ET.parse(path).getroot()  # noqa: S314
             except Exception:
                 raise AssertionError(f"Could not parse xml file {path}") from None
     elif Path(path, sub).exists():  # unzipped xml path was provided
         try:
-            el = ET.parse(Path(path, sub)).getroot()
+            el = ET.parse(Path(path, sub)).getroot()  # noqa: S314
         except ET.ParseError:
             raise AssertionError(f"Could not parse xml file {Path(path, sub)}") from None
     elif isinstance(xml, str):
         try:
-            el = ET.fromstring(xml)  # try as literal string
+            # try as literal string
+            el = ET.fromstring(xml)  # noqa: S314
         except ET.ParseError as err:
             raise AssertionError(
                 f"Error when parsing {xml} as xml file. Error code {err.code} at {err.position}"
