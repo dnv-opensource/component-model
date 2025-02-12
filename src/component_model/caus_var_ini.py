@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, EnumType
 
 # import pythonfmu.enums # type: ignore
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -62,24 +62,25 @@ explanations = {
 }
 
 
-def ensure_enum(org: str | Enum | None, typ: Enum, default: Enum | None) -> Enum | None:
+def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum:
     """Ensure that we have an Enum, based on the input as str, Enum or None."""
     if org is None:
+        assert default is not None, "default value needed at this stage"
         return default
     elif isinstance(org, str):
+        assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
         try:
-            return typ[org]  # type: ignore
+            return typ[org]
         except KeyError as err:
             raise Exception(f"The value {org} is not compatible with the Enum {typ}: {err}") from err
-            return None
     else:
-        assert isinstance(org, typ), f"{org} is not member of the Enum {typ}"  # type: ignore
+        assert isinstance(org, typ), f"{org} is not member of the Enum {typ}"
         return org
 
 
 def check_causality_variability_initial(
-    causality: str | Enum | None,
-    variability: str | Enum | None,
+    causality: str | EnumType | None,
+    variability: str | EnumType | None,
     initial: str | Enum | None,
     msg: bool = True,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:

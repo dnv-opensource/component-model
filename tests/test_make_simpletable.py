@@ -17,13 +17,6 @@ from sim_explorer.utils.osp import make_osp_system_structure
 from component_model.model import Model
 
 
-def check_expected(value, expected, feature: str):
-    if isinstance(expected, float):
-        assert abs(value - expected) < 1e-10, f"Expected the {feature} '{expected}', but found the value {value}"
-    else:
-        assert value == expected, f"Expected the {feature} '{expected}', but found the value {value}"
-
-
 @pytest.fixture(scope="session")
 def simple_table_fmu():
     return _simple_table_fmu()
@@ -34,7 +27,7 @@ def _simple_table_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent.parent / "examples" / "simple_table.py"),
+        script=str(Path(__file__).parent.parent / "examples" / "simple_table.py"),
         project_files=[Path(__file__).parent.parent / "examples" / "input_table.py"],
         dest=build_path,
     )
@@ -93,20 +86,20 @@ def test_inputtable_class(interpolate=False):
         f"Expected time array [0,1,3,7]. Found {tbl.times}"
     )
     for r in range(tbl._rows):
-        check_expected(
-            all(tbl.outputs[r][c] == [[1, 2, 3], [4, 5, 6], [7, 8, 9], [8, 8, 8]][r][c] for c in range(tbl._cols)),
-            True,
-            f"Error in expected outputs, row {r}. Found {tbl.outputs[r]}",
+        expected = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [8, 8, 8]][r]
+        assert all(expected[c] == tbl.outputs[r][c] for c in range(3)), (
+            f"Error in expected outputs, row {r}. Found {tbl.outputs[r]}"
         )
+
     if not interpolate:
-        assert all(tbl._outs.range[0][c] == (float("-inf"), float("inf"))[c] for c in range(2)), (
+        assert tbl._outs.range[0] == (float("-inf"), float("inf")), (
             f"Error in expected range of outputs, row 0. Found {tbl._outs.range[0]}"
         )
     assert all(tbl.outs[c] == (1, 2, 3)[c] for c in range(tbl._cols)), (
         f"Error in expected outs (row 0). Found {tbl.outs}"
     )
     tbl.setup_experiment(1.0)
-    check_expected(tbl.start_time, 1.0, "Start time")
+    assert tbl.start_time == 1.0, f"Start time {tbl.start_time}?"
     tbl.enter_initialization_mode()  # iterate to row 0 (start_time)
     tbl.set_values(time=5.0)  # should iterate to row 2 and return interval (3,7)
     for r, time in enumerate(tbl.times):
@@ -118,7 +111,7 @@ def test_inputtable_class(interpolate=False):
         tbl.set_values(time)
         if tbl.times[0] <= time <= tbl.times[-1]:  # no extrapolation
             if interpolate:
-                expected = np.array([np.interp(time, tbl.times, tbl.outputs[:, c]) for c in range(tbl._cols)])
+                expected = [np.interp(time, tbl.times, tbl.outputs[:, c]) for c in range(tbl._cols)]
                 assert all(tbl.outs[k] == expected[k] for k in range(len(tbl.outs))), f"Got {tbl.outs} != {expected}"
         if not interpolate:
             if time <= tbl.times[0]:
@@ -153,7 +146,7 @@ def test_make_simpletable(simple_table_fmu):
 
 
 def test_use_fmu_interpolation(simple_table_fmu):
-    result = simulate_fmu(
+    result = simulate_fmu(  # type: ignore[reportArgumentType]
         simple_table_fmu,
         stop_time=10.0,
         step_size=0.1,
@@ -167,17 +160,16 @@ def test_use_fmu_interpolation(simple_table_fmu):
     _x = (1, 4, 7, 8)
     _y = (2, 5, 8, 7)
     _z = (3, 6, 9, 6)
+    tt = 0  #!! results are retrieved prior to the step, i.e. y_i+1 = f(y_i, ...)
     for t, x, y, z in result:
-        if t == 0:
-            tt = 0  #!! results are retrieved prior to the step, i.e. y_i+1 = f(y_i, ...)
-        check_expected(_linear(tt, _t, _x), x, f"Linear interpolated x at t={tt}")
-        check_expected(_linear(tt, _t, _y), y, f"Linear interpolated y at t={tt}")
-        check_expected(_linear(tt, _t, _z), z, f"Linear interpolated z at t={tt}")
+        assert abs(_linear(tt, _t, _x) - x) < 1e-10, f"Linear interpolated x at t={tt}"
+        assert abs(_linear(tt, _t, _y) - y) < 1e-10, f"Linear interpolated y at t={tt}"
+        assert abs(_linear(tt, _t, _z) - z) < 1e-10, f"Linear interpolated z at t={tt}"
         tt = t
 
 
 def test_use_fmu_no_interpolation(simple_table_fmu):
-    result = simulate_fmu(
+    result = simulate_fmu(  # type: ignore[reportArgumentType]
         simple_table_fmu,
         stop_time=10.0,
         step_size=0.1,
@@ -260,9 +252,9 @@ def test_run_osp_system_structure(simple_table_system_structure):
             assert observer.last_boolean_values(0, [3]) == [True]
         values = observer.last_real_values(0, [0, 1, 2])
         # print(f"Time {time/1e9}: {values}, linear x:{_linear(time-0.01, _t, _x)}")
-        check_expected(_linear(time - 0.01, _t, _x), values[0], f"Linear interpolated x at t={time - 0.01}")
-        check_expected(_linear(time - 0.01, _t, _y), values[1], f"Linear interpolated y at t={time - 0.01}")
-        check_expected(_linear(time - 0.01, _t, _z), values[2], f"Linear interpolated z at t={time - 0.01}")
+        assert abs(_linear(time - 0.01, _t, _x) - values[0]) < 1e-10, f"Linear interpolated x at t={time - 0.01}"
+        assert abs(_linear(time - 0.01, _t, _y) - values[1]) < 1e-10, f"Linear interpolated y at t={time - 0.01}"
+        assert abs(_linear(time - 0.01, _t, _z) - values[2]) < 1e-10, f"Linear interpolated z at t={time - 0.01}"
 
 
 if __name__ == "__main__":
@@ -271,6 +263,9 @@ if __name__ == "__main__":
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
-    # test_make_simpletable(_simple_table_fmu())
     # test_inputtable_class()
+    # test_make_simpletable(_simple_table_fmu())
+    # test_use_fmu_interpolation(_simple_table_fmu())
+    # test_use_fmu_no_interpolation(_simple_table_fmu())
+    # test_run_osp(_simple_table_fmu())
     # test_run_osp_system_structure(_simple_table_system_structure(_simple_table_fmu()))

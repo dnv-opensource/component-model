@@ -13,6 +13,7 @@ import numpy as np
 from pint import UnitRegistry
 from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore
 from pythonfmu import __version__ as pythonfmu_version
+from pythonfmu.default_experiment import DefaultExperiment
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
@@ -98,7 +99,7 @@ class Model(Fmi2Slave):
         unit_system="SI",
         license: str | None = None,
         copyright: str | None = None,
-        default_experiment: dict | None = None,
+        default_experiment: dict[str, float] | None = None,
         flags: dict | None = None,
         guid=None,
         **kwargs,
@@ -115,12 +116,22 @@ class Model(Fmi2Slave):
             }
         )
         self.name = name
-        if "instance_name" not in kwargs:
+        if "instance_name" not in kwargs:  # NOTE: within builder.py this is always changed to 'dummyInstance'
             kwargs["instance_name"] = self.name  # make_instancename(__name__)
         if "resources" not in kwargs:
             kwargs["resources"] = None
         super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
         # Additional variables which are hidden here: .vars,
+        # PythonFMU sets the default_experiment and the following items always to None! Correct it here
+        if default_experiment is None:
+            self.default_experiment = DefaultExperiment(start_time=0.0, stop_time=1.0, step_size=0.01, tolerance=1e-3)
+        else:
+            self.default_experiment = DefaultExperiment(
+                start_time=default_experiment.get("startTime", 0.0),
+                stop_time=default_experiment.get("stopTime", 1.0),
+                step_size=default_experiment.get("stepSize", 0.01),
+                tolerance=default_experiment.get("tolerance", 1e-3),
+            )
         self.description = description
         self.author = author
         self.version = version
@@ -129,14 +140,6 @@ class Model(Fmi2Slave):
         # use a common UnitRegistry for all variables:
         self.ureg = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
-        if default_experiment is None:  # PythonFMU.DefaultExperiment not used!
-            self.default_experiment = {
-                "startTime": 0,
-                "stopTime": 1.0,
-                "stepSize": 0.01,
-            }
-        else:
-            self.default_experiment = default_experiment
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
@@ -249,7 +252,7 @@ class Model(Fmi2Slave):
         """
         return Variable(self, *args, **kwargs)
 
-    def variable_by_name(self, name: str, msg: str | None = None):
+    def variable_by_name(self, name: str) -> Variable:
         """Return Variable object related to name, or None, if not found.
         For compound variables, the parent variable is returned
         irrespective of whether an index (`[#]`) is included or not
@@ -268,9 +271,7 @@ class Model(Fmi2Slave):
                                 return var
                         except Exception:
                             pass
-        if msg is not None:
-            raise ModelInitError(msg)
-        return None
+        raise KeyError(f"Variable {name} not found in model {self.name}") from None
 
     def make_copyright_license(self, copyright: str | None = None, license: str | None = None):
         """Prepare a copyright notice (one line) and a license text (without copyright line).
@@ -451,18 +452,7 @@ class Model(Fmi2Slave):
                     )
                 )
         if self.default_experiment is not None:
-            for a in self.default_experiment:  # check the dict
-                assert a in (
-                    "startTime",
-                    "stopTime",
-                    "stepSize",
-                    "tolerance",
-                ), f"DefaultExperiment key {a} unknown"
-            ET.SubElement(
-                root,
-                "DefaultExperiment",
-                {k: str(v) for k, v in self.default_experiment.items()},
-            )
+            root.append(self._xml_default_experiment())
 
         variables = self._xml_modelvariables()
         root.append(variables)  # append <ModelVariables>
@@ -518,6 +508,20 @@ class Model(Fmi2Slave):
                 )
             defs.append(unit)
         return defs
+
+    def _xml_default_experiment(self):
+        if self.default_experiment is not None:
+            attrib = dict()
+            if self.default_experiment.start_time is not None:
+                attrib["startTime"] = str(self.default_experiment.start_time)
+            if self.default_experiment.stop_time is not None:
+                attrib["stopTime"] = str(self.default_experiment.stop_time)
+            if self.default_experiment.step_size is not None:
+                attrib["stepSize"] = str(self.default_experiment.step_size)
+            if self.default_experiment.tolerance is not None:
+                attrib["tolerance"] = str(self.default_experiment.tolerance)
+        de = ET.Element("DefaultExperiment", attrib)
+        return de
 
     def _xml_modelvariables(self):
         """Generate the FMI2 modelDescription.xml sub-tree <ModelVariables>."""
@@ -646,7 +650,7 @@ class Model(Fmi2Slave):
             else:  # found the base of the variable
                 return (var, vr - _vr)
 
-    def _var_iter(self, vrs: list[int]):
+    def _var_iter(self, vrs: list[int] | tuple[int, ...]):
         """Convert a list of value_reference integers into a variable object iterator.
         Take also compound variables into account:
           If all variables are listed, include the compound object in the result.
@@ -675,7 +679,7 @@ class Model(Fmi2Slave):
             # print(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
             yield (var, sub)
 
-    def _get(self, vrs: list, typ: type) -> list:
+    def _get(self, vrs: list[int] | tuple[int, ...], typ: type) -> list:
         """Get variables of all types based on references.
         This method is called by get_xxx and translates to fmi2GetXxx.
         """
@@ -693,19 +697,19 @@ class Model(Fmi2Slave):
                 values.append(val)
         return values
 
-    def get_integer(self, vrs):
+    def get_integer(self, vrs: list[int] | tuple[int, ...]):
         return self._get(vrs, int)
 
-    def get_real(self, vrs):
+    def get_real(self, vrs: list[int] | tuple[int, ...]):
         return self._get(vrs, float)
 
-    def get_boolean(self, vrs):
+    def get_boolean(self, vrs: list[int] | tuple[int, ...]):
         return self._get(vrs, bool)
 
-    def get_string(self, vrs):
+    def get_string(self, vrs: list[int] | tuple[int, ...]):
         return self._get(vrs, str)
 
-    def _set(self, vrs: list, values: list, typ: type):
+    def _set(self, vrs: list[int] | tuple[int, ...], values: list | tuple, typ: type):
         """Set variables of all types. This method is called by set_xxx and translates to fmi2SetXxx.
         Variable range check, unit check and type check are performed by setter() function.
         on_set (if defined) is only run if the whole variable (all elements) are set.
@@ -724,16 +728,16 @@ class Model(Fmi2Slave):
                 var.setter(values[idx], idx=None)
             idx += 1
 
-    def set_integer(self, vrs: list, values: list):
+    def set_integer(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
         self._set(vrs, values, int)
 
-    def set_real(self, vrs: list, values: list):
+    def set_real(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
         self._set(vrs, values, float)
 
-    def set_boolean(self, vrs: list, values: list):
+    def set_boolean(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
         self._set(vrs, values, bool)
 
-    def set_string(self, vrs: list, values: list):
+    def set_string(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
         self._set(vrs, values, str)
 
     def _get_fmu_state(self) -> dict:

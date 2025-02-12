@@ -23,6 +23,10 @@ class DummyModel(Model):
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu(tmp_path_factory):
+    return _bouncing_ball_fmu()
+
+
+def _bouncing_ball_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
@@ -104,7 +108,10 @@ def test_xml():
     assert et.find(".//LogCategories") is not None
     assert et.find(".//DefaultExperiment") is not None
     de = et.find(".//DefaultExperiment")
-    assert de is not None and ET.tostring(de) == b'<DefaultExperiment startTime="0" stopTime="1.0" stepSize="0.01" />'
+    assert (
+        de is not None
+        and ET.tostring(de) == b'<DefaultExperiment startTime="0.0" stopTime="1.0" stepSize="0.01" tolerance="0.001" />'
+    )
     assert et.find(".//ModelVariables") is not None
     assert et.find(".//ModelVariables/ScalarVariable") is not None
     assert et.find(".//ModelStructure") is not None
@@ -135,3 +142,4 @@ if __name__ == "__main__":
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_license()
     # test_xml()
+    # test_from_fmu(_bouncing_ball_fmu())

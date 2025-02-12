@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false
+# pyright: reportOptionalMemberAccess=false
 from math import sqrt
 
 import numpy as np
@@ -108,7 +110,7 @@ class BouncingBall3D(Model):
         super().exit_initialization_mode()
         self.a = np.array((0, 0, -self.g), float)
 
-    def _interface(self, name: str, start: float | tuple):
+    def _interface(self, name: str, start: float | tuple) -> Variable:
         """Define a FMU2 interface variable, using the variable interface.
 
         Args:
@@ -171,3 +173,5 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
+        else:
+            raise KeyError(f"Interface variable {name} not included") from None

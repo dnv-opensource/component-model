@@ -18,7 +18,7 @@ from component_model.utils.logger import get_module_logger
 logger = get_module_logger(__name__, level=0)
 PyType: TypeAlias = str | int | float | bool | Enum
 Numeric: TypeAlias = int | float
-Compound: TypeAlias = tuple | list | np.ndarray
+Compound: TypeAlias = tuple[PyType, ...] | list[PyType] | np.ndarray
 
 
 class Check(IntFlag):
@@ -336,7 +336,7 @@ class Variable(ScalarVariable):
         else:
             setattr(self.owner, self.local_name, value if self.on_set is None else self.on_set(value))
 
-    def getter(self):
+    def getter(self) -> PyType | list[PyType]:
         """Get the value (output a value from the model), including range checking and unit conversion.
         The whole variable value is returned.
         The return value can be indexed/sliced to get elements of compound variables.
@@ -602,7 +602,7 @@ class Variable(ScalarVariable):
                 val = self._typ(val)
             except Exception as err:
                 raise VariableInitError(f"Value {val} is not of the correct type {self._typ}") from err
-        return val, ub, display
+        return (val, ub, display)
 
     def _get_transformation(self, q: Quantity) -> tuple[float, str, tuple | None]:
         """Identity base units and calculate the transformations between display and base units."""
