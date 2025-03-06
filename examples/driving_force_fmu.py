@@ -19,7 +19,7 @@ def func(time: float, ampl: float = 1.0, omega: float = 0.1):
     return np.array((0, 0, ampl * sin(omega * time)), float)
 
 
-class DrivingForceFMU(Model):
+class DrivingForce(Model):
     """A driving force in 3 dimensions which produces an ouput per time and can be connected to the oscillator.
 
     Note: This completely replaces DrivingForce (do_step and other functions are not re-used).
@@ -62,5 +62,5 @@ class DrivingForceFMU(Model):
 
     def exit_initialization_mode(self):
         """Set internal state after initial variables are set."""
-        self.func = partial(func, ampl=self.ampl, omega=self.freq / (2 * pi))
+        self.func = partial(func, ampl=self.ampl, omega=2* pi* self.freq )
         logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}")

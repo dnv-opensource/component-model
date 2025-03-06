@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-
 def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps=1e-7):
     assert len(res) == len(expected), (
         f"Tuples of different lengths cannot be equal. Found {len(res)} != {len(expected)}"
@@ -31,8 +30,7 @@ def do_show(time: list, z: list, v: list, compare1: list | None = None, compare2
 def force(t: float, ampl: float = 1.0, omega: float = 0.1):
     return np.array((0, 0, ampl * sin(omega * t)), float)
 
-
-def osc_(t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0):
+def forced_oscillator(t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0):
     """Calculates the expected (analytic) position and speed of a harmonic oscillator (in one dimension)
     with the given parameter setting.
 
@@ -42,6 +40,7 @@ def osc_(t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1
         a,wf (float): sinusoidal force parameters (amplitude and angular frequency)
         x0, v0 (float): start values for harmonic oscillator (force has fixed start values)
     """
+    from math import atan2, cos, exp, pi, sin, sqrt
 
     w0 = sqrt(k / m)  # omega0
     b = c / (2 * m)  # beta
@@ -80,6 +79,8 @@ def osc_(t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1
         return (x, v)
 
 
+
+
 def run_oscillation_z(
     k: float,
     c: float,
@@ -95,9 +96,9 @@ def run_oscillation_z(
     """Run the oscillator with the given settings for the given time (only z-direction activated)
     and return the oscillator object and the time series for z-position and z-velocity."""
 
-    from examples.oscillator import HarmonicOscillator
+    from examples.oscillator import Oscillator
 
-    osc = HarmonicOscillator(k=(1.0, 1.0, k), c=(0.0, 0.0, c), m=m, tolerance=tol)
+    osc = Oscillator(k=(1.0, 1.0, k), c=(0.0, 0.0, c), m=m, tolerance=tol)
     osc.x[2] = x0  # set initial z value
     osc.v[2] = v0  # set initial z-speed
     times, z, v = [], [], []
@@ -124,7 +125,7 @@ def test_oscillator_class(show):
     test_cases: list[tuple[float, float, float, float, float, float, str]] = [
         # k    c    m    a    w    x0   description
         (1.0, 0.0, 1.0, 0.0, 0.1, 1.0, "Oscillator without damping and force"),
-        (1.0, 0.2, 1.0, 0.0, 0.1, 1.0, "Oszillator include damping"),
+        (1.0, 0.2, 1.0, 0.0, 0.1, 1.0, "Oscillator include damping"),
         (1.0, 2.0, 1.0, 0.0, 0.1, 1.0, "Oscillator critically damped"),
         (1.0, 5.0, 1.0, 0.0, 0.1, 1.0, "Oscillator over-damped"),
         (1.0, 0.2, 1.0, 1.0, 0.5, 0.0, "Forced oscillation. Less than resonance freq"),
@@ -142,7 +143,7 @@ def test_oscillator_class(show):
             assert abs(osc.period[2] - cp) < 1e-12, f"Period: {osc.period} != {2 * pi}"
         x_expect, v_expect = [], []
         for ti in t:
-            _x, _v = osc_(ti, k, c, m, a, w, x0=x0)
+            _x, _v = forced_oscillator(ti, k, c, m, a, w, x0=x0)
             x_expect.append(_x)
             v_expect.append(_v)
         if show:
@@ -156,7 +157,7 @@ def test_oscillator_class(show):
 
 
 def test_2d(show):
-    from examples.oscillator import HarmonicOscillator
+    from examples.oscillator import Oscillator
 
     def run_2d(
         x0: tuple[float, float, float],
@@ -167,7 +168,7 @@ def test_2d(show):
         dt: float = 0.01,
         tolerance: float = 1e-5,
     ):
-        osc = HarmonicOscillator(k=k, c=c, tolerance=tolerance)
+        osc = Oscillator(k=k, c=c, tolerance=tolerance)
         osc.x = np.array(x0, float)  # set initial 3D position
         osc.v = np.array(v0, float)  # set initial 3D speed
         x, y = [], []
@@ -224,10 +225,7 @@ def test_2d(show):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    # test_oscillator_class(show=True)
+    test_oscillator_class( show=True)
     # test_2d(show=True)

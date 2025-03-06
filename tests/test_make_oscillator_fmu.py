@@ -45,7 +45,7 @@ def do_show(time: list[float], z: list[float], v: list[float]):
 
 
 def force(t: float, ampl: float = 1.0, omega: float = 0.1):
-    return np.array((0, 0, ampl * sin(omega * t)), dtype=float)
+    return np.array((0, 0, ampl * np.sin(omega * t)), dtype=float)
 
 
 @pytest.fixture(scope="session")
@@ -81,7 +81,6 @@ def _driver_fmu():
         project_files=[src],
         dest=build_path,
     )
-    print("DRIVER", fmu_path)
     return fmu_path
 
 
@@ -95,8 +94,8 @@ def _system_structure():
     path = make_osp_system_structure(
         name="ForcedOscillator",
         simulators={
-            "osc": {"source": "HarmonicOscillatorFMU.fmu", "stepSize": 0.01},
-            "drv": {"source": "DrivingForceFMU.fmu", "stepSize": 0.01},
+            "osc": {"source": "HarmonicOscillator.fmu", "stepSize": 0.01},
+            "drv": {"source": "DrivingForce.fmu", "stepSize": 0.01},
         },
         connections_variable=[("drv", "f[2]", "osc", "f[2]")],
         version="0.1",
@@ -129,7 +128,7 @@ def test_make_system_structure(system_structure: Path):
     el = from_xml(Path(system_structure))
     assert isinstance(el, ET.Element), f"ElementTree element expected. Found {el}"
     ns = el.tag.split("{")[1].split("}")[0]
-    print("NS", ns)
+    print("NS", ns, system_structure)
     for s in el.findall(".//{*}Simulator"):
         assert (Path(system_structure).parent / s.get("source", "??")).exists(), f"Component {s.get('name')} not found"
     for _con in el.findall(".//{*}VariableConnection"):
@@ -248,12 +247,12 @@ def test_run_osp_system_structure(system_structure: Path, show: bool):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    import os
+    # import os
 
-    os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
-    test_make_fmus(_oscillator_fmu(), _driver_fmu())
+    # os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    # test_make_fmus(_oscillator_fmu(), _driver_fmu())
     # test_make_system_structure( _system_structure())
     # test_use_fmu(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_osp(_oscillator_fmu(), _driver_fmu())

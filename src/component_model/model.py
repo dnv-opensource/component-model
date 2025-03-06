@@ -106,7 +106,6 @@ class Model(Fmi2Slave):
     ):
         kwargs.update(
             {
-                "modelName": name,
                 "description": description,
                 "author": author,
                 "version": version,
