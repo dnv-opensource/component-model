@@ -91,7 +91,7 @@ class InputTable(Model):
     def set_values(self, time: float):
         """Retrieve the vector of values for the given time."""
         # discrete values. Set the output values to the row values
-        if not self.interpolate:
+        if not self.interpolate:  # type: ignore[reportAttributeAccessIssue]
             if time <= self.times[0]:
                 self.outs = self.outputs[0]
             elif time >= self.times[-1]:

@@ -128,6 +128,7 @@ def variables_from_fmu(el: ET.Element | None, sep: str = "["):
         rng = [range_from_fmu(var[0])]
         # check whether the next variables are elements of the same:
         if sub == 0:
+            i = 0
             for i in range(1, len(el) - idx):
                 v = el[idx + i]
                 kwa, s = get_basic_kwargs(v)

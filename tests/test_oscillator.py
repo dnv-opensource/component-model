@@ -1,10 +1,9 @@
 from functools import partial
 from math import atan2, cos, exp, pi, sin, sqrt
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
+
 
 def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps=1e-7):
     assert len(res) == len(expected), (
@@ -30,7 +29,10 @@ def do_show(time: list, z: list, v: list, compare1: list | None = None, compare2
 def force(t: float, ampl: float = 1.0, omega: float = 0.1):
     return np.array((0, 0, ampl * sin(omega * t)), float)
 
-def forced_oscillator(t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0):
+
+def forced_oscillator(
+    t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0
+):
     """Calculates the expected (analytic) position and speed of a harmonic oscillator (in one dimension)
     with the given parameter setting.
 
@@ -40,7 +42,7 @@ def forced_oscillator(t: float, k: float, c: float, m: float, a: float = 0.0, wf
         a,wf (float): sinusoidal force parameters (amplitude and angular frequency)
         x0, v0 (float): start values for harmonic oscillator (force has fixed start values)
     """
-    from math import atan2, cos, exp, pi, sin, sqrt
+    from math import atan2, sin, sqrt
 
     w0 = sqrt(k / m)  # omega0
     b = c / (2 * m)  # beta
@@ -77,8 +79,6 @@ def forced_oscillator(t: float, k: float, c: float, m: float, a: float = 0.0, wf
         return (x + x_e, v + v_e)
     else:
         return (x, v)
-
-
 
 
 def run_oscillation_z(
@@ -225,7 +225,7 @@ def test_2d(show):
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    test_oscillator_class( show=True)
+    test_oscillator_class(show=True)
     # test_2d(show=True)

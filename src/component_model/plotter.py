@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from libcosimpy.CosimExecution import CosimExecution  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
-from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
+from mpl_toolkits.mplot3d.axes3d import Axes3D, Line3D  # type: ignore
 
 
 class SimulatorStatus(Enum):
@@ -193,7 +193,7 @@ class VisualSimulator:
             s="time=0",
             color="blue",
         )
-        plot = line
+        plot: Line3D = line
 
         while True:
             current_time, new_data = queue.get(block=True)

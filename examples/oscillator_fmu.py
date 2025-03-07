@@ -38,7 +38,8 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
         v0: tuple[float, float, float] | tuple[str, str, str] = (0.0, 0.0, 0.0),
         **kwargs: Any,
     ):
-        Model.__init__(self,  # here we define a few standard entries for FMU
+        Model.__init__(
+            self,  # here we define a few standard entries for FMU
             name="HarmonicOscillator",
             description="3D harmonic oscillator prepared for FMU packaging. 3D driving force can be connected",
             author="Siegfried Eisinger",
@@ -46,8 +47,8 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
             default_experiment={"startTime": 0.0, "stopTime": 10.0, "stepSize": 0.01, "tolerance": 1e-5},
             **kwargs,
         )
-        Oscillator.__init__(self, tolerance = 1e-3)
-        #super().__init__(tolerance = 1e-3) #self.default_experiment.tolerance)
+        Oscillator.__init__(self, tolerance=1e-3)
+        # super().__init__(tolerance = 1e-3) #self.default_experiment.tolerance)
         # interface Variables.
         # Note that the Variable object is accessible as self._<name>, while the value is self.<name>
         self._k = Variable(self, "k", "The 3D spring constant in N/m", start=k)
@@ -81,8 +82,8 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
         )
 
     def do_step(self, time: float, dt: float):
-        Model.do_step(self, time, dt) # some housekeeping functions (not really needed here)
-        Oscillator.do_step(self, time, dt) # this does the integration itself
+        Model.do_step(self, time, dt)  # some housekeeping functions (not really needed here)
+        Oscillator.do_step(self, time, dt)  # this does the integration itself
         return True  # very important for the FMU mechanism
 
     def exit_initialization_mode(self):
@@ -91,7 +92,7 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
         Note: need to update the ODE matrix to reflect changes in c, k or m!
         """
         self.ode = [np.array(((-self.c[i] / self.m, -self.k[i] / self.m), (1, 0)), float) for i in range(3)]
-        logger.info( f"Initial settings: k={self.k}, c={self.c}, m={self.m}, x={self.x}, v={self.v}, f={self.f}")
+        logger.info(f"Initial settings: k={self.k}, c={self.c}, m={self.m}, x={self.x}, v={self.v}, f={self.f}")
 
     # Note: The other FMU functions like .setup_experiment and  .exit_initialization_mode
     #       do not need special attention here and can be left out

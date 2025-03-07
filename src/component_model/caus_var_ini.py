@@ -29,7 +29,9 @@ def combination(var: Enum, caus: Enum):
     return combinations[var.value][caus.value]
 
 
-def use_start(causality: Causality, variability: Variability, initial: Initial) -> bool:
+def use_start(causality: Causality | None, variability: Variability | None, initial: Initial | None) -> bool:
+    if causality is None or variability is None or initial is None:
+        raise ValueError(f"None of the parameters {causality}, {variability}, {initial} should be None") from None
     return (
         initial in (Initial.exact, Initial.approx)
         or causality in (Causality.parameter, Causality.input)
@@ -39,7 +41,7 @@ def use_start(causality: Causality, variability: Variability, initial: Initial) 
 
 
 initial_default = {
-    #         default             possible values
+    #     default          possible values
     "A": (Initial.exact, (Initial.exact,)),
     "B": (Initial.calculated, (Initial.approx, Initial.calculated)),
     "C": (Initial.calculated, (Initial.exact, Initial.approx, Initial.calculated)),

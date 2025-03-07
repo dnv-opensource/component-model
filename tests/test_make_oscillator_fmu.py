@@ -1,7 +1,6 @@
 import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
-from math import sin
 from pathlib import Path
 from typing import Any
 
@@ -97,7 +96,7 @@ def _system_structure():
             "osc": {"source": "HarmonicOscillator.fmu", "stepSize": 0.01},
             "drv": {"source": "DrivingForce.fmu", "stepSize": 0.01},
         },
-        connections_variable=[("drv", "f[2]", "osc", "f[2]")],
+        connections_variable=(("drv", "f[2]", "osc", "f[2]"),),
         version="0.1",
         start=0.0,
         base_step=0.01,

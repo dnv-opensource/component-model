@@ -126,7 +126,7 @@ def test_make_fmu(build_fmu):
 
 
 def test_use_fmu(build_fmu):
-    _ = simulate_fmu(
+    _ = simulate_fmu(  # type: ignore #fmpy does not comply to pyright expectations
         build_fmu,
         stop_time=1,
         step_size=0.1,

@@ -72,7 +72,7 @@ dependencies = [
 modelTest = [
     "fmpy>=0.3.21",
     "matplotlib>=3.9.1",
-    "sim-explorer>=0.1",
+    "sim-explorer>=0.2",
 ]
 rest = [
     "docutils>=0.21",
@@ -136,4 +136,5 @@ include = [
 ]
 exclude = [
     "tests/test_working_directory",
+    "examples/new_pythonfmu_features*",
 ]

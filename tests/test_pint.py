@@ -5,9 +5,7 @@ import logging
 import pytest
 from pint import UnitRegistry
 
-from component_model.utils.logger import get_module_logger  # type: ignore
-
-logger = get_module_logger(__name__, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 _reg = UnitRegistry(system="SI", autoconvert_offset_to_baseunit=True)  # , auto_reduce_dimensions=True)
 

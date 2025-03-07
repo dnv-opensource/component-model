@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import tempfile
 import uuid
@@ -19,10 +20,9 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from component_model.caus_var_ini import Initial
-from component_model.utils.logger import get_module_logger
 from component_model.variable import Variable
 
-logger = get_module_logger(__name__, level=0)
+logger = logging.getLogger(__name__)
 Value: TypeAlias = str | int | float | bool | Enum
 
 
@@ -306,7 +306,7 @@ class Model(Fmi2Slave):
 
         if copyright is None:
             if copyright1 is None:  # make a new one
-                copyright = "Copyright (c) " + str(datetime.datetime.now().year) + " " + self.author
+                copyright = f"Copyright (c) {(datetime.datetime.now().year)} {self.author or 'anonymous'}"
             else:
                 copyright = copyright1
 
@@ -409,14 +409,14 @@ class Model(Fmi2Slave):
         t = datetime.datetime.now(datetime.timezone.utc)
         date_str = t.isoformat(timespec="seconds")
 
-        attrib = dict(
-            fmiVersion="2.0",
-            modelName=self.modelName,
-            guid=f"{self.guid!s}",
-            generationTool=f"PythonFMU {pythonfmu_version}",
-            generationDateAndTime=date_str,
-            variableNamingConvention="structured",
-        )
+        attrib: dict = {
+            "fmiVersion": "2.0",
+            "modelName": self.modelName or "myDummyModel",
+            "guid": f"{self.guid!s}",
+            "generationTool": f"PythonFMU {pythonfmu_version}",
+            "generationDateAndTime": date_str,
+            "variableNamingConvention": "structured",
+        }
         if self.description is not None:
             attrib["description"] = self.description
         if self.author is not None:
@@ -509,8 +509,8 @@ class Model(Fmi2Slave):
         return defs
 
     def _xml_default_experiment(self):
+        attrib: dict = {}
         if self.default_experiment is not None:
-            attrib = dict()
             if self.default_experiment.start_time is not None:
                 attrib["startTime"] = str(self.default_experiment.start_time)
             if self.default_experiment.stop_time is not None:
@@ -682,16 +682,18 @@ class Model(Fmi2Slave):
         """Get variables of all types based on references.
         This method is called by get_xxx and translates to fmi2GetXxx.
         """
-        values = list()
+        values: list = []
         for var, sub in self._var_iter(vrs):
+            assert isinstance(var.typ, type)
             check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
             val = var.getter()
             if var is not None and len(var) > 1:
-                if sub is None:
-                    values.extend(val)
-                else:
+                assert isinstance(val, (list, np.ndarray)), "Iterable expected here"
+                if isinstance(sub, int):  # one element
                     values.append(val[sub])
+                else:  # the whole vector
+                    values.extend(val)
             else:
                 values.append(val)
         return values
@@ -715,14 +717,15 @@ class Model(Fmi2Slave):
         """
         idx = 0
         for var, sub in self._var_iter(vrs):
+            assert isinstance(var.typ, type)
             check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.typ}"
             if var is not None and len(var) > 1:
-                if sub is None:  # set the whole vector
+                if isinstance(sub, int):  # one element
+                    var.setter(values[idx], sub)
+                else:  # set the whole vector
                     var.setter(values[idx : idx + len(var)], idx=None)
                     idx += len(var) - 1
-                else:
-                    var.setter(values[idx], sub)
             else:  # simple Variable
                 var.setter(values[idx], idx=None)
             idx += 1

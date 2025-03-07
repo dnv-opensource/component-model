@@ -1,3 +1,4 @@
+# pyright: ignore[reportAttributeAccessIssue] # PythonFMU generates variable value objects using setattr()
 import logging
 import math
 import xml.etree.ElementTree as ET  # noqa: N817
@@ -9,8 +10,7 @@ from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
 from component_model.caus_var_ini import Initial
-from component_model.model import Model  # type: ignore
-from component_model.utils.logger import get_module_logger  # type: ignore
+from component_model.model import Model
 from component_model.variable import (
     Check,
     Variable,
@@ -20,7 +20,7 @@ from component_model.variable import (
     spherical_to_cartesian,
 )
 
-logger = get_module_logger(__name__, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class DummyModel(Model):
@@ -282,7 +282,7 @@ def test_init():
     assert mod.get_real([mod.variable_by_name("float1").value_reference]) == [99]
 
     assert isinstance(enum1.start[0], Enum), f"Type: {enum1.typ}"
-    assert issubclass(enum1.typ, Enum), "Enums are always derived"
+    assert enum1.typ is not None and issubclass(enum1.typ, Enum), "Enums are always derived"
     assert enum1.causality == Causality.output
     assert enum1.variability == Variability.discrete
     assert enum1.initial == Initial.calculated, f"initial: {enum1.initial}"
@@ -336,7 +336,7 @@ def test_init():
     assert str1.display[0] is None, f"Display: {str1.display[0]}"
     assert str1.check_range(0.5), "Everything is ok"
     assert mod.str1 == "Hello World!", f"Value {mod.str1} directly accessible as model variable"
-    mod.str1 = 1.0
+    mod.str1 = 1.0  # type: ignore # intentional misuse
     assert mod.str1 == 1.0, f"Not converted to str when internally set: {mod.str1}"
     assert isinstance(str1.getter(), str), "getter() converts to str"
     str1.setter("Hei")
@@ -358,6 +358,7 @@ def test_init():
     assert not np1.check_range(5.1, idx=1), "Checks performed on display units!"
     assert not np1.check_range(0.9, idx=1), "Checks performed on display units!"
     assert np1.unit == ("meter", "radian", "radian"), f"Units: {np1.unit}"
+    assert isinstance(np1.display, tuple) and len(np1.display) == 3, "Tuple of length 3 expected"
     assert np1.display[0] is None
     assert np1.display[1][0] == "degree"
     assert np1.display[2] is None
@@ -374,7 +375,9 @@ def test_init():
     assert np.linalg.norm(mod.np1) == math.sqrt(1.5**2 + 2.5**2 + 3.5**2), "np calculations are done on value"
     np1.setter((1.0, 1.0, 1.0))
     arrays_equal(mod.np1, (1.0, math.radians(1.0), 1.0))
-    arrays_equal(np1.getter(), (1.0, 1.0, 1.0))  # getter shows display units
+    res = np1.getter()
+    assert isinstance(res, (list, np.ndarray))
+    arrays_equal(res, [1.0, 1.0, 1.0])  # getter shows display units
     vr0 = mod.variable_by_name("np1").value_reference
     mod.set_real([vr0, vr0 + 1, vr0 + 2], [2.0, 2.0, 2.0])  # simulate setting from outside
     arrays_equal(mod.get_real((vr0, vr0 + 1, vr0 + 2)), [2.0, 2.0, 2.0])
@@ -611,7 +614,8 @@ def test_xml():
     )
     lst = int1.xml_scalarvariables()
     expected = '<ScalarVariable name="int1" valueReference="3" description="A integer variable" causality="parameter" variability="fixed" initial="exact"><Real start="0.99" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
-    assert ET.tostring(lst[0], encoding="unicode") == expected, ET.tostring(lst[0], encoding="unicode")
+    found = ET.tostring(lst[0], encoding="unicode")
+    assert found == expected, f"\nFound   :{found}\nExpected:{expected}"
 
 
 def test_on_set():

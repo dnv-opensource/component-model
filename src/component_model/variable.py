@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum, IntFlag
 from functools import partial
@@ -13,9 +14,8 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
 from component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
-from component_model.utils.logger import get_module_logger
 
-logger = get_module_logger(__name__, level=0)
+logger = logging.getLogger(__name__)
 PyType: TypeAlias = str | int | float | bool | Enum
 Numeric: TypeAlias = int | float
 Compound: TypeAlias = tuple[PyType, ...] | list[PyType] | np.ndarray
@@ -210,6 +210,7 @@ class Variable(ScalarVariable):
             self._len = len(self._start)
             if self._typ is None:  # try to adapt using start
                 self._typ = self.auto_type(self._start)
+            assert isinstance(self._typ, type)
             if self._len > 1:  # make sure that all _start elements have the same type
                 self._start = tuple(self._typ(self._start[i]) for i in range(self._len))
             self.range = self._init_range(rng)
@@ -217,8 +218,10 @@ class Variable(ScalarVariable):
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
         self.model.register_variable(self, self.start, value_reference)  # register in model and return index
-        # disable super() functions and properties which are not in use here
-        self.to_xml = None
+
+    # disable super() functions and properties which are not in use here
+    def to_xml(self) -> ET.Element:
+        raise NotImplementedError("The function to_xml() shall not be used from component-model") from None
 
     # External access to read-only variables:
     def __len__(self) -> int:
@@ -284,14 +287,14 @@ class Variable(ScalarVariable):
 
     @property
     def causality(self) -> Causality:
-        return self._causality
+        return self._causality  # type: ignore
 
     @property
     def variability(self) -> Variability:
-        return self._variability
+        return self._variability  # type: ignore
 
     @property
-    def initial(self) -> Initial:
+    def initial(self) -> Initial:  # type: ignore #pyright does not like this override
         assert self._initial is not None, "Initial shall be properly set at this point"
         return self._initial
 
@@ -660,7 +663,7 @@ class Variable(ScalarVariable):
                     "variability": self.variability.name,
                 },
             )
-            if self._initial != Initial.none:  # none is not part of the FMI2 specification
+            if not isinstance(self._initial, Enum) or self._initial != Initial.none:
                 sv.attrib.update({"initial": self.initial.name})
             # if self.description is not None:
             #    sv.attrib.update({"description": self.description + substr("", f", [{i}]")})

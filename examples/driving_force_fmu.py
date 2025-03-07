@@ -62,5 +62,5 @@ class DrivingForce(Model):
 
     def exit_initialization_mode(self):
         """Set internal state after initial variables are set."""
-        self.func = partial(func, ampl=self.ampl, omega=2* pi* self.freq )
-        logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}")
+        self.func = partial(func, ampl=self.ampl, omega=2 * pi * self.freq)  # type: ignore[reportAttributeAccessIssue]
+        logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}")  # type: ignore[reportAttributeAccessIssue]

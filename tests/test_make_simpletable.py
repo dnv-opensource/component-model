@@ -81,7 +81,9 @@ def test_inputtable_class(interpolate=False):
         outputNames=("x", "y", "z"),
         interpolate=interpolate,
     )
-    assert tbl.interpolate == interpolate, f"Interpolation={interpolate} expected. Found {tbl.interpolate}"
+    assert tbl.interpolate == interpolate, (  # type: ignore[reportAttributeAccessIssue]
+        f"Interpolation={interpolate} expected. Found {tbl.interpolate}"  # type: ignore[reportAttributeAccessIssue]
+    )
     assert all(tbl.times[i] == [0.0, 1.0, 3.0, 7.0][i] for i in range(tbl._rows)), (
         f"Expected time array [0,1,3,7]. Found {tbl.times}"
     )
