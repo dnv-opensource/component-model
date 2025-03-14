@@ -8,6 +8,7 @@ class SimpleTable(InputTable):
 
     def __init__(self, **kwargs):
         #        print("SimpleTable init", kwargs)
+        self.interpolate: bool
         super().__init__(
             name="TestTable",
             description="my description",

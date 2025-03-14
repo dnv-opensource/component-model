@@ -50,6 +50,9 @@ class InputTable(Model):
             list(row[1:] for row in table), dtype="float64"
         )  # this is only internally defined, not as Variable
         self.output_name = output_name
+        # interface variables:
+        self.outs: np.ndarray
+        self.interface: bool
         self._interface(table[0][1:], interpolate)
 
     def _interface(self, outs0: tuple, interpolate0: bool):

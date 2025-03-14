@@ -50,6 +50,12 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
         Oscillator.__init__(self, tolerance=1e-3)
         # super().__init__(tolerance = 1e-3) #self.default_experiment.tolerance)
         # interface Variables.
+        self.k : float
+        self.c: float
+        self.m: float
+        self.x: np.ndarray
+        self.v: np.ndarray
+        self.f: np.ndarray
         # Note that the Variable object is accessible as self._<name>, while the value is self.<name>
         self._k = Variable(self, "k", "The 3D spring constant in N/m", start=k)
         self._c = Variable(self, "c", "The 3D spring damping in in N.s/m", start=c)
