@@ -60,8 +60,7 @@ dependencies = [
     "sympy>=1.13.3",
     "jsonpath-ng>=1.7.0",
     "libcosimpy>=0.0.2",
-    "fmpy>=0.3.21",
-    "pythonfmu>=0.6.5",
+    "pythonfmu==0.6.5",
     "flexparser<0.4",
     "pdfminer>=20191125",
     "pypdf2>=3.0.1",
@@ -70,7 +69,7 @@ dependencies = [
 
 [project.optional-dependencies]
 modelTest = [
-    "fmpy>=0.3.21",
+    "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
     "matplotlib>=3.9.1",
     "sim-explorer>=0.2",
 ]

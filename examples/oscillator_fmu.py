@@ -50,12 +50,6 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
         Oscillator.__init__(self, tolerance=1e-3)
         # super().__init__(tolerance = 1e-3) #self.default_experiment.tolerance)
         # interface Variables.
-        self.k : float
-        self.c: float
-        self.m: float
-        self.x: np.ndarray
-        self.v: np.ndarray
-        self.f: np.ndarray
         # Note that the Variable object is accessible as self._<name>, while the value is self.<name>
         self._k = Variable(self, "k", "The 3D spring constant in N/m", start=k)
         self._c = Variable(self, "c", "The 3D spring damping in in N.s/m", start=c)
@@ -87,9 +81,9 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
             start=np.array((0, 0, 0), float),
         )
 
-    def do_step(self, time: float, dt: float):
-        Model.do_step(self, time, dt)  # some housekeeping functions (not really needed here)
-        Oscillator.do_step(self, time, dt)  # this does the integration itself
+    def do_step(self, current_time: float, step_size: float):
+        Model.do_step(self, current_time, step_size)  # some housekeeping functions (not really needed here)
+        Oscillator.do_step(self, current_time, step_size)  # this does the integration itself
         return True  # very important for the FMU mechanism
 
     def exit_initialization_mode(self):

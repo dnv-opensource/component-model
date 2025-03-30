@@ -8,9 +8,8 @@ from abc import abstractmethod
 from enum import Enum
 from math import log
 from pathlib import Path
-from typing import TypeAlias
+from typing import Generator, Sequence, TypeAlias
 
-import numpy as np
 from pint import UnitRegistry
 from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore
 from pythonfmu import __version__ as pythonfmu_version
@@ -144,11 +143,14 @@ class Model(Fmi2Slave):
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
-        self.currentTime = 0.0  # keeping track of time when dynamic calculations are performed
+        self.time = self.default_experiment.start_time  # keeping track of time when dynamic calculations are performed
 
-    def setup_experiment(self, start: int | float = 0.0):
+    def setup_experiment(self, start_time: float = 0.0):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
-        self.start_time = start
+        self.time = start_time
+
+    def enter_initialization_mode(self):
+        pass
 
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
@@ -156,16 +158,16 @@ class Model(Fmi2Slave):
         self.dirty_do()  # run on_set on all dirty variables
 
     @abstractmethod  # mark the class as 'still abstract'
-    def do_step(self, time: int | float, dt: int | float):
+    def do_step(self, current_time: float, step_size: float) -> bool:
         """Do a simulation step of size 'step_size at time 'currentTime.
         Note: this is only the generic part of this function. Models should call this first through super().do_step and then do their own stuff.
         """
-        self.currentTime = time
+        self.time = current_time
         self.dirty_do()  # run on_set on all dirty variables
 
         for var in self.vars.values():
             if var is not None and var.on_step is not None:
-                var.on_step(time, dt)
+                var.on_step(current_time, step_size)
         return True
 
     def _unit_ensure_registered(self, candidate: Variable):
@@ -189,31 +191,35 @@ class Model(Fmi2Slave):
                 ):
                     self._units[u].append(du)
 
-    def register_variable(
-        self,
-        var: Variable,
-        start: tuple | list | np.ndarray,
-        value_reference: int | None = None,
+    def register_variable(  # type: ignore [reportIncompatibleMethodOverride] # not ScalarVariable! is checked.
+        self, var: Variable, nested: bool = True
     ):
-        """Register the variable 'var' as model variable. Set the initial value and add the unit if not yet used.
-        Perform some checks and register the value_reference. The following should be noted.
+        """Register a variable as FMU interface.
+
+        Args:
+            var (ScalarVariable): The variable to be registered
+            nested (bool): Optional, does the "." in the variable name reflect an object hierarchy to access it? Default True
 
         #. Only the first element of compound variables includes the variable reference,
            while the following sub-elements contain None, so that a (ScalarVariable) index is reserved.
         #. The variable var.name and var.unit must be set before calling this function.
         #. The call to super()... sets the value_reference, getter and setter of the variable
         """
+        assert isinstance(var, Variable), f"Variable object expected here. Found {var}"
         for idx, v in self.vars.items():
             if v is not None and v.name == var.name:
                 raise KeyError(f"Variable {var.name} already used as index {idx} in model {self.name}") from None
         # ensure that the model has the value as attribute:
-        setattr(self, var.name, np.array(start, var.typ) if len(var) > 1 else start[0])
-        if value_reference is None:  # automatic valueReference
-            vref = len(self.vars)
-        else:
-            vref = value_reference
+        vref = len(self.vars)
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
+        owner = self
+        if var.getter is None and nested and "." in var.name:
+            split = var.name.split(".")
+            split.pop(-1)
+            for s in split:
+                owner = getattr(owner, s)
+
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
         for i in range(1, len(var)):
             self.vars[var.value_reference + i] = None  # marking that this is a sub-element
@@ -340,6 +346,7 @@ class Model(Fmi2Slave):
         project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
+        newargs: dict | None = None,
     ):
         """Build the FMU, resulting in the model-name.fmu file.
 
@@ -351,6 +358,7 @@ class Model(Fmi2Slave):
            project_files (list): Optional list of additional files to include in the build (relative to script)
            dest (str) = '.': Optional destination folder for the FMU.
            documentation_folder (Path): Optional folder with additional model documentation files.
+           newargs (dict): Optional possibility to provide new keyword arguments to the model class
         """
         if script is None:
             script = __file__
@@ -391,6 +399,7 @@ class Model(Fmi2Slave):
                 project_files=project_files,
                 dest=dest,
                 documentation_folder=doc_dir,
+                newargs=newargs,
             )  # , xFunc=None)
             return asBuilt
 
@@ -639,107 +648,100 @@ class Model(Fmi2Slave):
         else:
             raise KeyError(f"Unknown iteration key {key} in 'vars_iter'")
 
-    def ref_to_var(self, vr: int):
+    def ref_to_var(self, vr: int) -> tuple[Variable, int]:
         """Find Variable and sub-index (for compound variable), based on a value_reference value."""
         _vr = vr
-        while True:
+        var = self.vars[_vr]
+        while var is None:  # until the base element is found
+            _vr -= 1
             var = self.vars[_vr]
-            if var is None:
-                _vr -= 1
-            else:  # found the base of the variable
-                return (var, vr - _vr)
+        return (var, vr - _vr)
 
-    def _var_iter(self, vrs: list[int] | tuple[int, ...]):
-        """Convert a list of value_reference integers into a variable object iterator.
-        Take also compound variables into account:
-          If all variables are listed, include the compound object in the result.
-          Otherwise include the compound object and an index.
+    def _vrs_slices(self, vrs: Sequence[int]) -> Generator[tuple[Variable, slice, slice], None, None]:
+        """Decode the sequence of valueReferences into a tuple of (Variable, vslice, vrs_slice),
+        where vslice refers to the variable and vrs_slice to the vrs sequence.
+
+        E.g. if the first element of vrs refers to a scalar: (var, slice(0,1), slice(0,1))
+             if the second element refers to a 3d-vector: (vec, slice(0,3), slice(1,4)).
         """
-        it = enumerate(vrs.__iter__())  # used also below!
-        for i, vr in it:  # get an enumerated iterator over vrs
-            sub = None
-            assert vr in self.vars, f"Variable with valueReference={vr} does not exist in model {self.name}"
-            var = self.vars[vr]
-            if var is None:  # element of compound variable
-                var, sub = self.ref_to_var(vr)
-            elif isinstance(var, Variable) and len(var) > 1:
-                sub = 0
-            # At this point we should have a variable object
-            if (
-                isinstance(var, Variable)
-                and len(var) > 1
-                and i + len(var) <= len(vrs)
-                and vr + len(var) - 1 == vrs[i + len(var) - 1]
-            ):  # compound variable and all elements included
-                for _ in range(len(var) - 1):  # spool to the last element
-                    i, vr = next(it)
-                sub = None
-            # print(f"VAR_ITER whole {var.name} at {vr}")
-            # print(f"_VAR_ITER {var.name}[{sub}], i:{i}, vr:{vr}")
-            yield (var, sub)
+        var: Variable | None = None
+        start: int = -1
+        i0: int = -1
+        _vr = -1
+        assert len(vrs), "The valueReference parameter vrs shall not be empty"
+        for i, vr in enumerate(vrs):
+            try:
+                test = self.vars[vr]
+            except KeyError as err:
+                raise AssertionError(f"valueReference={vr} does not exist in model {self.name}") from err
+            if vr != _vr + 1 or test is not None:  # new slice
+                if var is not None:  # only if initialized
+                    yield (var, slice(start, start + i - i0), slice(i0, i))  # type: ignore
 
-    def _get(self, vrs: list[int] | tuple[int, ...], typ: type) -> list:
+                vr0 = vr
+                i0 = i
+                if test is None:
+                    var, start = self.ref_to_var(vr0)
+                else:
+                    var, start = test, 0
+            _vr = vr
+        yield (var, slice(start, start + len(vrs) - i0), slice(i0, len(vrs)))  # type: ignore # vrs is not empty!
+
+    def _get(self, vrs: Sequence[int], typ: type) -> list:
         """Get variables of all types based on references.
         This method is called by get_xxx and translates to fmi2GetXxx.
         """
         values: list = []
-        for var, sub in self._var_iter(vrs):
+        for var, sv, _svr in self._vrs_slices(vrs):  # iterates over variable, slices in var and slices in vrs
+            assert isinstance(var, Variable)
             assert isinstance(var.typ, type)
             check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'get_{typ}'. Found variable {var.name} with type {var.typ}"
-            val = var.getter()
-            if var is not None and len(var) > 1:
-                assert isinstance(val, (list, np.ndarray)), "Iterable expected here"
-                if isinstance(sub, int):  # one element
-                    values.append(val[sub])
-                else:  # the whole vector
-                    values.extend(val)
-            else:
-                values.append(val)
+            val = var.getter()  # Note: always a list
+            values.extend(val[sv])
         return values
 
-    def get_integer(self, vrs: list[int] | tuple[int, ...]):
+    def get_integer(self, vrs: Sequence[int]):
         return self._get(vrs, int)
 
-    def get_real(self, vrs: list[int] | tuple[int, ...]):
+    def get_real(self, vrs: Sequence[int]):
         return self._get(vrs, float)
 
-    def get_boolean(self, vrs: list[int] | tuple[int, ...]):
+    def get_boolean(self, vrs: Sequence[int]):
         return self._get(vrs, bool)
 
-    def get_string(self, vrs: list[int] | tuple[int, ...]):
+    def get_string(self, vrs: Sequence[int]):
         return self._get(vrs, str)
 
-    def _set(self, vrs: list[int] | tuple[int, ...], values: list | tuple, typ: type):
+    def _set(self, vrs: Sequence[int], values: Sequence[int | float | bool | str], typ: type):
         """Set variables of all types. This method is called by set_xxx and translates to fmi2SetXxx.
         Variable range check, unit check and type check are performed by setter() function.
         on_set (if defined) is only run if the whole variable (all elements) are set.
         """
-        idx = 0
-        for var, sub in self._var_iter(vrs):
+        for var, sv, svr in self._vrs_slices(vrs):
+            assert isinstance(var, Variable)
             assert isinstance(var.typ, type)
             check = var.typ == typ or (typ is int and issubclass(var.typ, Enum))
             assert check, f"Invalid type in 'set_{typ}'. Found variable {var.name} with type {var.typ}"
-            if var is not None and len(var) > 1:
-                if isinstance(sub, int):  # one element
-                    var.setter(values[idx], sub)
-                else:  # set the whole vector
-                    var.setter(values[idx : idx + len(var)], idx=None)
-                    idx += len(var) - 1
+            if len(var) > 1:
+                if sv.stop - sv.start == len(var):  # the whole variable
+                    var.setter(values[svr], idx=-1)
+                else:
+                    for _sv, _svr in zip(range(sv.start, sv.stop), range(svr.start, svr.stop), strict=True):
+                        var.setter((values[_svr],), idx=_sv)
             else:  # simple Variable
-                var.setter(values[idx], idx=None)
-            idx += 1
+                var.setter(values[svr], idx=0)
 
-    def set_integer(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
+    def set_integer(self, vrs: Sequence[int], values: Sequence[int]):
         self._set(vrs, values, int)
 
-    def set_real(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
+    def set_real(self, vrs: Sequence[int], values: Sequence[float]):
         self._set(vrs, values, float)
 
-    def set_boolean(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
+    def set_boolean(self, vrs: Sequence[int], values: Sequence[bool]):
         self._set(vrs, values, bool)
 
-    def set_string(self, vrs: list[int] | tuple[int, ...], values: list | tuple):
+    def set_string(self, vrs: Sequence[int], values: Sequence[str]):
         self._set(vrs, values, str)
 
     def _get_fmu_state(self) -> dict:

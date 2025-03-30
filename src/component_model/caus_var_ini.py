@@ -1,16 +1,20 @@
+import logging
 from enum import Enum, EnumType
 
 # import pythonfmu.enums # type: ignore
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
+from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
+logger = logging.getLogger(__name__)
 
-class Initial(Enum):
-    exact = 0
-    approx = 1
-    calculated = 2
-    none = 3  # additional value to allow for the cases when initial: --
 
+# class Initial(Enum):
+#     exact = 0
+#     approx = 1
+#     calculated = 2
+#     none = 3  # additional value to allow for the cases when initial: --
+#
 
 # see tables on page 50 in FMI 2.0.1 specification
 combinations = (
@@ -30,14 +34,16 @@ def combination(var: Enum, caus: Enum):
 
 
 def use_start(causality: Causality | None, variability: Variability | None, initial: Initial | None) -> bool:
-    if causality is None or variability is None or initial is None:
-        raise ValueError(f"None of the parameters {causality}, {variability}, {initial} should be None") from None
-    return (
+    if causality is None or variability is None:
+        raise ValueError(f"None of the parameters {causality}, {variability} should be None") from None
+    use = (
         initial in (Initial.exact, Initial.approx)
         or causality in (Causality.parameter, Causality.input)
         or variability == Variability.constant
         or (causality in (Causality.output, Causality.local) and initial != Initial.calculated)
     )
+    # assert use and initial is not None, f"Initial=None for {causality}, {variability}"
+    return use
 
 
 initial_default = {
@@ -45,8 +51,8 @@ initial_default = {
     "A": (Initial.exact, (Initial.exact,)),
     "B": (Initial.calculated, (Initial.approx, Initial.calculated)),
     "C": (Initial.calculated, (Initial.exact, Initial.approx, Initial.calculated)),
-    "D": (Initial.none, (Initial.none,)),
-    "E": (Initial.none, (Initial.none,)),
+    "D": (None, (None,)),
+    "E": (None, (None,)),
 }
 
 explanations = {
@@ -64,15 +70,20 @@ explanations = {
 }
 
 
-def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum:
+def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum | None:
     """Ensure that we have an Enum, based on the input as str, Enum or None."""
     if org is None:
-        assert default is not None, "default value needed at this stage"
-        return default
+        if typ is Causality or typ is Variability:
+            assert default is not None, "default value needed at this stage"
+            return default
+        elif typ is Initial:
+            return default  # might be None
+        else:
+            return None
     elif isinstance(org, str):
         assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
         try:
-            return typ[org]
+            return typ[org]  # type: ignore [reportReturnType] # do not understand the error message
         except KeyError as err:
             raise Exception(f"The value {org} is not compatible with the Enum {typ}: {err}") from err
     else:
@@ -84,19 +95,19 @@ def check_causality_variability_initial(
     causality: str | EnumType | None,
     variability: str | EnumType | None,
     initial: str | Enum | None,
-    msg: bool = True,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:
     _causality = ensure_enum(causality, Causality, Causality.parameter)  # type: ignore
     _variability = ensure_enum(variability, Variability, Variability.constant)  # type: ignore
     res = combination(_variability, _causality)  # type: ignore
     if res in ("a", "b", "c", "d", "e"):  # combination is not allowed
-        if msg:
-            print(f"Combination causality {_causality} + variability {variability} is not allowed: {explanations[res]}")
+        logger.info(f"(causality {_causality}, variability {variability}) is not allowed: {explanations[res]}")
         return (None, None, None)
     else:  # allowed
         _initial = ensure_enum(initial, Initial, initial_default[res][0])  # type: ignore
         if _initial not in initial_default[res][1]:
-            if msg:
-                print(f"Causality {_causality} + variability {_variability} + Initial {_initial} is not allowed")
+            logger.info(f"(Causality {_causality}, variability {_variability}, Initial {_initial}) is not allowed")
             return (None, None, None)
-        return (Causality(_causality), Variability(_variability), Initial(_initial))
+        if _initial is None:
+            return (Causality(_causality), Variability(_variability), None)
+        else:
+            return (Causality(_causality), Variability(_variability), Initial(_initial))

@@ -50,7 +50,7 @@ class Oscillator:
             res += np.array((f, 0), float)
         return res
 
-    def do_step(self, time: int | float, dt: int | float) -> bool:
+    def do_step(self, current_time: float, step_size: int | float) -> bool:
         """Do one simulation step of size dt.
 
         We implement a very simplistic algoritm based on difference calculus.
@@ -60,7 +60,7 @@ class Oscillator:
                 y0 = np.array([self.v[i], self.x[i]], float)
                 sol = integrate.solve_ivp(
                     fun=self.ode_func,
-                    t_span=[time, time + dt],
+                    t_span=[current_time, current_time + step_size],
                     y0=y0,
                     args=(i, self.f[i]),  # dimension and force as extra arguments to fun
                     atol=self.tolerance,
@@ -93,5 +93,5 @@ class Force:
         self.func = func
         self.out = np.array((0, 0, 0), float)
 
-    def do_step(self, time: float, dt: float):
-        self.out = self.func(time)
+    def do_step(self, current_time: float, step_size: float):
+        self.out = self.func(current_time)

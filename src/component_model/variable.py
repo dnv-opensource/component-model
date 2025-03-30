@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum, IntFlag
 from functools import partial
 from math import acos, atan2, cos, degrees, radians, sin, sqrt
-from typing import Any, Callable, TypeAlias
+from typing import Any, Callable, Sequence, TypeAlias
 
 import numpy as np
 from pint import Quantity  # management of units
@@ -164,13 +164,12 @@ class Variable(ScalarVariable):
         on_step: Callable | None = None,
         on_set: Callable | None = None,
         owner: Any | None = None,
-        value_reference: int | None = None,
     ):
         self.model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
             causality, variability, initial
         )
-        assert all(x is not None for x in (self._causality, self._variability, self._initial)), (
+        assert all(x is not None for x in (self._causality, self._variability)), (
             f"Combination causality {self._causality}, variability {self._variability}, initial {self._initial} is not allowed"
         )
         super().__init__(name=name, description=description, getter=self.getter, setter=self.setter)
@@ -202,7 +201,7 @@ class Variable(ScalarVariable):
             self.start = ("",) if start is None else (str(start),)
         else:
             # if type is provided and no (initial) value. We set a default value of the correct type as 'example' value
-            assert start is not None, "The start value is mandatory, at least for type and unit determination"
+            assert start is not None, f"{self.name}: start value is mandatory, at least for type and unit determination"
             _start, _unit, _display = self._disect_unit(start)  # do that first. units included as str!
             self.start = _start
             self.unit = _unit
@@ -217,7 +216,8 @@ class Variable(ScalarVariable):
 
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
-        self.model.register_variable(self, self.start, value_reference)  # register in model and return index
+        self.model.register_variable(self)
+        setattr(self.model, self.local_name, np.array(self.start, self.typ) if self._len > 1 else self.start[0])
 
     # disable super() functions and properties which are not in use here
     def to_xml(self) -> ET.Element:
@@ -294,58 +294,67 @@ class Variable(ScalarVariable):
         return self._variability  # type: ignore
 
     @property
-    def initial(self) -> Initial:  # type: ignore #pyright does not like this override
-        assert self._initial is not None, "Initial shall be properly set at this point"
+    def initial(self) -> Initial | None:
         return self._initial
 
-    def setter(self, value: PyType | Compound, idx: int | None = None):
-        """Set the value (input to model from outside), including range checking and unit conversion.
+    def setter(self, values: Sequence[int | float | bool | str | Enum] | np.ndarray, idx: int = -1):
+        """Set the values (input to model from outside), including range checking and unit conversion.
 
         For compound values, the whole 'array' should be provided,
         but elements which remain unchanged can be replaced by None.
         Alternatively, single elements can be set by providing the index explicitly.
         """
+        dvals: list[int | float | bool | str | Enum | None]
+        is_ndarray = isinstance(values, np.ndarray)
         assert self._typ is not None, "Need a proper type at this stage"
-        if self._len == 1 and not isinstance(value, (tuple, list, np.ndarray)):
-            value = [value]
-            assert idx is None or idx == 0, f"Invalid idx {idx} for scalar"
+        assert isinstance(values, (Sequence, np.ndarray)), "A sequence is expected as values"
+        if idx == -1 and self._len == 0:  # the whole scalar
+            idx = 0
 
         if issubclass(self._typ, Enum):  # Enum types are supplied as int. Convert
             for i in range(self._len):
-                value[i] = self._typ(value[i])  # type: ignore
+                values[i] = self._typ(values[i])  # type: ignore
 
         if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
-            if not self.check_range(value, idx):
-                raise VariableRangeError(f"set(): Value {value} outside range.") from None
+            if not self.check_range(values, idx):
+                raise VariableRangeError(f"set(): values {values} outside range.") from None
 
-        if self._check & Check.units:  #'value' expected as displayUnit. Convert to unit
-            if isinstance(idx, int):  # explicit index of single value
+        if self._check & Check.units:  #'values' expected as displayUnit. Convert to unit
+            if idx >= 0:  # explicit index of single values
                 if self._display[idx] is not None:
-                    value = self.display[idx][1](value)
-            else:
-                if isinstance(value, tuple):  # tuples cannot be changed
-                    value = list(value)
+                    dvals = [self.display[idx][1](values[0])]
+                else:
+                    dvals = list(values)
+            else:  # the whole array
+                dvals = []
                 for i in range(self._len):
-                    if value[i] is not None and self._display[i] is not None:  # type: ignore
-                        value[i] = self.display[i][1](value[i])  # type: ignore
+                    if self._display[i] is None:
+                        dvals.append(values[i])
+                    else:
+                        dvals.append(self.display[i][1](values[i]))
+        else:  # no unit issues
+            dvals = list(values)
 
         if self._len == 1:
-            setattr(self.owner, self.local_name, value[0] if self.on_set is None else self.on_set(value[0]))  # type: ignore
-        elif isinstance(idx, int):
-            if value is not None:
-                getattr(self.owner, self.local_name)[idx] = value
+            setattr(self.owner, self.local_name, dvals[0] if self.on_set is None else self.on_set(dvals[0]))  # type: ignore
+        elif idx >= 0:
+            if dvals[0] is not None:
+                getattr(self.owner, self.local_name)[idx] = dvals[0]
                 if self.on_set is not None:
                     self.model.dirty_ensure(self)
-        else:
-            setattr(self.owner, self.local_name, value if self.on_set is None else self.on_set(value))
+        else:  # the whole array
+            if is_ndarray:  # Note: on_set might contain array operations
+                arr: np.ndarray = np.array(dvals, self._typ)
+                setattr(self.owner, self.local_name, arr if self.on_set is None else self.on_set(arr))
+            else:
+                setattr(self.owner, self.local_name, dvals if self.on_set is None else self.on_set(dvals))
 
-    def getter(self) -> PyType | list[PyType]:
+    def getter(self) -> Sequence[PyType]:
         """Get the value (output a value from the model), including range checking and unit conversion.
         The whole variable value is returned.
-        The return value can be indexed/sliced to get elements of compound variables.
+        The return a list of values. Can later be indexed/sliced to get elements of compound variables.
         """
         assert self._typ is not None, "Need a proper type at this stage"
-
         if self._len == 1:
             value = getattr(self.owner, self.local_name)
             if issubclass(self._typ, Enum):  # native Enums do not exist in FMI2. Convert to int
@@ -355,24 +364,25 @@ class Variable(ScalarVariable):
             if self._check & Check.units:  # Convert 'value' display.u -> base unit
                 if self._display[0] is not None:
                     value = self.display[0][2](value)
+            values = [value]
 
         else:  # compound variable
-            value = list(getattr(self.owner, self.local_name))  # make value available as copy
+            values = list(getattr(self.owner, self.local_name))  # make value available as copy
             if issubclass(self._typ, Enum):  # native Enums do not exist in FMI2. Convert to int
                 for i in range(self._len):
-                    value[i] = value[i].value
+                    values[i] = values[i].value
             else:
                 for i in range(self._len):  # check whether conversion to _typ is necessary
-                    if not isinstance(value[i], self._typ):
-                        value[i] = self._typ(value[i])  # type: ignore[call-arg]
+                    if not isinstance(values[i], self._typ):
+                        values[i] = self._typ(values[i])  # type: ignore[call-arg]
             if self._check & Check.units:  # Convert 'value' display.u -> base unit
                 for i in range(self._len):
                     if self._display[i] is not None:
-                        value[i] = self.display[i][2](value[i])
+                        values[i] = self.display[i][2](values[i])
 
-        if self._check & Check.ranges and not self.check_range(value):
-            raise VariableRangeError(f"getter(): Value {value} outside range.") from None
-        return value
+        if self._check & Check.ranges and not self.check_range(values, -1):
+            raise VariableRangeError(f"getter(): Value {values} outside range.") from None
+        return values
 
     def _init_range(self, rng: tuple | None) -> tuple:
         """Initialize the variable range(s) of the variable
@@ -443,54 +453,57 @@ class Variable(ScalarVariable):
                 raise AssertionError(f"init_range(): Unhandled range argument {rng}")
         return tuple(_range)
 
-    def check_range(self, value: PyType | Compound | None, idx: int | None = None, disp: bool = True) -> bool:
-        """Check the provided 'value' with respect to the range.
+    def check_range_single(self, value: PyType | None, idx: int = 0, disp: bool = True) -> bool:
+        """Check a single value."""
+        assert idx >= 0, f"Need a proper idx here. Found {idx}"
+        assert self._typ is not None
+        if value is None:  # denotes unchanged values (of compound variables)
+            return True
+        if self._typ is not type(value):
+            try:
+                value = self._typ(value)  # try to cast the values
+            except Exception:  # give up
+                return False
+        # special types
+        if self._typ is str:  # no range checking on str
+            return True
+        elif self._typ is bool:
+            return isinstance(value, bool)
+        elif isinstance(value, Enum):
+            assert self._typ is not None
+            return isinstance(value, self._typ)
+
+        elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
+            if not disp and self._display[idx] is not None:  # check an internal unit values
+                _val = self._display[idx]
+                assert isinstance(_val, tuple)
+                value = _val[2](value)
+            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
+        else:
+            raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
+
+    def check_range(self, values: Sequence[PyType | None] | np.ndarray, idx: int = 0, disp: bool = True) -> bool:
+        """Check the provided 'values' with respect to the range.
 
         Args:
-            value (PyType|Compound): the value to check. Scalars may be wrapped into a vector
-            disp (bool) = True: denotes whether the value is expected in display units (default) or units
+            values (Sequence[PyType]): the value(s) to check. Scalars are wrapped into a Sequence
+            idx (int)=0: optional index of variable to check. -1 means all indices
+            disp (bool) = True: denotes whether the values is expected in display units (default) or units
 
         Returns
         -------
-            True/False with respect to whether val is the right type and is within range.
+            True/False with respect to whether values is the right type and is within range.
         """
         assert self._typ is not None, "Need a defined type at this stage"
-        if self._len == 1 and idx is None:
+        if self._len == 1 and idx == -1:
             idx = 0
-        if isinstance(value, str):  # no range checking on strings
+        if isinstance(values[0], str):  # no range checking on strings
             return self._typ is str
-        elif self._len > 1 and idx is None:  # check all components
-            assert isinstance(value, (tuple, list, np.ndarray)) and len(value) == self._len, f"{value} has no elements"
-            return all(self.check_range(value[i], i, disp) for i in range(self._len))
-        else:  # single component check
-            assert idx is not None, "Need a proper idx here"
-            if isinstance(value, (tuple, list, np.ndarray)):
-                if self._len == 1:
-                    idx = 0
-                value = value[idx]
-            if value is None:  # denotes unchanged values (of compound variables)
-                return True
-            if self._typ is not type(value):
-                try:
-                    value = self._typ(value)  # try to cast the value
-                except Exception:  # give up
-                    return False
-            # special types (str checked above):
-            if self._typ is str:  # no range checking on str
-                return True
-            elif self._typ is bool:
-                return isinstance(value, bool)
-            elif isinstance(value, Enum):
-                return isinstance(value, self._typ)
-
-            elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
-                if not disp and self._display[idx] is not None:  # check an internal unit value
-                    _val = self._display[idx]
-                    assert isinstance(_val, tuple)
-                    value = _val[2](value)
-                return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
-            else:
-                raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
+        elif self._len > 1 and idx < 0:  # check all components
+            assert isinstance(values, (Sequence, np.ndarray)) and len(values) == self._len, f"{values} has no elements"
+            return all(self.check_range_single(values[i], i, disp) for i in range(self._len))
+        else:
+            return self.check_range_single(values[0], idx, disp)
 
     def fmi_type_str(self, val: PyType) -> str:
         """Translate the provided type to a proper fmi type and return it as string.
@@ -649,7 +662,6 @@ class Variable(ScalarVariable):
         declaredType = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
             self.typ.__qualname__
         ]  # translation of python to FMI primitives. Same for all components
-        assert self._initial is not None, "Initial shall be properly set at this point"
         do_use_start = use_start(causality=self._causality, variability=self._variability, initial=self._initial)
         svars = []
         for i in range(self._len):
@@ -663,8 +675,8 @@ class Variable(ScalarVariable):
                     "variability": self.variability.name,
                 },
             )
-            if not isinstance(self._initial, Enum) or self._initial != Initial.none:
-                sv.attrib.update({"initial": self.initial.name})
+            if isinstance(self._initial, Enum):
+                sv.attrib.update({"initial": self._initial.name})
             # if self.description is not None:
             #    sv.attrib.update({"description": self.description + substr("", f", [{i}]")})
             if self._annotations is not None and i == 0:

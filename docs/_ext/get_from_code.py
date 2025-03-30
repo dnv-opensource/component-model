@@ -48,12 +48,12 @@ class GetFromCode(SphinxDirective):
         else:  # if type(obj).__name__ in ('module','type','function') or isinstance( obj, type): # objects where docstring should be returned
             text = obj.__doc__.strip() if obj.__doc__ is not None else ""
 
-        self.content = nodes.paragraph(text=text)
+        par = nodes.paragraph(text=text)
         if self.typ is None:  # need to parse the extracted text
             parNode = nodes.paragraph(text="")  # use an empty paragraph node as parent
-            self.state.nested_parse(self.content, 0, parNode)  # here the content of the retrieved text is parsed
+            self.state.nested_parse(par, 0, parNode)  # here the content of the retrieved text is parsed
         else:  # use the text as is
-            parNode = self.content
+            parNode = par
         return [parNode]
 
 

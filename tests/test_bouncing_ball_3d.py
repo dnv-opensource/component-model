@@ -189,13 +189,13 @@ def test_bouncing_ball_class(show):
         x_bounce,
     )  # set start values (first bounce)
     # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
-    for n in range(2, 100):  # from bounce to bounce
+    for _n in range(2, 100):  # from bounce to bounce
         v_x = v_x * bb.e  # adjusted speeds
         v_z = v_z * bb.e
         delta_t = 2 * v_z / bb.g  # time for one bounce (parabola): v(t) = v0 - g*t/2 => 2*v0/g = t
         t_b += delta_t
         x_b += v_x * delta_t
-        print(f"Bounce {n} @{t_b}")
+        # print(f"Bounce {n} @{t_b}")
         while bb.time <= t_b:
             # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
             bb.do_step(time, dt)
@@ -450,10 +450,13 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    import os
+
+    os.chdir(Path(__file__).parent / "test_working_directory")
     # test_bouncing_ball_class(show=False)
-    # test_use_fmu( _bouncing_ball_fmu(), False)
+    # test_use_fmu(_bouncing_ball_fmu(), True)
     # test_from_fmu( _bouncing_ball_fmu())
     # test_from_osp( _bouncing_ball_fmu())
-    test_make_bouncing_ball(_bouncing_ball_fmu())
+    # test_make_bouncing_ball(_bouncing_ball_fmu())

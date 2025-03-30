@@ -63,17 +63,17 @@ class BouncingBall3D(Fmi2Slave):
         self.accelerationY = 0.0
         self.accelerationZ = -self.g
 
-    def do_step(self, _, dt):
-        """Perform a simulation step from `self.time` to `self.time + dt`.
+    def do_step(self, current_time, step_size) -> bool:
+        """Perform a simulation step from `self.time` to `self.time + step_size`.
 
         With respect to bouncing (self.t_bounce should be initialized to a negative value)
         .t_bounce <= .time: update .t_bounce
-        .time < .t_bounce <= .time+dt: bouncing happens within time step
-        .t_bounce > .time+dt: no bouncing. Just advance .pos and .speed
+        .time < .t_bounce <= .time+step_size: bouncing happens within time step
+        .t_bounce > .time+step_size: no bouncing. Just advance .pos and .speed
         """
         if self.t_bounce < self.time:  # calculate first bounce
             self.t_bounce, self.p_bounce = self.next_bounce()
-        while self.t_bounce <= self.time + dt:  # bounce happens within step or at border
+        while self.t_bounce <= self.time + step_size:  # bounce happens within step or at border
             dt1 = self.t_bounce - self.time
             self.posX = self.p_bounceX
             self.posY = self.p_bounceY
@@ -88,19 +88,20 @@ class BouncingBall3D(Fmi2Slave):
                 self.speedZ = 0.0
                 self.posZ = 0.0
             self.time += dt1  # jump to the exact bounce time
-            dt -= dt1
-            self.t_bounce, self.p_bounceX, self.p_bounceY = self.next_bounce()  # update to the next bounce
-        if dt > 0:
-            self.posX += self.speedX * dt
-            self.posY += self.speedY * dt
-            self.posZ += self.speedZ * dt + 0.5 * self.accelerationZ * dt**2
-            self.speedZ += self.accelerationZ * dt
-            self.time += dt
+            step_size -= dt1
+            self.t_bounce, self.p_bounce = self.next_bounce()  # update to the next bounce
+            self.p_bounceX, self.p_bounceY = self.p_bounce[0:2]
+        if step_size > 0:
+            self.posX += self.speedX * step_size
+            self.posY += self.speedY * step_size
+            self.posZ += self.speedZ * step_size + 0.5 * self.accelerationZ * step_size**2
+            self.speedZ += self.accelerationZ * step_size
+            self.time += step_size
         if self.posZ < 0:  # avoid numeric issues
             self.posZ = 0
         return True
 
-    def next_bounce(self):
+    def next_bounce(self) -> tuple[float, np.ndarray]:
         """Calculate time of next bounce and position where the ground will be hit,
         based on .time, .pos and .speed.
         """
@@ -110,14 +111,14 @@ class BouncingBall3D(Fmi2Slave):
             dt_bounce = (self.speedZ + sqrt(self.speedZ**2 + 2 * self.g * self.posZ)) / self.g
             p_bounceX = self.posX + self.speedX * dt_bounce  # linear in x and y!
             p_bounceY = self.posY + self.speedY * dt_bounce
-            return (self.time + dt_bounce, p_bounceX, p_bounceY)
+            return (self.time + dt_bounce, np.array((p_bounceX, p_bounceY, 0), float))
 
-    def setup_experiment(self, start: float):
+    def setup_experiment(self, start_time: float):
         """Set initial (non-interface) variables."""
-        super().setup_experiment(start)
+        super().setup_experiment(start_time)
         # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
         self.stopped = False
-        self.time = start
+        self.time = start_time
 
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""

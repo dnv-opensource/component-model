@@ -7,8 +7,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from fmpy import plot_result, simulate_fmu
-from fmpy.util import fmu_info
+from fmpy.simulation import simulate_fmu
+from fmpy.util import fmu_info, plot_result
 from fmpy.validation import validate_fmu
 from libcosimpy.CosimEnums import CosimExecutionState
 from libcosimpy.CosimExecution import CosimExecution

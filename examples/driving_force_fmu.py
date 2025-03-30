@@ -56,8 +56,8 @@ class DrivingForce(Model):
             start=np.array((0, 0, 0), float),
         )
 
-    def do_step(self, time: float, dt: float):
-        self.f = self.func(time)
+    def do_step(self, current_time: float, step_size: float):
+        self.f = self.func(current_time)
         return True  # very important!
 
     def exit_initialization_mode(self):

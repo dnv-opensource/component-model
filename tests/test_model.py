@@ -16,7 +16,7 @@ class DummyModel(Model):
     def __init__(self, name, **kwargs):
         super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
 
-    def do_step(self, time: int | float, dt: int | float):
+    def do_step(self, current_time: float, step_size: float):
         return True
 
 

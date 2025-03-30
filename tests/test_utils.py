@@ -152,9 +152,9 @@ def test_variables_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
     # os.chdir( Path(__file__).parent / "test_working_directory")
     # test_model_from_fmu(_bouncing_ball_fmu())
-    # test_model_description(_bouncing_ball_fmu())
+    test_model_description(_bouncing_ball_fmu())
