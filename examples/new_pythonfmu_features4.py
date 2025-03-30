@@ -1,0 +1,2 @@
+class NewFeatures(object):
+    pass
