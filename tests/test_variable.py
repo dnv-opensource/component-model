@@ -562,11 +562,11 @@ def test_xml():
     lst = myNP2.xml_scalarvariables()
     assert len(lst) == 3
     expected = b'<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
-    assert ET.tostring(lst[0]) == expected, f"{ET.tostring( lst[0])}"
+    assert ET.tostring(lst[0]) == expected, f"{ET.tostring(lst[0])}"
     expected = b'<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="1.9999999999999993" max="2.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[1]) == expected, f"{ET.tostring( lst[1])}"
+    assert ET.tostring(lst[1]) == expected, f"{ET.tostring(lst[1])}"
     expected = b'<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="2.9999999999999996" max="3.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[2]) == expected, f"{ET.tostring( lst[2])}"
+    assert ET.tostring(lst[2]) == expected, f"{ET.tostring(lst[2])}"
 
     myInt = Variable(
         mod,

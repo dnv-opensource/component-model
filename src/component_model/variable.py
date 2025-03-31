@@ -170,9 +170,9 @@ class Variable(ScalarVariable):
         self._causality, self._variability, self._initial = check_causality_variability_initial(
             causality, variability, initial
         )
-        assert all(
-            x is not None for x in (self._causality, self._variability, self._initial)
-        ), f"Combination causality {self._causality}, variability {self._variability}, initial {self._initial} is not allowed"
+        assert all(x is not None for x in (self._causality, self._variability, self._initial)), (
+            f"Combination causality {self._causality}, variability {self._variability}, initial {self._initial} is not allowed"
+        )
         super().__init__(name=name, description=description, getter=self.getter, setter=self.setter)
         self.local_name: str
         if owner is None:

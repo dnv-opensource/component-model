@@ -186,9 +186,9 @@ def test_bouncing_ball_class(show):
         # print( f"Bounce {n}: {bb.pos}, steps:{len(result)}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(bb.pos[2]) < 1e-2, f"z-position {bb.pos[2]} should be close to 0"
         if delta_t > 2 * dt:
-            assert (
-                result[-2][6] < 0 and result[-1][6] > 0
-            ), f"Expected speed sign change {result[-2][6]}-{result[-1][6]}when bouncing"
+            assert result[-2][6] < 0 and result[-1][6] > 0, (
+                f"Expected speed sign change {result[-2][6]}-{result[-1][6]}when bouncing"
+            )
             assert bb.speed[0] == result[-2][4] * bb.e, "Reduced speed in x-direction"
     if show:
         do_show(result)
@@ -202,9 +202,9 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu(str(bouncing_ball_fmu))
-    assert not len(
-        val
-    ), f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
+    assert not len(val), (
+        f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
+    )
 
 
 def test_use_fmu(bouncing_ball_fmu, show):
@@ -335,9 +335,9 @@ def test_use_fmu(bouncing_ball_fmu, show):
         # print( f"Bounce {n}: {result[row][3]}, steps:{row}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(min(result[row - 1][3], result[row][3])) < 0.3, f"z-position {result[row][3]} should be close to 0"
         if delta_t > 2 * dt:
-            assert (
-                result[row - 1][6] < 0 and result[row][6] > 0
-            ), f"Expected speed sign change {result[row-1][6]}-{result[row][6]}when bouncing"
+            assert result[row - 1][6] < 0 and result[row][6] > 0, (
+                f"Expected speed sign change {result[row - 1][6]}-{result[row][6]}when bouncing"
+            )
             assert abs(result[row - 1][4] * e - result[row][4]) < 1e-15, "Reduced speed in x-direction"
 
 
