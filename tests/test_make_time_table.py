@@ -47,7 +47,6 @@ def _time_table_fmu():
         script=str(Path(__file__).parent.parent / "examples" / "time_table_fmu.py"),
         project_files=[Path(__file__).parent.parent / "examples" / "time_table.py"],
         dest=build_path,
-        newargs={"interpolate": 1, "stepSize": 0.1},
     )
     return fmu_path
 
@@ -225,6 +224,50 @@ def test_run_osp_system_structure(time_table_system_structure):
                 assert abs(_x - time**2) < 1e-10, f"Result for {ipol}: {_x} != {time**2}"
 
 
+def test_make_with_new_data():
+    """Test and example how keyword arguments of the Model class can be used (changed) when building FMU."""
+    times = np.linspace(0, 2 * np.pi, 100)
+    data = list(zip(times, np.cos(times), np.sin(times), strict=False))
+    build_path = Path.cwd()
+    build_path.mkdir(exist_ok=True)
+    fmu_path = Model.build(
+        script=str(Path(__file__).parent.parent / "examples" / "time_table_fmu.py"),
+        project_files=[Path(__file__).parent.parent / "examples" / "time_table.py"],
+        dest=build_path,
+        newargs={
+            "data": data,
+            "header": ("x", "y"),
+            "interpolate": 1,
+            "default_experiment": {"startTime": 0, "stopTime": 2 * np.pi, "stepSize": 0.1, "tolerance": 1e-5},
+        },
+    )
+    (build_path / "TimeTableFMU.fmu").replace(build_path / "NewDataFMU.fmu")
+    return fmu_path
+
+
+def test_use_with_new_data(show):
+    fmu_path = Path(__file__).parent / "test_working_directory" / "NewDataFMU.fmu"
+    result = simulate_fmu(  # type: ignore[reportArgumentType]
+        fmu_path,
+        stop_time=2 * np.pi,
+        step_size=0.1,
+        validate=True,
+        solver="Euler",
+        debug_logging=True,
+        logger=print,  # fmi_call_logger=print,
+        start_values={"interpolate": 2},
+    )
+    if show:
+        plot_result(result)
+    time = 0.0
+    for t, x, y in result:
+        assert abs(t - time) < 1e-10, f"Expected time {time}!={t} from data"
+        assert abs(1.0 - (x**2 + y**2)) < 1e-5, f"time {t}: x={x}, y={y}, x**2+y**2 = {x**2 + y**2}"
+        time += 0.1
+        if time > 2 * np.pi:
+            time = 2 * np.pi
+
+
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
@@ -237,3 +280,5 @@ if __name__ == "__main__":
     # test_run_osp(_time_table_fmu())
     # test_check_osp_system_structure(_time_table_system_structure(_time_table_fmu()))
     # test_run_osp_system_structure(_time_table_system_structure(_time_table_fmu()))
+    # test_make_with_new_data()
+    # test_use_with_new_data(show=True)
