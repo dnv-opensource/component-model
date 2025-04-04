@@ -213,7 +213,7 @@ class Model(Fmi2Slave):
         vref = len(self.vars)
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
-        owner = self
+        owner = var.owner  # normally the model, but more complex components might have sub-systems
         if var.getter is None and nested and "." in var.name:
             split = var.name.split(".")
             split.pop(-1)
@@ -244,6 +244,7 @@ class Model(Fmi2Slave):
             if var.on_set is not None:
                 val = var.on_set(getattr(var.owner, var.local_name))
                 setattr(var.owner, var.local_name, val)
+                logger.debug(f"DIRTY_DO {var.name} = {getattr(var.owner, var.local_name)}")
         self._dirty = []
 
     @property

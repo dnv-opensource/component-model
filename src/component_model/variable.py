@@ -217,7 +217,10 @@ class Variable(ScalarVariable):
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
         self.model.register_variable(self)
-        setattr(self.model, self.local_name, np.array(self.start, self.typ) if self._len > 1 else self.start[0])
+        try:
+            setattr(self.owner, self.local_name, np.array(self.start, self.typ) if self._len > 1 else self.start[0])
+        except AttributeError as _:  # can happen if a @property is defined for local_name, but no @local_name.setter
+            pass
 
     # disable super() functions and properties which are not in use here
     def to_xml(self) -> ET.Element:
@@ -305,6 +308,7 @@ class Variable(ScalarVariable):
         Alternatively, single elements can be set by providing the index explicitly.
         """
         dvals: list[int | float | bool | str | Enum | None]
+        logger.debug(f"SETTER0 {self.name}, {values}[{idx}] => {getattr(self.owner, self.local_name)}")
         is_ndarray = isinstance(values, np.ndarray)
         assert self._typ is not None, "Need a proper type at this stage"
         assert isinstance(values, (Sequence, np.ndarray)), "A sequence is expected as values"
@@ -328,12 +332,20 @@ class Variable(ScalarVariable):
             else:  # the whole array
                 dvals = []
                 for i in range(self._len):
-                    if self._display[i] is None:
+                    if values[i] is None:  # keep the value
+                        dvals.append(getattr(self.owner, self.local_name)[i])
+                    elif self._display[i] is None:
                         dvals.append(values[i])
                     else:
                         dvals.append(self.display[i][1](values[i]))
         else:  # no unit issues
-            dvals = list(values)
+            if self._len == 1:
+                dvals = [values[0] if values[0] is not None else getattr(self.owner, self.local_name)]
+            else:
+                dvals = [
+                    values[i] if values[i] is not None else getattr(self.owner, self.local_name)[i]
+                    for i in range(self._len)
+                ]
 
         if self._len == 1:
             setattr(self.owner, self.local_name, dvals[0] if self.on_set is None else self.on_set(dvals[0]))  # type: ignore
@@ -348,6 +360,8 @@ class Variable(ScalarVariable):
                 setattr(self.owner, self.local_name, arr if self.on_set is None else self.on_set(arr))
             else:
                 setattr(self.owner, self.local_name, dvals if self.on_set is None else self.on_set(dvals))
+        if self.on_set is None:
+            logger.debug(f"SETTER {self.name}, {values}[{idx}] => {getattr(self.owner, self.local_name)}")
 
     def getter(self) -> Sequence[PyType]:
         """Get the value (output a value from the model), including range checking and unit conversion.
@@ -500,7 +514,9 @@ class Variable(ScalarVariable):
         if isinstance(values[0], str):  # no range checking on strings
             return self._typ is str
         elif self._len > 1 and idx < 0:  # check all components
-            assert isinstance(values, (Sequence, np.ndarray)) and len(values) == self._len, f"{values} has no elements"
+            assert isinstance(values, (Sequence, np.ndarray)) and len(values) == self._len, (
+                f"Values {values} not sufficient. Need {self._len}"
+            )
             return all(self.check_range_single(values[i], i, disp) for i in range(self._len))
         else:
             return self.check_range_single(values[0], idx, disp)

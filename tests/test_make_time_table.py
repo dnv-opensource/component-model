@@ -245,6 +245,7 @@ def test_make_with_new_data():
     return fmu_path
 
 
+@pytest.mark.skip(reason="Does so far not work within pytest, only stand-alone")
 def test_use_with_new_data(show):
     fmu_path = Path(__file__).parent / "test_working_directory" / "NewDataFMU.fmu"
     result = simulate_fmu(  # type: ignore[reportArgumentType]

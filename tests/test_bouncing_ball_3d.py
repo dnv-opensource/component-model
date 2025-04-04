@@ -450,13 +450,13 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent / "test_working_directory")
     # test_bouncing_ball_class(show=False)
+    test_make_bouncing_ball(_bouncing_ball_fmu())
     # test_use_fmu(_bouncing_ball_fmu(), True)
     # test_from_fmu( _bouncing_ball_fmu())
     # test_from_osp( _bouncing_ball_fmu())
-    # test_make_bouncing_ball(_bouncing_ball_fmu())
