@@ -1,0 +1,35 @@
+﻿component\_model.variable
+=========================
+
+.. automodule:: component_model.variable
+   :members:
+   :exclude-members: Check,Variable,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      cartesian_to_cylindrical
+      cartesian_to_spherical
+      cylindrical_to_cartesian
+      linear
+      quantity_direction
+      spherical_to_cartesian
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Check
+      Variable
+   
+   .. rubric:: Exceptions
+   .. autosummary::
+   
+      VariableInitError
+      VariableRangeError
+      VariableUseError
+   
