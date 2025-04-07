@@ -15,10 +15,10 @@ from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore
 from pythonfmu import __version__ as pythonfmu_version
 from pythonfmu.default_experiment import DefaultExperiment
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
+from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
-from component_model.caus_var_ini import Initial
 from component_model.variable import Variable
 
 logger = logging.getLogger(__name__)

@@ -1,3 +1,5 @@
+"""Additional Enum objects for component-model and enum-related utilities."""
+
 import logging
 from enum import Enum, EnumType
 
@@ -9,12 +11,33 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 logger = logging.getLogger(__name__)
 
 
-# class Initial(Enum):
-#     exact = 0
-#     approx = 1
-#     calculated = 2
-#     none = 3  # additional value to allow for the cases when initial: --
-#
+class VariableNamingConvention(Enum):
+    """Enum for variable naming conventions."""
+
+    flat = 0
+    structured = 1
+
+
+def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum | None:
+    """Ensure that we have an Enum, based on the input as str, Enum or None."""
+    if org is None:
+        if typ is Causality or typ is Variability:
+            assert default is not None, "default value needed at this stage"
+            return default
+        elif typ is Initial:
+            return default  # might be None
+        else:
+            return None
+    elif isinstance(org, str):
+        assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
+        try:
+            return typ[org]  # type: ignore [reportReturnType] # do not understand the error message
+        except KeyError as err:
+            raise Exception(f"The value {org} is not compatible with the Enum {typ}: {err}") from err
+    else:
+        assert isinstance(org, typ), f"{org} is not member of the Enum {typ}"
+        return org
+
 
 # see tables on page 50 in FMI 2.0.1 specification
 combinations = (
@@ -68,27 +91,6 @@ explanations = {
     "e": """A fixed or tunable “output” has exactly the same properties as a fixed or tunable calculatedParameter.
                           For simplicity, only fixed and tunable calculatedParameters shall be defined.""",
 }
-
-
-def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum | None:
-    """Ensure that we have an Enum, based on the input as str, Enum or None."""
-    if org is None:
-        if typ is Causality or typ is Variability:
-            assert default is not None, "default value needed at this stage"
-            return default
-        elif typ is Initial:
-            return default  # might be None
-        else:
-            return None
-    elif isinstance(org, str):
-        assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
-        try:
-            return typ[org]  # type: ignore [reportReturnType] # do not understand the error message
-        except KeyError as err:
-            raise Exception(f"The value {org} is not compatible with the Enum {typ}: {err}") from err
-    else:
-        assert isinstance(org, typ), f"{org} is not member of the Enum {typ}"
-        return org
 
 
 def check_causality_variability_initial(

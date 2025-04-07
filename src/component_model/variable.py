@@ -10,10 +10,11 @@ from typing import Any, Callable, Sequence, TypeAlias
 import numpy as np
 from pint import Quantity  # management of units
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
+from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
-from component_model.caus_var_ini import Initial, check_causality_variability_initial, use_start
+from component_model.enums import check_causality_variability_initial, use_start
 
 logger = logging.getLogger(__name__)
 PyType: TypeAlias = str | int | float | bool | Enum
