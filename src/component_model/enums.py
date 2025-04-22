@@ -11,13 +11,6 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 logger = logging.getLogger(__name__)
 
 
-class VariableNamingConvention(Enum):
-    """Enum for variable naming conventions."""
-
-    flat = 0
-    structured = 1
-
-
 def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum | None:
     """Ensure that we have an Enum, based on the input as str, Enum or None."""
     if org is None:

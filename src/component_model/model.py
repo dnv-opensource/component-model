@@ -19,7 +19,9 @@ from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
+from component_model.enums import ensure_enum
 from component_model.variable import Variable
+from component_model.variable_naming import ParsedVariable, VariableNamingConvention
 
 logger = logging.getLogger(__name__)
 Value: TypeAlias = str | int | float | bool | Enum
@@ -140,10 +142,13 @@ class Model(Fmi2Slave):
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
+        variable_naming = kwargs.pop("variable_naming", "structured")
+        self.variable_naming = ensure_enum(variable_naming, VariableNamingConvention, VariableNamingConvention.flat)
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
         self.time = self.default_experiment.start_time  # keeping track of time when dynamic calculations are performed
+        self.derivatives: list = []  # list of non-explicit derivatives
 
     def setup_experiment(self, start_time: float = 0.0):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
@@ -191,6 +196,36 @@ class Model(Fmi2Slave):
                 ):
                     self._units[u].append(du)
 
+    def owner_hierarchy(self, parent: str | None) -> list:
+        """Analyse the parent of a variable down to the Model and return the owners as list."""
+        ownernames: list[tuple[str, int | None]] = []
+        assert isinstance(self.variable_naming, VariableNamingConvention), (
+            f"Undefined VariableNamingConvention for {self.name}"
+        )
+        while parent is not None:
+            parsed = ParsedVariable(parent, self.variable_naming)
+            if len(parsed.indices) == 0:
+                idx = None
+            elif len(parsed.indices) == 1:
+                idx = parsed.indices[0]
+            else:
+                raise NotImplementedError(
+                    "Object indices other than 0 and 1D not implement. Found {parsed.indices}"
+                ) from None
+            if parsed.der > 0:
+                raise NotImplementedError("Derivatives are so far not implemented") from None
+            ownernames.append((parsed.var, idx))
+            parent = parsed.parent
+        owners = [self]
+        while len(ownernames):
+            last, idx = ownernames.pop(-1)
+            owner = getattr(owners[-1], last)
+            if idx is not None:
+                owner = owner[idx]
+            assert owner is not None, f"Owner {last} of owners[-1] not found"
+            owners.append(owner)
+        return owners
+
     def register_variable(  # type: ignore [reportIncompatibleMethodOverride] # not ScalarVariable! is checked.
         self, var: Variable, nested: bool = True
     ):
@@ -198,7 +233,10 @@ class Model(Fmi2Slave):
 
         Args:
             var (ScalarVariable): The variable to be registered
-            nested (bool): Optional, does the "." in the variable name reflect an object hierarchy to access it? Default True
+            nested (bool): With respect to FMI standard this is not conformant.
+              To make it behave conformant we treat False as VariableNamingConvention.flat
+              and True as VariableNamingConvention.structured
+              Variable name parsing and setting of related properties is expected beforehand, outside this function.
 
         #. Only the first element of compound variables includes the variable reference,
            while the following sub-elements contain None, so that a (ScalarVariable) index is reserved.
@@ -213,12 +251,8 @@ class Model(Fmi2Slave):
         vref = len(self.vars)
         self.vars[vref] = var
         var.value_reference = vref  # Set the unique value reference
-        owner = var.owner  # normally the model, but more complex components might have sub-systems
-        if var.getter is None and nested and "." in var.name:
-            split = var.name.split(".")
-            split.pop(-1)
-            for s in split:
-                owner = getattr(owner, s)
+
+        assert var.getter is not None, f"No getter method defined for {var}"
 
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
         for i in range(1, len(var)):
@@ -257,6 +291,16 @@ class Model(Fmi2Slave):
         automatically adding the mandatory first `model` argument.
         """
         return Variable(self, *args, **kwargs)
+
+    def add_derivative(self, var: Variable, order: int):
+        """Add the derivative of var to the exposed Variables as virtual variable.
+
+        This is convenient as many physical systems do not tolerate to abruptly change variable values,
+        but require to ramp up/down values by setting the derivative to suitable values.
+        This can be achieved without adding an internal variable to the model.
+        The model will in this case do the ramping when the derivative is set != 0.0.
+        """
+        self.derivatives.append(var)
 
     def variable_by_name(self, name: str) -> Variable:
         """Return Variable object related to name, or None, if not found.

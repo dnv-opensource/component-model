@@ -15,6 +15,7 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
 from component_model.enums import check_causality_variability_initial, use_start
+from component_model.variable_naming import ParsedVariable
 
 logger = logging.getLogger(__name__)
 PyType: TypeAlias = str | int | float | bool | Enum
@@ -143,10 +144,13 @@ class Variable(ScalarVariable):
            If given, the function shall apply to the whole (vecor) variable,
            and after unit conversion and range checking.
            The function is completely invisible by the user specifying inputs to the variable.
-        owner = None: Optional possibility to overwrite the default value owner (the related model).
-           This is convenient for structured models, like a crane, where the model is the crane itself,
-           consisting of booms, where the boom variables (length, angle,...) should be directly accessible by the boom
-           - the crane itself needs only to relate to the first boom.
+        owner = None: Optional possibility to overwrite the default owner.
+           If the related model uses structured variable naming this should not be necessary,
+           but for flat variable naming within complex models (not recommended) ownership setting might be necessary.
+        local_name (str) = None: Optional possibility to overwrite the automatic determination of local_name,
+           which is used to access the variable value and must be a property of owner.
+           This is convenient for example to link a derivative name to a variable if the default name der_<base-var>
+           is not acceptable.
     """
 
     def __init__(
@@ -165,6 +169,7 @@ class Variable(ScalarVariable):
         on_step: Callable | None = None,
         on_set: Callable | None = None,
         owner: Any | None = None,
+        local_name: str | None = None,
     ):
         self.model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
@@ -174,13 +179,29 @@ class Variable(ScalarVariable):
             f"Combination causality {self._causality}, variability {self._variability}, initial {self._initial} is not allowed"
         )
         super().__init__(name=name, description=description, getter=self.getter, setter=self.setter)
-        self.local_name: str
+
+        parsed = ParsedVariable(name, self.model.variable_naming)
         if owner is None:
-            self.owner = self.model
+            oh = self.model.owner_hierarchy(parsed.parent)
+            if owner is None:
+                self.owner = oh[-1]
         else:
             self.owner = owner
-            if hasattr(owner, "name") and self.local_name.startswith(owner.name + "_"):
-                self.local_name = self.local_name[len(owner.name + "_") :]
+        if local_name is None:
+            if parsed.der > 0:  # is a derivative of 'var'
+                self.local_name = f"der{parsed.der}_{parsed.var}"
+                if not hasattr(self.owner, self.local_name):  # the derivative is not explicitly defined in the model
+                    if parsed.der == 1:  # first derivative
+                        self.local_name = f"der{parsed.der}_{parsed.var}"
+                        setattr(self.owner, self.local_name, 0.0)
+                        if on_step is None:
+                            on_step = self.der1
+                    else:
+                        raise NotImplementedError("None-explicit higher order derivatives not implemented") from None
+            else:
+                self.local_name = parsed.var
+        else:
+            self.local_name = local_name
 
         self._annotations = annotations
         self._check = value_check  # unique for all elements in compound variables
@@ -222,6 +243,20 @@ class Variable(ScalarVariable):
             setattr(self.owner, self.local_name, np.array(self.start, self.typ) if self._len > 1 else self.start[0])
         except AttributeError as _:  # can happen if a @property is defined for local_name, but no @local_name.setter
             pass
+
+    def der1(self, current_time: float, step_size: float):
+        der = self.getter()
+        if any(x != 0.0 for x in der):  # the value is (currently) set to > or < 0
+            varname = self.local_name[5:]
+            if len(der) == 1:
+                assert isinstance(der[0], float)
+                setattr(self.owner, varname, getattr(self.owner, varname) + der[0] * step_size)
+            else:
+                setattr(
+                    self.owner,
+                    varname,
+                    np.array(getattr(self.owner, varname), float) + np.array(der, float) * step_size,
+                )
 
     # disable super() functions and properties which are not in use here
     def to_xml(self) -> ET.Element:

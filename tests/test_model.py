@@ -8,6 +8,7 @@ import pytest
 from component_model.model import Model  # type: ignore
 from component_model.utils.fmu import model_from_fmu
 from component_model.variable import Check, Variable
+from component_model.variable_naming import ParsedVariable, VariableNamingConvention
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,15 @@ of this software and a ..."""
     c, lic = mod.make_copyright_license("Copyleft (c) 3000 Nobody", _lic)
     assert c == "Copyleft (c) 3000 Nobody"
     assert lic.strip().startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
+
+
+def test_variable_naming():
+    mod = DummyModel("TestModel", author="Ola Norman", variable_naming="flat")
+    conv = VariableNamingConvention.flat
+    assert mod.variable_naming == conv
+    assert ParsedVariable("x", conv).as_tuple() == (None, "x", [], 0)
+    assert ParsedVariable("x[3]", conv).as_tuple() == (None, "x", [3], 0)
+    assert ParsedVariable("x[3,5]", conv).as_tuple() == (None, "x", [3, 5], 0)
 
 
 def test_xml():
@@ -137,8 +147,9 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_license()
     # test_xml()
-    # test_from_fmu(_bouncing_ball_fmu())
+    test_from_fmu(_bouncing_ball_fmu())
+    # test_variable_naming()
