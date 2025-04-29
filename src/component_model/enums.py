@@ -1,7 +1,7 @@
 """Additional Enum objects for component-model and enum-related utilities."""
 
 import logging
-from enum import Enum, EnumType
+from enum import Enum
 
 # import pythonfmu.enums # type: ignore
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -11,24 +11,18 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 logger = logging.getLogger(__name__)
 
 
-def ensure_enum(org: str | Enum | None, typ: EnumType, default: Enum | None) -> Enum | None:
+def ensure_enum(org: str | Enum | None, default: Enum | None) -> Enum | None:
     """Ensure that we have an Enum, based on the input as str, Enum or None."""
     if org is None:
-        if typ is Causality or typ is Variability:
-            assert default is not None, "default value needed at this stage"
-            return default
-        elif typ is Initial:
-            return default  # might be None
-        else:
-            return None
+        return default
     elif isinstance(org, str):
-        assert isinstance(typ, EnumType), f"EnumType expected as typ. Found {typ}"
-        try:
-            return typ[org]  # type: ignore [reportReturnType] # do not understand the error message
-        except KeyError as err:
-            raise Exception(f"The value {org} is not compatible with the Enum {typ}: {err}") from err
-    else:
-        assert isinstance(org, typ), f"{org} is not member of the Enum {typ}"
+        assert isinstance(default, Enum), "Need a default Enum here"
+        if org in type(default).__members__:
+            return type(default)[org]
+        else:
+            raise Exception(f"The value {org} is not compatible with the Enum {type(default)}") from None
+    else:  # expect already an Enum
+        assert default is None or isinstance(org, type(default)), f"{org} is not member of the Enum {type(default)}"
         return org
 
 
@@ -87,18 +81,18 @@ explanations = {
 
 
 def check_causality_variability_initial(
-    causality: str | EnumType | None,
-    variability: str | EnumType | None,
+    causality: str | Enum | None,  # EnumType | None,
+    variability: str | Enum | None,  # EnumType | None,
     initial: str | Enum | None,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:
-    _causality = ensure_enum(causality, Causality, Causality.parameter)  # type: ignore
-    _variability = ensure_enum(variability, Variability, Variability.constant)  # type: ignore
+    _causality = ensure_enum(causality, Causality.parameter)  # type: ignore
+    _variability = ensure_enum(variability, Variability.constant)  # type: ignore
     res = combination(_variability, _causality)  # type: ignore
     if res in ("a", "b", "c", "d", "e"):  # combination is not allowed
         logger.info(f"(causality {_causality}, variability {variability}) is not allowed: {explanations[res]}")
         return (None, None, None)
     else:  # allowed
-        _initial = ensure_enum(initial, Initial, initial_default[res][0])  # type: ignore
+        _initial = ensure_enum(initial, initial_default[res][0])  # type: ignore
         if _initial not in initial_default[res][1]:
             logger.info(f"(Causality {_causality}, variability {_variability}, Initial {_initial}) is not allowed")
             return (None, None, None)

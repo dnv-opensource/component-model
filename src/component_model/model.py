@@ -143,7 +143,7 @@ class Model(Fmi2Slave):
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
         variable_naming = kwargs.pop("variable_naming", "structured")
-        self.variable_naming = ensure_enum(variable_naming, VariableNamingConvention, VariableNamingConvention.flat)
+        self.variable_naming = ensure_enum(variable_naming, VariableNamingConvention.flat)
         self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()

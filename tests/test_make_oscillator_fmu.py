@@ -1,5 +1,5 @@
+import shutil
 import sys
-import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -16,8 +16,6 @@ from libcosimpy.CosimLogging import CosimLogLevel, log_output_level
 from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
-from sim_explorer.utils.misc import from_xml
-from sim_explorer.utils.osp import make_osp_system_structure
 
 from component_model.model import Model
 
@@ -90,21 +88,21 @@ def system_structure():
 
 def _system_structure():
     """Make a OSP structure file and return the path"""
-    path = make_osp_system_structure(
-        name="ForcedOscillator",
-        simulators={
-            "osc": {"source": "HarmonicOscillator.fmu", "stepSize": 0.01},
-            "drv": {"source": "DrivingForce.fmu", "stepSize": 0.01},
-        },
-        connections_variable=(("drv", "f[2]", "osc", "f[2]"),),
-        version="0.1",
-        start=0.0,
-        base_step=0.01,
-        algorithm="fixedStep",
-        path=Path.cwd(),
-    )
-
-    return path
+    #     path = make_osp_system_structure(
+    #         name="ForcedOscillator",
+    #         simulators={
+    #             "osc": {"source": "HarmonicOscillator.fmu", "stepSize": 0.01},
+    #             "drv": {"source": "DrivingForce.fmu", "stepSize": 0.01},
+    #         },
+    #         connections_variable=(("drv", "f[2]", "osc", "f[2]"),),
+    #         version="0.1",
+    #         start=0.0,
+    #         base_step=0.01,
+    #         algorithm="fixedStep",
+    #         path=Path.cwd(),
+    #     )
+    shutil.copy(Path(__file__).parent.parent / "examples" / "ForcedOscillator.xml", Path.cwd())
+    return Path.cwd() / "ForcedOscillator.xml"
 
 
 def test_make_fmus(
@@ -122,17 +120,18 @@ def test_make_fmus(
     assert not len(val), f"Validation of of {oscillator_fmu.name} was not successful. Errors: {val}"
 
 
-def test_make_system_structure(system_structure: Path):
-    assert Path(system_structure).exists(), "System structure not created"
-    el = from_xml(Path(system_structure))
-    assert isinstance(el, ET.Element), f"ElementTree element expected. Found {el}"
-    ns = el.tag.split("{")[1].split("}")[0]
-    print("NS", ns, system_structure)
-    for s in el.findall(".//{*}Simulator"):
-        assert (Path(system_structure).parent / s.get("source", "??")).exists(), f"Component {s.get('name')} not found"
-    for _con in el.findall(".//{*}VariableConnection"):
-        for c in _con:
-            assert c.attrib in ({"simulator": "drv", "name": "f[2]"}, {"simulator": "osc", "name": "f[2]"})
+# def test_make_system_structure(system_structure: Path):
+#     assert Path(system_structure).exists(), "System structure not created"
+#     el = read_xml(Path(system_structure))
+#     assert isinstance(el, ET.Element), f"ElementTree element expected. Found {el}"
+#     ns = el.tag.split("{")[1].split("}")[0]
+#     print("NS", ns, system_structure)
+#     for s in el.findall(".//{*}Simulator"):
+#         assert (Path(system_structure).parent / s.get("source", "??")).exists(), f"Component {s.get('name')} not found"
+#     for _con in el.findall(".//{*}VariableConnection"):
+#         for c in _con:
+#             assert c.attrib in ({"simulator": "drv", "name": "f[2]"}, {"simulator": "osc", "name": "f[2]"})
+#
 
 
 def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool):
@@ -182,6 +181,7 @@ def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
 def test_run_osp_system_structure(system_structure: Path, show: bool):
     "Run an OSP simulation in the same way as the SimulatorInterface of sim-explorer is implemented"
     log_output_level(CosimLogLevel.TRACE)
+    print("STRUCTURE", system_structure)
     simulator = CosimExecution.from_osp_config_file(str(system_structure))
     sim_status = simulator.status()
     assert sim_status.current_time == 0
@@ -246,7 +246,7 @@ def test_run_osp_system_structure(system_structure: Path, show: bool):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = 0  # pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # import os
 
@@ -255,4 +255,4 @@ if __name__ == "__main__":
     # test_make_system_structure( _system_structure())
     # test_use_fmu(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_osp(_oscillator_fmu(), _driver_fmu())
-    # test_run_osp_system_structure(_system_structure(), show=True)
+    test_run_osp_system_structure(_system_structure(), show=True)

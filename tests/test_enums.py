@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -6,9 +7,17 @@ from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 
 from component_model.enums import check_causality_variability_initial, combination, combinations, ensure_enum
+from component_model.variable_naming import VariableNamingConvention
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+def test_enum():
+    f = VariableNamingConvention.flat
+    assert isinstance(f, Enum)
+    assert type(f) is VariableNamingConvention
+    assert type(f)["structured"] == VariableNamingConvention.structured
 
 
 def test_combinations():
@@ -18,13 +27,13 @@ def test_combinations():
 
 
 def test_ensure_enum():
-    assert ensure_enum("input", Causality, Causality.parameter) == Causality.input
+    assert ensure_enum("input", Causality.parameter) == Causality.input
     with pytest.raises(Exception) as err:
-        ensure_enum("input", Variability, Causality.output)
+        ensure_enum("input", Variability.constant)
     assert str(err.value).startswith("The value input is not compatible with ")
-    assert ensure_enum("discrete", Variability, None) == Variability.discrete
-    assert ensure_enum("input", Causality, None) == Causality.input
-    assert ensure_enum(None, Causality, Causality.input) == Causality.input
+    assert ensure_enum("discrete", Variability.continuous) == Variability.discrete
+    assert ensure_enum("input", Causality.local) == Causality.input
+    assert ensure_enum(None, Causality.input) == Causality.input
 
 
 def test_check():
@@ -57,6 +66,7 @@ def test_check():
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    # test_enum()
     # test_combinations()
     # test_ensure_enum()
     # test_check()
