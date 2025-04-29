@@ -152,5 +152,5 @@ if __name__ == "__main__":
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_axle_class(show=True)
-    # test_make_fmu(_axle_fmu(), show=True)
+    # test_make_fmu(_axle_fmu(), show=False)#True)
     # test_use_fmu(_axle_fmu(), show=True)

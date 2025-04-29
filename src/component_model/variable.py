@@ -245,7 +245,7 @@ class Variable(ScalarVariable):
             pass
 
     def der1(self, current_time: float, step_size: float):
-        der = self.getter()
+        der = self.getter()  # the current slope value
         if any(x != 0.0 for x in der):  # the value is (currently) set to > or < 0
             varname = self.local_name[5:]
             if len(der) == 1:
@@ -711,11 +711,12 @@ class Variable(ScalarVariable):
         def substr(alt1: str, alti: str):
             return alt1 if self._len == 1 else alti
 
-        declaredType = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
+        _type = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
             self.typ.__qualname__
         ]  # translation of python to FMI primitives. Same for all components
         do_use_start = use_start(causality=self._causality, variability=self._variability, initial=self._initial)
         svars = []
+        a_der = self.antiderivative()  # d a_der /dt = self, or None
         for i in range(self._len):
             sv = ET.Element(
                 "ScalarVariable",
@@ -729,35 +730,45 @@ class Variable(ScalarVariable):
             )
             if isinstance(self._initial, Enum):
                 sv.attrib.update({"initial": self._initial.name})
-            # if self.description is not None:
-            #    sv.attrib.update({"description": self.description + substr("", f", [{i}]")})
             if self._annotations is not None and i == 0:
                 sv.append(ET.Element("annotations", self._annotations))
             #             if self.display is None or (self._len>1 and self.display[i] is None):
             #                 "display" = (self.unit, 1.0)
 
             # detailed variable definition
-            varInfo = ET.Element(declaredType)
+            info = ET.Element(_type)
             if do_use_start:  # a start value is to be used
-                varInfo.attrib.update({"start": self.fmi_type_str(self.start[i])})
-            if declaredType in ("Real", "Integer", "Enumeration"):  # range to be specified
+                info.attrib.update({"start": self.fmi_type_str(self.start[i])})
+            if _type in ("Real", "Integer", "Enumeration"):  # range to be specified
                 xMin = self.range[i][0]
-                if declaredType != "Real" or xMin > float("-inf"):
-                    varInfo.attrib.update({"min": str(xMin)})
+                if _type != "Real" or xMin > float("-inf"):
+                    info.attrib.update({"min": str(xMin)})
                 else:
-                    varInfo.attrib.update({"unbounded": "true"})
+                    info.attrib.update({"unbounded": "true"})
                 xMax = self.range[i][1]
-                if declaredType != "Real" or xMax < float("inf"):
-                    varInfo.attrib.update({"max": str(xMax)})
+                if _type != "Real" or xMax < float("inf"):
+                    info.attrib.update({"max": str(xMax)})
                 else:
-                    varInfo.attrib.update({"unbounded": "true"})
-            if declaredType == "Real":  # other attributes apply only to Real variables
-                varInfo.attrib.update({"unit": self.unit[i]})
+                    info.attrib.update({"unbounded": "true"})
+            if _type == "Real":  # other attributes apply only to Real variables
+                info.attrib.update({"unit": self.unit[i]})
                 if self.display is not None and self.display[i] is not None and self.unit[i] != self.display[i][0]:
-                    varInfo.attrib.update({"displayUnit": self.display[i][0]})
-            sv.append(varInfo)
+                    info.attrib.update({"displayUnit": self.display[i][0]})
+                if a_der is not None:
+                    info.attrib.update({"derivative": str(a_der.value_reference + i + 1)})
+
+            sv.append(info)
             svars.append(sv)
         return svars
+
+    def antiderivative(self) -> Variable | None:
+        """Determine the variable which self is the derivative of.
+        Return None if self is not a derivative.
+        """
+        if self.name.startswith("der(") and self.name.endswith(")"):
+            return self.model.variable_by_name(self.name[4:-1])
+        else:
+            return None
 
 
 # Utility functions for handling special variable types

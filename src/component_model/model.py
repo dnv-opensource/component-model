@@ -512,6 +512,9 @@ class Model(Fmi2Slave):
 
         structure = ET.SubElement(root, "ModelStructure")
         structure.append(self._xml_structure_outputs())
+        ders = self._xml_structure_derivatives()
+        if len(ders):
+            structure.append(ders)
         initialunknowns = self._xml_structure_initialunknowns()
         if len(initialunknowns):
             structure.append(initialunknowns)
@@ -603,6 +606,27 @@ class Model(Fmi2Slave):
                     out.append(ET.Element("Unknown", {"index": str(v.value_reference + i + 1)}))
         return out
 
+    def _xml_structure_derivatives(self):
+        """Generate the FMI2 modelDescription.xml sub-tree <ModelStructure><Derivatives>.
+        Ordered list of all exposed Derivatives. See page 60 FMI2 spec.
+
+        * full name starts with 'der('. Only possible if VariableNaming = structured.
+        """
+        ders = ET.Element("Derivatives")
+
+        for v in filter(
+            lambda v: v is not None and v.antiderivative() is not None,
+            self.vars.values(),
+        ):
+            i_a_der = v.antiderivative().value_reference
+            for i in range(len(v)):  # works for vectors and scalars
+                ders.append(
+                    ET.Element(
+                        "Unknown", {"index": str(v.value_reference + i + 1), "dependencies": str(i_a_der + i + 1)}
+                    )
+                )
+        return ders
+
     def _xml_structure_initialunknowns(self):
         """Generate the FMI2 modelDescription.xml sub-tree <ModelStructure><InitialUnknowns>.
         Ordered list of all exposed Unknowns in Initialization mode. All variables with (see page 60 FMI2 spec).
@@ -624,11 +648,8 @@ class Model(Fmi2Slave):
             ),
             self.vars.values(),
         ):
-            if len(v) == 1:
-                init.append(ET.Element("Unknown", {"index": str(v.value_reference + 1)}))
-            else:
-                for i in range(len(v)):
-                    init.append(ET.Element("Unknown", {"index": str(v.value_reference + i + 1)}))
+            for i in range(len(v)):  # works for vectors and scalars
+                init.append(ET.Element("Unknown", {"index": str(v.value_reference + i + 1)}))
         return init
 
     @staticmethod

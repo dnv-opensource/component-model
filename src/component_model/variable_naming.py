@@ -61,7 +61,7 @@ class ParsedVariable:
                 self.parent = None
 
             self.var, self.indices = ParsedVariable.disect_indices(var)
-        assert self.var.isidentifier(), f"The variable name {self.var} is not a valid identifier"
+        # assert self.var.isidentifier(), f"The variable name {self.var} is not a valid identifier"
 
     def as_tuple(self):
         """Return all fields as tuple."""
