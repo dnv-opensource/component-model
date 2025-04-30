@@ -60,7 +60,7 @@ dependencies = [
     "sympy>=1.13.3",
     "jsonpath-ng>=1.7.0",
     "libcosimpy>=0.0.2",
-    "pythonfmu>=0.6.6",
+    "pythonfmu>=0.6.7",
     "flexparser<0.4",
     "pdfminer>=20191125",
     "pypdf2>=3.0.1",
