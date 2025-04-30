@@ -381,7 +381,7 @@ To test that the installation works, run pytest in the project root folder:
 
 Meta
 ----
-Copyright (c) 2024 `DNV <https://www.dnv.com/>`_ AS. All rights reserved.
+Copyright (c) 2025 `DNV <https://www.dnv.com/>`_ AS. All rights reserved.
 
 Siegfried Eisinger - siegfried.eisinger@dnv.com
 

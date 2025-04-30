@@ -7,6 +7,15 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 -/-
 
+## [0.2.0] - 2025.30.04
+
+### Changed
+* New structured variables feature with hierarchical variable organization using dot notation
+* Support for derivative notation with `der(variable)` and `der(variable,n)` syntax
+* Automatic handling of derivatives without explicit definitions in base models
+* Variable naming conventions: `flat` and `structured` in `VariableNamingConvention` enum
+* Example implementations in `axle.py`, `axle_fmu.py` and test cases in `test_structured_variables.py`
+
 
 ## [0.1.0] - 2024-11-08
 
