@@ -65,7 +65,7 @@ def _oscillator_fmu():
 
 @pytest.fixture(scope="session")
 def driver_fmu():
-    return _oscillator_fmu()
+    return _driver_fmu()
 
 
 def _driver_fmu():
