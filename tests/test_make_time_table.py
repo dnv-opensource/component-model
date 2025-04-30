@@ -1,3 +1,4 @@
+import shutil
 import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 from typing import Any, Iterable
@@ -16,7 +17,6 @@ from libcosimpy.CosimObserver import CosimObserver  # type: ignore
 from libcosimpy.CosimSlave import CosimLocalSlave
 from pythonfmu.enums import Fmi2Causality as Causality
 from pythonfmu.enums import Fmi2Variability as Variability
-from sim_explorer.utils.osp import make_osp_system_structure
 
 from component_model.model import Model
 
@@ -58,17 +58,17 @@ def time_table_system_structure(time_table_fmu):
 
 def _time_table_system_structure(time_table_fmu):
     """Make a structure file and return the path"""
-    path = make_osp_system_structure(
-        name="TimeTableStructure",
-        simulators={"tab": {"source": "TimeTableFMU.fmu", "stepSize": 0.1}},  # , "interpolate": 1}},
-        version="0.1",
-        start=0.0,
-        base_step=0.1,
-        algorithm="fixedStep",
-        path=Path.cwd(),
-    )
-
-    return path
+    #     path = make_osp_system_structure(
+    #         name="TimeTableStructure",
+    #         simulators={"tab": {"source": "TimeTableFMU.fmu", "stepSize": 0.1}},  # , "interpolate": 1}},
+    #         version="0.1",
+    #         start=0.0,
+    #         base_step=0.1,
+    #         algorithm="fixedStep",
+    #         path=Path.cwd(),
+    #     )
+    shutil.copy(Path(__file__).parent.parent / "examples" / "TimeTableStructure.xml", Path.cwd())
+    return Path.cwd() / "TimeTableStructure.xml"
 
 
 def test_time_table_fmu():

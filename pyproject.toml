@@ -71,7 +71,6 @@ dependencies = [
 modelTest = [
     "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
     "matplotlib>=3.9.1",
-    "sim-explorer>=0.2",
 ]
 rest = [
     "docutils>=0.21",
