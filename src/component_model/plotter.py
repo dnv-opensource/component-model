@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from libcosimpy.CosimExecution import CosimExecution  # type: ignore
 from libcosimpy.CosimObserver import CosimObserver  # type: ignore
-from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
+from mpl_toolkits.mplot3d.axes3d import Axes3D, Line3D  # type: ignore
 
 
 class SimulatorStatus(Enum):
@@ -68,7 +68,9 @@ class VisualSimulator:
     """
 
     def get_step_values(
-        self, observer: CosimObserver, signals: List[Tuple[Variable, Variable, Variable]]
+        self,
+        observer: CosimObserver,
+        signals: List[Tuple[Variable, Variable, Variable]],
     ) -> List[Tuple[float, float, float]]:
         variables = list(sum(signals, ()))
         slave_map: dict[int, List[int]] = {}
@@ -110,7 +112,11 @@ class VisualSimulator:
     """
 
     def variable_from_port(
-        self, instance: str, port: str, slave_map: dict[Any, Any], simulator: CosimExecution
+        self,
+        instance: str,
+        port: str,
+        slave_map: dict[Any, Any],
+        simulator: CosimExecution,
     ) -> Variable:
         slave_index = slave_map[instance].index
 
@@ -141,7 +147,10 @@ class VisualSimulator:
     """
 
     def run_simulation(
-        self, message_queue: Queue, points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]], osp_xml: str = ""
+        self,
+        message_queue: Queue,
+        points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]],
+        osp_xml: str = "",
     ):
         cosim_execution = CosimExecution.from_osp_config_file(osp_path=osp_xml)
         observer = CosimObserver.create_last_value()
@@ -177,8 +186,14 @@ class VisualSimulator:
         ax.set_zlim(0, 10)
         ax.view_init(elev=60, azim=45, roll=0)
         (line,) = ax.plot([0], [0], [0], linewidth=5)
-        time_ax = ax.text(ax.get_xlim()[0], ax.get_ylim()[0], ax.get_zlim()[0], s="time=0", color="blue")
-        plot = line
+        time_ax = ax.text(
+            ax.get_xlim()[0],
+            ax.get_ylim()[0],
+            ax.get_zlim()[0],
+            s="time=0",
+            color="blue",
+        )
+        plot: Line3D = line
 
         while True:
             current_time, new_data = queue.get(block=True)
@@ -202,9 +217,16 @@ class VisualSimulator:
                                 3 scalar signals.
     """
 
-    def start(self, osp_system_structure: str, points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]]):
+    def start(
+        self,
+        osp_system_structure: str,
+        points_3d: List[Tuple[OSPSignal, OSPSignal, OSPSignal]],
+    ):
         message_queue: Queue = Queue(maxsize=5)
-        simulation_process = Process(target=self.run_simulation, args=(message_queue, points_3d, osp_system_structure))
+        simulation_process = Process(
+            target=self.run_simulation,
+            args=(message_queue, points_3d, osp_system_structure),
+        )
         plot_process = Process(target=self.update_plot, args=(message_queue,))
 
         simulation_process.start()

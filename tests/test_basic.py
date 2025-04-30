@@ -36,16 +36,48 @@ class PythonSlave(Fmi2Slave):
         self.booleanVariable = True
         self.stringVariable = "Hello World!"
         self.realConst = -1.0
-        self.register_variable(Integer("intOut", causality=Fmi2Causality.output, variability=Fmi2Variability.discrete))
-        self.register_variable(Real("realOut", causality=Fmi2Causality.output, variability=Fmi2Variability.continuous))
         self.register_variable(
-            Boolean("booleanVariable", causality=Fmi2Causality.local, variability=Fmi2Variability.discrete)
+            Integer(
+                "intOut",
+                causality=Fmi2Causality.output,
+                variability=Fmi2Variability.discrete,
+            )
         )
         self.register_variable(
-            String("stringVariable", causality=Fmi2Causality.local, variability=Fmi2Variability.discrete)
+            Real(
+                "realOut",
+                causality=Fmi2Causality.output,
+                variability=Fmi2Variability.continuous,
+            )
         )
-        self.register_variable(Real("realIn", causality=Fmi2Causality.input, variability=Fmi2Variability.continuous))
-        self.register_variable(Real("realConst", causality=Fmi2Causality.parameter, variability=Fmi2Variability.fixed))
+        self.register_variable(
+            Boolean(
+                "booleanVariable",
+                causality=Fmi2Causality.local,
+                variability=Fmi2Variability.discrete,
+            )
+        )
+        self.register_variable(
+            String(
+                "stringVariable",
+                causality=Fmi2Causality.local,
+                variability=Fmi2Variability.discrete,
+            )
+        )
+        self.register_variable(
+            Real(
+                "realIn",
+                causality=Fmi2Causality.input,
+                variability=Fmi2Variability.continuous,
+            )
+        )
+        self.register_variable(
+            Real(
+                "realConst",
+                causality=Fmi2Causality.parameter,
+                variability=Fmi2Variability.fixed,
+            )
+        )
 
         self.default_experiment = DefaultExperiment(start_time=0.0, stop_time=1.0, step_size=0.1)
 
@@ -94,7 +126,7 @@ def test_make_fmu(build_fmu):
 
 
 def test_use_fmu(build_fmu):
-    _ = simulate_fmu(
+    _ = simulate_fmu(  # type: ignore #fmpy does not comply to pyright expectations
         build_fmu,
         stop_time=1,
         step_size=0.1,

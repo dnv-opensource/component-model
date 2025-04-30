@@ -17,9 +17,13 @@ def xml_to_python_val(val: str):
             try:
                 return float(val)
             except Exception:
-                return {"Real": float, "Integer": int, "Boolean": bool, "String": str, "Enumeration": Enum}.get(
-                    val, val
-                )
+                return {
+                    "Real": float,
+                    "Integer": int,
+                    "Boolean": bool,
+                    "String": str,
+                    "Enumeration": Enum,
+                }.get(val, val)
 
 
 def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
@@ -51,7 +55,7 @@ def read_xml(xml: Path | str, sub: str = "modelDescription.xml") -> ET.Element:
         try:
             el = ET.parse(Path(path, sub)).getroot()
         except ET.ParseError:
-            raise AssertionError(f"Could not parse xml file {Path(path,sub)}") from None
+            raise AssertionError(f"Could not parse xml file {Path(path, sub)}") from None
     elif isinstance(xml, str):
         try:
             el = ET.fromstring(xml)  # try as literal string

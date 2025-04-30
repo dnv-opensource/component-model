@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false
+# pyright: reportOptionalMemberAccess=false
 import time
 import xml.etree.ElementTree as ET  # noqa: N817
 from math import sqrt
@@ -14,8 +16,9 @@ from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
+from pythonfmu.default_experiment import DefaultExperiment
 
-from component_model.model import Model  # type: ignore
+from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
 
 
@@ -48,10 +51,14 @@ def do_show(result: list):
 
 @pytest.fixture(scope="session")
 def bouncing_ball_fmu():
+    return _bouncing_ball_fmu()
+
+
+def _bouncing_ball_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
+        str(Path(__file__).parent.parent / "examples" / "bouncing_ball_3d.py"),
         project_files=[],
         dest=build_path,
     )
@@ -65,20 +72,29 @@ def test_bouncing_ball_class(show):
     If pytest is run from the command line, the current directory is the package root,
     but when it is run from the editor (__main__) it is run from /tests/.
     """
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent / "examples"))
-    from bouncing_ball_3d import BouncingBall3D  # type: ignore
+    from examples.bouncing_ball_3d import BouncingBall3D
 
     bb = BouncingBall3D()
+    assert bb._pos.display is not None
+    assert bb._pos.setter is not None
+    assert bb._pos.getter is not None
+    assert bb._speed.getter is not None
+    assert bb._p_bounce.getter is not None
+
     result = []
 
     def get_result():
         """Make a row of the fmpy results vector (all output variables in display units)"""
-        result.append((bb.time, *bb._pos.getter(), *bb._speed.getter(), *bb._p_bounce.getter()))
+        _pos = bb._pos.getter()
+        assert isinstance(_pos, list)
+        _speed = bb._speed.getter()
+        assert isinstance(_speed, list)
+        _p_bounce = bb._p_bounce.getter()
+        assert isinstance(_p_bounce, list)
+        result.append((bb.time, *_pos, *_speed, *_p_bounce))
 
     h_fac = 1.0
-    if bb._pos.display[2] is not None:  # the main test settings
+    if len(bb._pos.display) > 1 and bb._pos.display[2] is not None:  # the main test settings
         arrays_equal(bb.pos, (0, 0, 10 * 0.0254))  # was provided as inch
         arrays_equal(bb.speed, (1, 0, 0))
         assert bb.g == 9.81
@@ -89,15 +105,16 @@ def test_bouncing_ball_class(show):
     v_bounce = bb.g * t_bounce  # speed in z-direction
     x_bounce = bb.speed[0] * t_bounce  # x-position where it bounces in m
     time = 0
-    dt = bb.default_experiment["stepSize"]
+    assert isinstance(bb.default_experiment, DefaultExperiment)
+    dt = bb.default_experiment.step_size
     assert dt == 0.01
     # set start values (in display units. Are translated to internal units
-    if bb._pos.display[2] is not None:
+    if len(bb._pos.display) > 1 and bb._pos.display[2] is not None:
         bb._pos.setter((0, 0, 10))
     t_b, p_b = bb.next_bounce()
     assert t_bounce == t_b
     # print("Bounce", t_bounce, x_bounce, p_b)
-    arrays_equal((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"
+    arrays_equal((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"  # type: ignore ##??
     get_result()
     # after one step
     bb.do_step(time, dt)
@@ -165,15 +182,20 @@ def test_bouncing_ball_class(show):
         eps=0.03,
     )
     # from bounce to bounce
-    v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce  # set start values (first bounce)
+    v_x, v_z, t_b, x_b = (
+        1.0,
+        v_bounce,
+        t_bounce,
+        x_bounce,
+    )  # set start values (first bounce)
     # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
-    for n in range(2, 100):  # from bounce to bounce
+    for _n in range(2, 100):  # from bounce to bounce
         v_x = v_x * bb.e  # adjusted speeds
         v_z = v_z * bb.e
         delta_t = 2 * v_z / bb.g  # time for one bounce (parabola): v(t) = v0 - g*t/2 => 2*v0/g = t
         t_b += delta_t
         x_b += v_x * delta_t
-        print(f"Bounce {n} @{t_b}")
+        # print(f"Bounce {n} @{t_b}")
         while bb.time <= t_b:
             # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
             bb.do_step(time, dt)
@@ -181,9 +203,10 @@ def test_bouncing_ball_class(show):
         # print( f"Bounce {n}: {bb.pos}, steps:{len(result)}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(bb.pos[2]) < 1e-2, f"z-position {bb.pos[2]} should be close to 0"
         if delta_t > 2 * dt:
-            assert (
-                result[-2][6] < 0 and result[-1][6] > 0
-            ), f"Expected speed sign change {result[-2][6]}-{result[-1][6]}when bouncing"
+            assert isinstance(result[-2][6], float) and isinstance(result[-1][6], float)
+            assert result[-2][6] < 0.0 and result[-1][6] > 0.0, (
+                f"Expected speed sign change {result[-2][6]}-{result[-1][6]}when bouncing"
+            )
             assert bb.speed[0] == result[-2][4] * bb.e, "Reduced speed in x-direction"
     if show:
         do_show(result)
@@ -197,16 +220,16 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     assert et.attrib["variableNamingConvention"] == "structured", "Variable naming convention. => use [i] for arrays"
     #    print(et.attrib)
     val = validate_fmu(str(bouncing_ball_fmu))
-    assert not len(
-        val
-    ), f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
+    assert not len(val), (
+        f"Validation of the modelDescription of {bouncing_ball_fmu.name} was not successful. Errors: {val}"
+    )
 
 
 def test_use_fmu(bouncing_ball_fmu, show):
     """Test and validate the basic BouncingBall using fmpy and not using OSP or case_study."""
     assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
     dt = 0.01
-    result = simulate_fmu(
+    result = simulate_fmu(  # type: ignore[reportArgumentType]
         bouncing_ball_fmu,
         start_time=0.0,
         stop_time=3.0,
@@ -308,7 +331,12 @@ def test_use_fmu(bouncing_ball_fmu, show):
         eps=0.03,
     )
     # from bounce to bounce
-    v_x, v_z, t_b, x_b = 1.0, v_bounce, t_bounce, x_bounce  # set start values (first bounce)
+    v_x, v_z, t_b, x_b = (
+        1.0,
+        v_bounce,
+        t_bounce,
+        x_bounce,
+    )  # set start values (first bounce)
     row = int((t_before + dt) / dt)
     # print(f"1.bounce time: {t_bounce} v_x:{v_x}, v_z:{v_z}, t_b:{t_b}, x_b:{x_b}")
     for n in range(2, 100):  # from bounce to bounce
@@ -325,9 +353,9 @@ def test_use_fmu(bouncing_ball_fmu, show):
         # print( f"Bounce {n}: {result[row][3]}, steps:{row}, v_x:{v_x}, v_z:{v_z}, delta_t:{delta_t}, t_b:{t_b}, x_b:{x_b}")
         assert abs(min(result[row - 1][3], result[row][3])) < 0.3, f"z-position {result[row][3]} should be close to 0"
         if delta_t > 2 * dt:
-            assert (
-                result[row - 1][6] < 0 and result[row][6] > 0
-            ), f"Expected speed sign change {result[row-1][6]}-{result[row][6]}when bouncing"
+            assert result[row - 1][6] < 0 and result[row][6] > 0, (
+                f"Expected speed sign change {result[row - 1][6]}-{result[row][6]}when bouncing"
+            )
             assert abs(result[row - 1][4] * e - result[row][4]) < 1e-15, "Reduced speed in x-direction"
 
 
@@ -410,7 +438,9 @@ def test_from_fmu(bouncing_ball_fmu):
     assert model["author"] == "DNV, SEACo project"
     assert model["version"] == "0.1"
     assert model["license"].startswith("Permission is hereby granted, free of charge, to any person obtaining a copy")
-    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", f"Found: {model.copyright}"
+    assert model["copyright"] == f"Copyright (c) {time.localtime()[0]} DNV, SEACo project", (
+        f"Found: {model['copyright']}"
+    )
     assert model["default_experiment"] is not None
     assert (
         model["default_experiment"]["start_time"],
@@ -420,13 +450,13 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    # retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
-    # assert retcode == 0, f"Non-zero return code {retcode}"
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    assert retcode == 0, f"Non-zero return code {retcode}"
+    import os
+
+    os.chdir(Path(__file__).parent / "test_working_directory")
     # test_bouncing_ball_class(show=False)
-    Model.build(
-        str(Path(__file__).parent / "examples" / "bouncing_ball_3d.py"),
-        dest=(Path(__file__).parent / "test_working_directory"),
-    )
-    # test_use_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu", False)
-    # test_from_fmu( Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
-    test_from_osp(Path(__file__).parent / "test_working_directory" / "BouncingBall3D.fmu")
+    test_make_bouncing_ball(_bouncing_ball_fmu())
+    # test_use_fmu(_bouncing_ball_fmu(), True)
+    # test_from_fmu( _bouncing_ball_fmu())
+    # test_from_osp( _bouncing_ball_fmu())

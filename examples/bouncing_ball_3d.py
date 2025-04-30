@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false
+# pyright: reportOptionalMemberAccess=false
 from math import sqrt
 
 import numpy as np
@@ -31,8 +33,8 @@ class BouncingBall3D(Model):
         description="Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
         pos: tuple = ("0 m", "0 m", "10 inch"),
         speed: tuple = ("1 m/s", "0 m/s", "0 m/s"),
-        g: float = "9.81 m/s^2",
-        e: float = 0.9,
+        g="9.81 m/s^2",
+        e=0.9,
         min_speed_z: float = 1e-6,
         **kwargs,
     ):
@@ -46,21 +48,22 @@ class BouncingBall3D(Model):
         self.stopped = False
         self.time = 0.0
         self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
-        self.t_bounce, self.p_bounce = (-1.0, self.pos)  # provoke an update at simulation start
+        # provoke an update at simulation start:
+        self.t_bounce, self.p_bounce = (-1.0, self.pos)  # type: ignore
 
-    def do_step(self, _, dt):
-        """Perform a simulation step from `self.time` to `self.time + dt`.
+    def do_step(self, current_time: float, step_size: float) -> bool:
+        """Perform a simulation step from `self.time` to `self.time + step_size`.
 
         With respect to bouncing (self.t_bounce should be initialized to a negative value)
         .t_bounce <= .time: update .t_bounce
-        .time < .t_bounce <= .time+dt: bouncing happens within time step
-        .t_bounce > .time+dt: no bouncing. Just advance .pos and .speed
+        .time < .t_bounce <= .time+step_size: bouncing happens within time step
+        .t_bounce > .time+step_size: no bouncing. Just advance .pos and .speed
         """
-        if not super().do_step(self.time, dt):
+        if not super().do_step(self.time, step_size):
             return False
         if self.t_bounce < self.time:  # calculate first bounce
             self.t_bounce, self.p_bounce = self.next_bounce()
-        while self.t_bounce <= self.time + dt:  # bounce happens within step or at border
+        while self.t_bounce <= self.time + step_size:  # bounce happens within step or at border
             dt1 = self.t_bounce - self.time
             self.pos = self.p_bounce
             self.speed += self.a * dt1  # speed before bouncing
@@ -72,13 +75,13 @@ class BouncingBall3D(Model):
                 self.speed[2] = 0.0
                 self.pos[2] = 0.0
             self.time += dt1  # jump to the exact bounce time
-            dt -= dt1
+            step_size -= dt1
             self.t_bounce, self.p_bounce = self.next_bounce()  # update to the next bounce
-        if dt > 0:
-            # print(f"pos={self.pos}, speed={self.speed}, a={self.a}, dt={dt}")
-            self.pos += self.speed * dt + 0.5 * self.a * dt**2
-            self.speed += self.a * dt
-            self.time += dt
+        if step_size > 0:
+            # print(f"pos={self.pos}, speed={self.speed}, a={self.a}, step_size={step_size}")
+            self.pos += self.speed * step_size + 0.5 * self.a * step_size**2
+            self.speed += self.a * step_size
+            self.time += step_size
         if self.pos[2] < 0:
             self.pos[2] = 0
         return True
@@ -96,25 +99,26 @@ class BouncingBall3D(Model):
             p_bounce[2] = 0
             return (self.time + dt_bounce, p_bounce)
 
-    def setup_experiment(self, start: float):
+    def setup_experiment(self, start_time: float = 0.0):
         """Set initial (non-interface) variables."""
-        super().setup_experiment(start)
+        super().setup_experiment(start_time)
         self.stopped = False
-        self.time = start
+        self.time = start_time
 
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
         super().exit_initialization_mode()
         self.a = np.array((0, 0, -self.g), float)
 
-    def _interface(self, name: str, start: float | tuple):
+    def _interface(self, name: str, start: str | float | tuple) -> Variable:
         """Define a FMU2 interface variable, using the variable interface.
 
         Args:
             name (str): base name of the variable
             start (str|float|tuple): start value of the variable (optionally with units)
 
-        Returns:
+        Returns
+        -------
             the variable object. As a side effect the variable value is made available as self.<name>
         """
         if name == "pos":
@@ -132,7 +136,7 @@ class BouncingBall3D(Model):
             return Variable(
                 self,
                 name="speed",
-                description="The 3D speed of the ball, i.e. d pos / dt [m/s]",
+                description="The 3D speed of the ball, i.e. d pos / step_size [m/s]",
                 causality="output",
                 variability="continuous",
                 initial="exact",
@@ -169,3 +173,5 @@ class BouncingBall3D(Model):
                 start=start,
                 rng=(),
             )
+        else:
+            raise KeyError(f"Interface variable {name} not included") from None
