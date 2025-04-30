@@ -241,13 +241,11 @@ def test_make_with_new_data():
             "default_experiment": {"startTime": 0, "stopTime": 2 * np.pi, "stepSize": 0.1, "tolerance": 1e-5},
         },
     )
-    (build_path / "TimeTableFMU.fmu").replace(build_path / "NewDataFMU.fmu")
-    return fmu_path
 
 
 @pytest.mark.skip(reason="Does so far not work within pytest, only stand-alone")
 def test_use_with_new_data(show):
-    fmu_path = Path(__file__).parent / "test_working_directory" / "NewDataFMU.fmu"
+    fmu_path = Path(__file__).parent / "test_working_directory" / "TimeTableFMU.fmu"
     result = simulate_fmu(  # type: ignore[reportArgumentType]
         fmu_path,
         stop_time=2 * np.pi,

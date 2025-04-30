@@ -65,12 +65,14 @@ dependencies = [
     "pdfminer>=20191125",
     "pypdf2>=3.0.1",
     "scipy>=1.15.1",
+    "plotly>=6.0.1",
 ]
 
 [project.optional-dependencies]
 modelTest = [
     "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
     "matplotlib>=3.9.1",
+    "plotly>=6.0.1",
 ]
 rest = [
     "docutils>=0.21",
