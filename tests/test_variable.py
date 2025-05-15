@@ -239,8 +239,8 @@ def test_init():
     # internally packed into tuple:
     assert int1.start == (99,)
     assert int1.range == ((0, 100),)
-    assert int1.unit == ("dimensionless",)
-    assert int1.display == (None,)
+    assert int1.unit[0].u == "dimensionless"
+    assert int1.unit[0].du is None
     assert int1.check_range([50])
     assert not int1.check_range([110])
     assert mod.int1 == 99, "Value directly accessible as model variable"
@@ -263,10 +263,10 @@ def test_init():
     # internally packed into tuple:
     assert float1.start == (0.99,)
     assert float1.range == ((0, 99.0),), f"Range: {float1.range} in display units."
-    assert float1.unit == ("dimensionless",)
-    assert float1.display[0][0] == "percent", f"Display: {float1.display[0][0]}"
-    assert float1.display[0][1](99) == 0.99, "Transform from dimensionless to percent"
-    assert float1.display[0][2](0.99) == 99, "... and back."
+    assert float1.unit[0].u == "dimensionless"
+    assert float1.unit[0].du == "percent", f"Display: {float1.unit[0].du}"
+    assert float1.unit[0].to_base(99) == 0.99, "Transform to dimensionless"
+    assert float1.unit[0].from_base(0.99) == 99, "... and back."
     assert float1.check_range([0.5])
     assert not float1.check_range([1.0], disp=False), "Check as internal units"
     assert not float1.check_range([100.0]), "Check as display units"
@@ -291,8 +291,8 @@ def test_init():
     # internally packed into tuple:
     assert enum1.start == (Causality.parameter,)
     assert enum1.range == ((0, 4),), f"Range: {enum1.range}"
-    assert enum1.unit == ("dimensionless",)
-    assert enum1.display[0] is None, f"Display: {enum1.display[0]}"
+    assert enum1.unit[0].u == "dimensionless"
+    assert enum1.unit[0].du is None, f"Display: {enum1.unit[0].du}"
     assert enum1.check_range([1])
     assert not enum1.check_range([7])
     assert mod.enum1 == Causality.parameter, f"Value {mod.enum1} directly accessible as model variable"
@@ -311,8 +311,8 @@ def test_init():
     # internally packed into tuple:
     assert bool1.start == (True,)
     assert bool1.range == ((False, True),)
-    assert bool1.unit == ("dimensionless",)
-    assert bool1.display == (None,)
+    assert bool1.unit[0].u == "dimensionless"
+    assert bool1.unit[0].du is None
     assert bool1.check_range([True])
     assert bool1.check_range([100.5]), "Any number will work"
     assert not bool1.check_range("Hei"), "But non-numbers are rejected"
@@ -333,8 +333,8 @@ def test_init():
     # internally packed into tuple:
     assert str1.start == ("Hello World!",)
     assert str1.range == (("", ""),), f"Range: {str1.range}. Basically irrelevant"
-    assert str1.unit == ("dimensionless",), f"Unit {str1.unit}"
-    assert str1.display[0] is None, f"Display: {str1.display[0]}"
+    assert str1.unit[0].u == "dimensionless", f"Unit {str1.unit}"
+    assert str1.unit[0].du is None, f"Display: {str1.unit[0].du}"
     assert str1.check_range([0.5]), "Everything is ok"
     assert mod.str1 == "Hello World!", f"Value {mod.str1} directly accessible as model variable"
     mod.str1 = 1.0  # type: ignore # intentional misuse
@@ -358,11 +358,12 @@ def test_init():
     tuples_nearly_equal(np1.range, ((0, 3), (1, 5), (float("-inf"), 5)))
     assert not np1.check_range([5.1], idx=1), "Checks performed on display units!"
     assert not np1.check_range([0.9], idx=1), "Checks performed on display units!"
-    assert np1.unit == ("meter", "radian", "radian"), f"Units: {np1.unit}"
-    assert isinstance(np1.display, tuple) and len(np1.display) == 3, "Tuple of length 3 expected"
-    assert np1.display[0] is None
-    assert np1.display[1][0] == "degree"
-    assert np1.display[2] is None
+    assert tuple(x.u for x in np1.unit) == ("meter", "radian", "radian"), f"Units: {np1.unit}"
+    disp = tuple(x.du for x in np1.unit)
+    assert isinstance(disp, tuple) and len(disp) == 3, "Tuple of length 3 expected"
+    assert disp[0] is None
+    assert disp[1] == "degree"
+    assert disp[2] is None
     assert np1.check_range((2, 3.5, 4.5))
     assert not np1.check_range((2, 3.5, 6.3), -1), f"Range is {np1.range}"
     assert mod.np1[1] == math.radians(2), "Value directly accessible as model variable"

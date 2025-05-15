@@ -27,7 +27,7 @@ class ParsedVariable:
         * der: unsigned integer, defining the derivation order. 0 for no derivation
     """
 
-    def __init__(self, varname: str, convention: VariableNamingConvention):
+    def __init__(self, varname: str, convention: VariableNamingConvention = VariableNamingConvention.structured):
         self.parent: str | None  # None indicates no parent
         self.var: str
         self.indices: list[int] = []  # empty list indicates no indices
@@ -43,7 +43,7 @@ class ParsedVariable:
             m = re.match(r"der\((.+)\)", varname)
             if m is not None:
                 vo = m.group(1)
-                m = re.match(r"(.+),(\d+)$", vo)
+                m = re.match(r"(.+),\s*(\d+)$", vo)
                 if m is not None:
                     var = m.group(1)
                     self.der = int(m.group(2))
@@ -67,9 +67,31 @@ class ParsedVariable:
         """Return all fields as tuple."""
         return (self.parent, self.var, self.indices, self.der)
 
+    def as_string(self, include: tuple[str, ...] = ("parent", "var", "indices", "der"), simplified: bool = True):
+        """Re-construct the variable name, including what is requested.
+
+        This is convenient to e.g. leave out indices (vector variables) or finding parent names of derivatives.
+        """
+        if "parent" in include:
+            name = "" if self.parent is None else self.parent
+        else:
+            name = ""
+        if "var" in include:
+            name = name + "." + self.var if len(name) else self.var
+        if "indices" in include and len(self.indices):  # never empty parantheses
+            name += str(self.indices)
+        if "der" in include and self.der > 0:
+            if not simplified or self.der > 1:
+                name = f"der({name}, {self.der})"
+            elif simplified and self.der == 1:
+                name = f"der({name})"
+            else:
+                raise NotImplementedError(f"Unknown combination simplified={simplified}, der={self.der}") from None
+        return name
+
     @staticmethod
     def disect_indices(txt: str) -> tuple[str, list[int]]:
-        m = re.match(r"(.+)\[([\d,]+)\]", txt)
+        m = re.match(r"(.+)\[([\d,\s*]+)\]", txt)
         if m is None:
             return (txt, [])
         else:

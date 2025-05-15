@@ -230,7 +230,7 @@ def test_make_with_new_data():
     data = list(zip(times, np.cos(times), np.sin(times), strict=False))
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(
+    _ = Model.build(
         script=str(Path(__file__).parent.parent / "examples" / "time_table_fmu.py"),
         project_files=[Path(__file__).parent.parent / "examples" / "time_table.py"],
         dest=build_path,

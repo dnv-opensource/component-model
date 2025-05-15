@@ -13,11 +13,11 @@ test_cases = [
     ("resistor12.u", ("resistor12", "u", [], 0)),
     ("v_min", (None, "v_min", [], 0)),
     ("robot.axis.'motor #234'", ("robot.axis", "'motor #234'", [], 0)),
-    ("der(pipe[3,4].T[14],2)", ("pipe[3,4]", "T", [14], 2)),
+    ("der(pipe[3,4].T[14], 2)", ("pipe[3,4]", "T", [14], 2)),
     ("der(pipe[3,4].T[14])", ("pipe[3,4]", "T", [14], 1)),
     ("pipe[3,4].T[14]", ("pipe[3,4]", "T", [14], 0)),
-    ("T[14].pipe[3,4]", ("T[14]", "pipe", [3, 4], 0)),
-    ("der(pos,1)", (None, "pos", [], 1)),
+    ("T[14].pipe[3, 4]", ("T[14]", "pipe", [3, 4], 0)),
+    ("der(pos)", (None, "pos", [], 1)),
     ("der(wheels[0].motor.rpm)", ("wheels[0].motor", "rpm", [], 1)),
 ]
 
@@ -29,12 +29,23 @@ def test_basic_re_expressions(txt, expected):
     tpl = (parsed.parent, parsed.var, parsed.indices, parsed.der)
     for i in range(4):
         assert tpl[i] == expected[i], f"Test:{txt}. Variable element {i} {tpl[i]} != {expected[i]}"
-    # print(tpl)
+    assert parsed.as_string() == txt, f"as_string {parsed.as_tuple()}: {parsed.as_string()}. Expected:{txt}"
+
+
+def test_as_string():
+    parsed = ParsedVariable("der(pipe[3,4].T[14], 2)", VariableNamingConvention.structured)
+    assert parsed.as_string(("parent", "var")) == "pipe[3,4].T"
+    assert parsed.as_string(("parent", "var", "indices")) == "pipe[3,4].T[14]"
+    parsed = ParsedVariable("der(wheels[0].motor.rpm)")
+    assert parsed.as_string(("parent", "var")) == "wheels[0].motor.rpm"
+    assert parsed.as_string(("parent", "var", "indices")) == "wheels[0].motor.rpm"
+    assert parsed.as_string(("parent", "var", "indices", "der"), simplified=False) == "der(wheels[0].motor.rpm, 1)"
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    for c, e in test_cases:
-        print(c, e)
-        test_basic_re_expressions(c, e)
+    # for c, e in test_cases:
+    #     print(c, e)
+    #     test_basic_re_expressions(c, e)
+    # test_as_string()

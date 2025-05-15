@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 only-include = [
     "src/component_model",
     "tests",
-    "tests/examples",
+    "examples",
     ".coveragerc",
     ".editorconfig",
     "pytest.ini",
@@ -19,7 +19,6 @@ only-include = [
 [tool.hatch.build.targets.wheel]
 packages = [
     "src/component_model",
-    "examples",
 ]
 
 [project]
@@ -59,13 +58,13 @@ dependencies = [
     "pint>=0.24",
     "sympy>=1.13.3",
     "jsonpath-ng>=1.7.0",
-    "libcosimpy>=0.0.2",
     "pythonfmu>=0.6.7",
     "flexparser<0.4",
     "pdfminer>=20191125",
     "pypdf2>=3.0.1",
     "scipy>=1.15.1",
     "plotly>=6.0.1",
+    "libcosimpy>=0.0.3.post1",
 ]
 
 [project.optional-dependencies]
@@ -115,11 +114,11 @@ plugins = [
 mypy_path = "stubs"
 files = [
     "src",
-    # "tests",
-    # "demos",
+    "tests",
+    "examples",
 ]
 exclude = [
-    "^src/folder_to_be_excluded/",
+    "tests/test_working_directory",
 ]
 check_untyped_defs = true
 disable_error_code = [
@@ -136,5 +135,4 @@ include = [
 ]
 exclude = [
     "tests/test_working_directory",
-    "examples/new_pythonfmu_features*",
 ]
