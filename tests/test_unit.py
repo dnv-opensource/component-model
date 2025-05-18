@@ -102,4 +102,4 @@ if __name__ == "__main__":
     # test_make(_ureg())
     # test_make_tuple( _ureg())
     # test_derivative( _ureg())
-    test_compatible( _ureg())
+    test_compatible(_ureg())

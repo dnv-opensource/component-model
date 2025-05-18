@@ -58,9 +58,8 @@ class Unit:
     def __init__(self):
         self.u = ""  # unit as string (placeholder)
         self.du = None  # display unit (default: same as u, no transformation)
-        self.to_base = partial(Unit.identity) # ensure a definition
-        self.from_base = partial(Unit.identity) # ensure a definition
-
+        self.to_base = partial(Unit.identity)  # ensure a definition
+        self.from_base = partial(Unit.identity)  # ensure a definition
 
     def __str__(self):
         txt = f"Unit {self.u}, display:{self.du}"
@@ -116,7 +115,7 @@ class Unit:
     @classmethod
     def linear(cls, x: float, b: float, a: float = 0.0):
         return a + b * x
-    
+
     @classmethod
     def identity(cls, x: float):
         return x
@@ -202,7 +201,9 @@ class Unit:
         unit = _unit[0]
         # no explicit unit needed when the quantity is 0 or inf (anything compatible)
         if (
-            ((q == 0 or q == float("inf") or q == float("-inf")) and unit.u == "dimensionless") # 0, +/-inf without unit
+            (
+                (q == 0 or q == float("inf") or q == float("-inf")) and unit.u == "dimensionless"
+            )  # 0, +/-inf without unit
             or (strict and self.u == unit.u and self.du == unit.du)
             or (not strict and self.u == unit.u)
         ):
@@ -384,7 +385,7 @@ class Variable(ScalarVariable):
             self.local_name = local_name  # use explicitly provided local name
 
         if self._typ is str:  # explicit free string
-            assert isinstance( start, str)
+            assert isinstance(start, str)
             self._len = 1
             self._start, self._unit = Unit.make(start, self.model.ureg, typ=str)
             self.range = ("", "")  # just a placeholder. Strings are not range checked
@@ -420,10 +421,12 @@ class Variable(ScalarVariable):
         if (isinstance(der, float) and der != 0.0) or (
             isinstance(der, (Sequence, np.ndarray)) and any(x != 0.0 for x in der)
         ):  # there is a slope
-            if not isinstance(der, (Sequence, np.ndarray)):
-                der = [der]
             varname = self.local_name[5:]  # local name of the base variable
             val = getattr(self.owner, varname)  # previous value of base variable
+            if not isinstance(der, (Sequence, np.ndarray)):
+                der = [der]
+                assert not isinstance(val, (Sequence, np.ndarray)), "Should be the same as der"
+                val = [val]
             is_nparray = isinstance(val, np.ndarray)
             basevar = self.model.derivatives[self.name]  # base variable object
             if is_nparray:
@@ -515,8 +518,8 @@ class Variable(ScalarVariable):
                 if self._unit[idx].du is None:
                     dvals = list(values)
                 else:
-                    assert isinstance(values[0], float)
-                    dvals = [self._unit[idx].to_base(values[0])] # type: ignore  ## values[0] is float!
+                    # assert isinstance(values[0], float)
+                    dvals = [self._unit[idx].to_base(values[0])]  # type: ignore  ## values[0] is float!
             else:  # the whole array
                 dvals = []
                 for i in range(self._len):
@@ -525,8 +528,8 @@ class Variable(ScalarVariable):
                     elif self._unit[i].du is None:
                         dvals.append(values[i])
                     else:
-                        assert isinstance(values[i], float)
-                        dvals.append(self._unit[i].to_base(values[i])) # type: ignore  ## it is a float!
+                        # assert isinstance(values[i], float) or (self._typ is int and isinstance(values[i], int))
+                        dvals.append(self._unit[i].to_base(values[i]))  # type: ignore  ## it is a float!
         else:  # no unit issues
             if self._len == 1:
                 dvals = [values[0] if values[0] is not None else getattr(self.owner, self.local_name)]
@@ -627,11 +630,11 @@ class Variable(ScalarVariable):
         for idx in range(self._len):  # go through all elements
             _rng = rng[idx]
             if _rng is None:  # => no range. Used for compound variables if not all elements have a range
-                assert isinstance( self._start[idx], float)
+                assert isinstance(self._start[idx], float)
                 _range.append(
                     (
-                        ensure_display_limits(self._start[idx], idx, right=False), # type: ignore ## it is a float!
-                        ensure_display_limits(self._start[idx], idx, right=True), # type: ignore ## it is a float!
+                        ensure_display_limits(self._start[idx], idx, right=False),  # type: ignore ## it is a float!
+                        ensure_display_limits(self._start[idx], idx, right=True),  # type: ignore ## it is a float!
                     )
                 )  # no range
             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
@@ -651,7 +654,7 @@ class Variable(ScalarVariable):
                                 raise VariableInitError(
                                     f"{self.name}[{idx}]: range {r} does not conform to the unit type {self._unit[idx]}"
                                 )
-                    assert isinstance( q, float)
+                    assert isinstance(q, float) or (self._typ is int and isinstance(q, int))
                     q = ensure_display_limits(q, idx, len(i_range) > 0)
                     i_range.append(q)
 
@@ -852,8 +855,8 @@ class Variable(ScalarVariable):
                     info.attrib.update({"unbounded": "true"})
             if _type == "Real":  # other attributes apply only to Real variables
                 info.attrib.update({"unit": self.unit[i].u})
-                if isinstance(self._unit[i].du, str) and self.unit[i].du != self._unit[i].du:
-                    info.attrib.update({"displayUnit": self._unit[i].du}) # type: ignore ## it is a str!
+                if isinstance(self._unit[i].du, str) and self.unit[i].du != self._unit[i].u:
+                    info.attrib.update({"displayUnit": self._unit[i].du})  # type: ignore ## it is a str!
                 if a_der is not None:
                     info.attrib.update({"derivative": str(a_der.value_reference + i + 1)})
 

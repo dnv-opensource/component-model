@@ -75,7 +75,8 @@ def test_bouncing_ball_class(show):
     from examples.bouncing_ball_3d import BouncingBall3D
 
     bb = BouncingBall3D()
-    assert bb._pos.display is not None
+    assert bb._pos.unit[0].u == "meter"
+    assert bb._pos.unit[2].du == "inch"
     assert bb._pos.setter is not None
     assert bb._pos.getter is not None
     assert bb._speed.getter is not None
@@ -94,7 +95,7 @@ def test_bouncing_ball_class(show):
         result.append((bb.time, *_pos, *_speed, *_p_bounce))
 
     h_fac = 1.0
-    if len(bb._pos.display) > 1 and bb._pos.display[2] is not None:  # the main test settings
+    if len(bb._pos) > 1 and bb._pos.unit[2].du is not None:  # the main test settings
         arrays_equal(bb.pos, (0, 0, 10 * 0.0254))  # was provided as inch
         arrays_equal(bb.speed, (1, 0, 0))
         assert bb.g == 9.81
@@ -109,7 +110,7 @@ def test_bouncing_ball_class(show):
     dt = bb.default_experiment.step_size
     assert dt == 0.01
     # set start values (in display units. Are translated to internal units
-    if len(bb._pos.display) > 1 and bb._pos.display[2] is not None:
+    if len(bb._pos) > 1 and bb._pos.unit[2].du is not None:
         bb._pos.setter((0, 0, 10))
     t_b, p_b = bb.next_bounce()
     assert t_bounce == t_b

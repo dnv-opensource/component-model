@@ -19,6 +19,7 @@ only-include = [
 [tool.hatch.build.targets.wheel]
 packages = [
     "src/component_model",
+    "examples",
 ]
 
 [project]
@@ -60,11 +61,10 @@ dependencies = [
     "jsonpath-ng>=1.7.0",
     "pythonfmu>=0.6.7",
     "flexparser<0.4",
-    "pdfminer>=20191125",
-    "pypdf2>=3.0.1",
     "scipy>=1.15.1",
     "plotly>=6.0.1",
-    "libcosimpy>=0.0.3.post1",
+    "libcosimpy < 0.0.3.post1",
+    "thonny>=4.1.7",
 ]
 
 [project.optional-dependencies]
@@ -75,9 +75,6 @@ modelTest = [
 ]
 rest = [
     "docutils>=0.21",
-]
-editor = [
-    "thonny>=4.1",
 ]
 
 [project.urls]

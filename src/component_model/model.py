@@ -188,7 +188,7 @@ class Model(Fmi2Slave):
             cu = candidate.unit[i]
             for u in self._units:
                 if cu.u == u.u and cu.du == u.du:  # already registered
-                    return
+                    break
             self._units.append(cu)
 
     def owner_hierarchy(self, parent: str | None) -> list:
@@ -525,7 +525,7 @@ class Model(Fmi2Slave):
         defs = ET.Element("UnitDefinitions")
         u_done: list[str] = []
         for u in self._units:  # all registered unit objects
-            unit = ET.Element("NoUnit") # dummy element
+            unit = ET.Element("NoUnit")  # dummy element
             if u.u not in u_done:  # multiple entries are possible if there are multiple display units
                 ubase = self.ureg(u.u).to_base_units()
                 dim = ubase.dimensionality
@@ -567,7 +567,7 @@ class Model(Fmi2Slave):
                                 },
                             )
                         )
-                    if isinstance( _u.du, str):
+                    if isinstance(_u.du, str):
                         du_done.append(_u.du)
                 u_done.append(u.u)
             if unit.tag != "NoUnit":
