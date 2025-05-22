@@ -560,7 +560,7 @@ class Variable(ScalarVariable):
         if self.on_set is None:
             logger.debug(f"SETTER {self.name}, {values}[{idx}] => {getattr(self.owner, self.local_name)}")
 
-    def getter(self) -> Sequence[PyType]:
+    def getter(self) -> list[PyType]:
         """Get the value (output a value from the model), including range checking and unit conversion.
         The whole variable value is returned.
         The return a list of values. Can later be indexed/sliced to get elements of compound variables.
