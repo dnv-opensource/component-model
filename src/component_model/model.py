@@ -624,10 +624,10 @@ class Model(Fmi2Slave):
         ders = ET.Element("Derivatives")
 
         for v in filter(
-            lambda v: v is not None and v.antiderivative() is not None,
+            lambda v: v is not None and v.primitive() is not None,
             self.vars.values(),
         ):
-            i_a_der = v.antiderivative().value_reference
+            i_a_der = v.primitive().value_reference
             for i in range(len(v)):  # works for vectors and scalars
                 ders.append(
                     ET.Element(

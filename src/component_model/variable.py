@@ -364,16 +364,11 @@ class Variable(ScalarVariable):
             if parsed.der > 0:  # is a derivative of 'var'
                 self.local_name = f"der{parsed.der}_{parsed.var}"
                 if not hasattr(self.owner, self.local_name):  # a virtual derivative
-                    if parsed.der != 1:
-                        raise NotImplementedError(
-                            "Virtual higher order derivatives should be implemented iteratively."
-                        ) from None
-
-                    basevar = self.model.add_derivative(self.name, parsed.as_string(("parent", "var")))
-                    assert isinstance(basevar, Variable), "The primitive of a derivative must be a Variable object"
-                    assert basevar.typ is float, (
-                        f"The primitive the derivative {self.name} shall be float. Found {basevar.typ}"
+                    basevar = self.model.add_derivative(
+                        self.name, parsed.as_string(("parent", "var", "der"), primitive=True)
                     )
+                    assert isinstance(basevar, Variable), f"The primitive of {self.name} must be a Variable object"
+                    assert basevar.typ is float, f"The primitive of {self.name} shall be float. Found {basevar.typ}"
                     self._typ = float
                     if start is None:
                         self._start, self._unit = Unit.derivative(basevar.unit)
@@ -804,27 +799,21 @@ class Variable(ScalarVariable):
             List of ScalarVariable xml elements
         """
 
-        def indexed_name(fullname: str, idx: int, length: int = 1):
-            """Provide a proper xml name conformant with structured variables."""
-            if length == 1:
-                return fullname
-            elif fullname.startswith("der("):  # the index cannot be outside )
-                assert fullname.endswith(")"), f"Closing parantehesis expected. Found {fullname}"
-                return f"{fullname[:-1]}[{idx}])"
-            else:
-                return f"{fullname}[{idx}]"
-
         _type = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
             self.typ.__qualname__
         ]  # translation of python to FMI primitives. Same for all components
         do_use_start = use_start(causality=self._causality, variability=self._variability, initial=self._initial)
         svars = []
-        a_der = self.antiderivative()  # d a_der /dt = self, or None
+        a_der = self.primitive()  # d a_der /dt = self, or None
         for i in range(self._len):
+            if self._len > 1:
+                varname = ParsedVariable(self.name).as_string(index=str(i))
+            else:
+                varname = ParsedVariable(self.name).as_string(include=("parent", "var", "der"))
             sv = ET.Element(
                 "ScalarVariable",
                 {
-                    "name": indexed_name(self.name, i, self._len),
+                    "name": varname,
                     "valueReference": str(self.value_reference + i),
                     "description": "" if self.description is None else self.description,
                     "causality": self.causality.name,
@@ -864,14 +853,16 @@ class Variable(ScalarVariable):
             svars.append(sv)
         return svars
 
-    def antiderivative(self) -> Variable | None:
+    def primitive(self) -> Variable | None:
         """Determine the variable which self is the derivative of.
         Return None if self is not a derivative.
         """
-        if self.name.startswith("der(") and self.name.endswith(")"):
-            return self.model.variable_by_name(self.name[4:-1])
-        else:
+        parsed = ParsedVariable(self.name)
+        if parsed.der == 0:
             return None
+        else:
+            name = parsed.as_string(("parent", "var", "der"), simplified=True, primitive=True)
+            return self.model.variable_by_name(name)
 
 
 # Utility functions for handling special variable types
