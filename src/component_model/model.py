@@ -411,7 +411,7 @@ class Model(Fmi2Slave):
             project_files = []
         project_files.append(Path(__file__).parents[0])
 
-        # Make sure the dest path is of type Patch
+        # Make sure the dest path is of type Path
         dest = dest if isinstance(dest, Path) else Path(dest)
 
         with (

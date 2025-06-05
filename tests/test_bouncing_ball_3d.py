@@ -428,7 +428,6 @@ def test_from_osp(bouncing_ball_fmu):
 
 #    sim.simulate_until(target_time=3e9)
 
-
 def test_from_fmu(bouncing_ball_fmu):
     assert bouncing_ball_fmu.exists(), "FMU not found"
     model = model_from_fmu(bouncing_ball_fmu)

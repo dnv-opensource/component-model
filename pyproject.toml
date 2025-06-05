@@ -22,6 +22,9 @@ packages = [
     "examples",
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
 name = "component-model"
 version = "0.1.0"
@@ -63,19 +66,17 @@ dependencies = [
     "flexparser<0.4",
     "scipy>=1.15.1",
     "plotly>=6.0.1",
-    "libcosimpy < 0.0.3.post1",
-    "thonny>=4.1.7",
+    "libcosimpy@git+https://github.com/open-simulation-platform/libcosimpy@cosimc-loading-fix",
 ]
 
 [project.optional-dependencies]
-modelTest = [
-    "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
-    "matplotlib>=3.9.1",
-    "plotly>=6.0.1",
-]
-rest = [
-    "docutils>=0.21",
-]
+    modelTest = [
+        "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
+        "matplotlib>=3.9.1",
+        "plotly>=6.0.1",
+    ]
+    rest = ["docutils>=0.21"]
+    editor = []
 
 [project.urls]
 Homepage = "https://github.com/dnv-opensource/component-model"

@@ -15,8 +15,14 @@ logger = logging.getLogger(__name__)
 # Note: PythonFMU (which component-model is built on) works on files and thus only one Model class allowed per file
 
 
-def func(time: float, ampl: float = 1.0, omega: float = 0.1):
-    return np.array((0, 0, ampl * sin(omega * time)), float)
+def func(time: float, ampl: float = 1.0, omega: float = 0.1, d_omega: float = 0.0):
+    """Generate a harmonic oscillating force function.
+    Optionally it is possible to linearly change the angular frequency as omega + d_omega*time.
+    """
+    if d_omega == 0.0:
+        return np.array((0, 0, ampl * sin(omega * time)), float)
+    else:           
+        return np.array((0, 0, ampl * sin((omega + d_omega*time) * time)), float)
 
 
 class DrivingForce(Model):
@@ -33,9 +39,10 @@ class DrivingForce(Model):
 
     def __init__(
         self,
-        func: Callable[..., Any] = func,
+        function: Callable[..., Any] = func,
         ampl: float = 1.0,
         freq: float = 1.0,
+        d_freq: float = 0.0,
         **kwargs: Any,
     ):
         super().__init__(
@@ -47,6 +54,8 @@ class DrivingForce(Model):
         # interface Variables
         self._ampl = Variable(self, "ampl", "The amplitude of the force in N", start=ampl)
         self._freq = Variable(self, "freq", "The frequency of the force in 1/s", start=freq)
+        self._d_freq = Variable(self, "d_freq", "Change of frequency of the force in 1/s**2", start=d_freq)
+        self.function = function
         self._f = Variable(
             self,
             "f",
@@ -57,10 +66,13 @@ class DrivingForce(Model):
         )
 
     def do_step(self, current_time: float, step_size: float):
-        self.f = self.func(current_time)
+        self.f = self.func(current_time+step_size)
         return True  # very important!
 
     def exit_initialization_mode(self):
         """Set internal state after initial variables are set."""
-        self.func = partial(func, ampl=self.ampl, omega=2 * pi * self.freq)  # type: ignore[reportAttributeAccessIssue]
-        logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}")  # type: ignore[reportAttributeAccessIssue]
+        self.func = partial(self.function,
+                            ampl=self.ampl,
+                            omega=2 * pi * self.freq,
+                            d_omega= 0.0 if self.d_freq == 0.0 else 2 * pi * self.d_freq)
+        logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}, d_freq={self.d_freq}")

@@ -33,6 +33,7 @@ class Oscillator:
         c: tuple[float, float, float] | tuple[str, str, str] = (0.0, 0.0, 0.0),
         m: float = 1.0,
         tolerance: float = 1e-5,
+        f_func: Callable|None = None
     ):
         self.k = np.array(k, float)
         self.c = np.array(c, float)
@@ -43,11 +44,15 @@ class Oscillator:
         self.f = np.array((0, 0, 0), float)
         # standard ODE matrix (homogeneous system):
         self.ode = [np.array(((-self.c[i] / self.m, -self.k[i] / self.m), (1, 0)), float) for i in range(3)]
+        self.f_func = f_func
 
     def ode_func(self, t: float, y: np.ndarray, i: int, f: float) -> np.ndarray:
         res = self.ode[i].dot(y)
-        if f != 0:
-            res += np.array((f, 0), float)
+        if self.f_func is None:
+            if f != 0:
+                res += np.array((f, 0), float)
+        elif i==2: # only implemented for z
+            res += np.array((self.f_func(t)[i], 0), float)            
         return res
 
     def do_step(self, current_time: float, step_size: int | float) -> bool:
@@ -56,13 +61,13 @@ class Oscillator:
         We implement a very simplistic algoritm based on difference calculus.
         """
         for i in range(3):  # this is a 3D oscillator
-            if self.x[i] != 0 or self.v[i] != 0 or self.f[i] != 0:
+            if self.x[i] != 0 or self.v[i] != 0 or self.f[i] != 0 or self.f_func is not None:
                 y0 = np.array([self.v[i], self.x[i]], float)
                 sol = integrate.solve_ivp(
                     fun=self.ode_func,
                     t_span=[current_time, current_time + step_size],
                     y0=y0,
-                    args=(i, self.f[i]),  # dimension and force as extra arguments to fun
+                    args=(i, self.f[i]),  # axis and force as extra arguments to fun
                     atol=self.tolerance,
                 )
                 self.x[i] = sol.y[1][-1]

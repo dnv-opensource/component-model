@@ -3,6 +3,7 @@ from math import atan2, cos, exp, pi, sin, sqrt
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 
 
 def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps=1e-7):
@@ -26,8 +27,11 @@ def do_show(time: list, z: list, v: list, compare1: list | None = None, compare2
     plt.show()
 
 
-def force(t: float, ampl: float = 1.0, omega: float = 0.1):
-    return np.array((0, 0, ampl * sin(omega * t)), float)
+def force(t: float, ampl: float = 1.0, omega: float = 0.1, d_omega: float = 0.0):
+    if d_omega == 0.0:
+        return np.array((0, 0, ampl * sin(omega * t)), float) # fixed frequency
+    else:
+        return np.array((0, 0, ampl * sin((omega + d_omega*t) * t)), float) # frequency sweep
 
 
 def forced_oscillator(
@@ -113,6 +117,45 @@ def run_oscillation_z(
         time += dt
 
     return (osc, times, z, v)
+
+def sweep_oscillation_z(
+    k: float,
+    c: float,
+    m: float,
+    ampl: float,
+    d_omega: float,
+    x0: float = 1.0,
+    v0: float = 0.0,
+    dt: float = 0.01,
+    end: float = 30.0,
+    tol: float = 1e-3,
+):
+    """Run the oscillator with the given settings
+    with linearly increasing force frequency
+    for the given time (only z-direction activated)
+    and return the oscillator object and the time series for z-position and z-velocity."""
+
+    from examples.oscillator import Oscillator
+    f_func = f_func=partial(force, ampl=ampl, omega=0.0, d_omega=d_omega)
+    osc = Oscillator(k=(1.0, 1.0, k),
+                     c=(0.0, 0.0, c),
+                     m=m,
+                     tolerance=tol,
+                     f_func = f_func
+                     )
+    osc.x[2] = x0  # set initial z value
+    osc.v[2] = v0  # set initial z-speed
+    times, z, v, f = [], [], [], []
+    time = 0.0
+    while time < end:
+        times.append(time)
+        z.append(osc.x[2])
+        v.append(osc.v[2])
+        osc.do_step(time, dt)
+        f.append(f_func(time)[2])
+        time += dt
+
+    return (osc, times, z, v, f)
 
 
 def test_oscillator_class(show):
@@ -221,11 +264,70 @@ def test_2d(show):
     assert abs(y[-1] - 4.0) < 1e-12, f"Found {y[-1]}"
     osc, x, y = run_2d(x0=(1.0, 0.0, 0.0), v0=(0.0, 1.0, 0.0), k=(1.0, 1.0 / 15.8, 0), end=20 * np.pi)
     if show:
-        show_2d(x, y)
+        show_2d(x,y)
 
+def test_sweep_oscillator(show: bool = True):
+    """A forced oscillator where the force frequency is changed linearly as d_omega*time.
+    The test demonstrates that a monolithic simulation provides accurate results in all ranges of the force frequency.
+    Co-simulating the oscillator and the force, this does not work.
+    """
+    osc, times0, z0, v0, f0 = sweep_oscillation_z( k=1.0, 
+                                               c=0.1,
+                                               m=1.0,
+                                               ampl=1.0,
+                                               d_omega=0.1,
+                                               x0=0.0,
+                                               v0=0.0,
+                                               dt=0.1, # 'ground truth', small dt
+                                               end=100.0,
+                                               tol=1e-3
+                                               )
+    with open(Path.cwd() / "oscillator_sweep0.dat", 'w') as fp:
+        for i in range(len(times0)):
+            fp.write( f"{times0[i]}\t{z0[i]}\t{v0[i]}\t{f0[i]}\n")
+            
+    if show:
+        freq = [0.1*t/2/np.pi for t in times0]
+        fig, ax = plt.subplots()
+        ax.plot(freq, z0, label="z0(t)")
+        ax.plot(freq, v0, label="v0(t)")
+        ax.plot(freq, f0, label="F0(t)")
+        ax.legend()
+        plt.show()
+        
+    osc, times, z, v, f = sweep_oscillation_z( k=1.0,
+                                               c=0.1,
+                                               m=1.0,
+                                               ampl=1.0,
+                                               d_omega=0.1,
+                                               x0=0.0,
+                                               v0=0.0,
+                                               dt=1, # dt similar to resonance frequency
+                                               end=100.0,
+                                               tol=1e-3
+                                               )
+    i0 = 0
+    for i in range(len(times)): # demonstrate that the results are accurate, even if dt is large
+        t = times[i]
+        while abs(times0[i0]-t) > 1e-10:
+            i0 += 1
+            assert times0[i0] - t < 0.1, f"Time entry for time {t} not found in times0"
+            
+        assert abs(z0[i0] - z[i]) < 2e-2, f"Time {t}. Found {z0[i0]} != {z[i]}"
+        assert abs(v0[i0] - v[i]) < 2e-2, f"Time {t}. Found {v0[i0]} != {v[i]}"
+        
+    if show:
+        fig, ax = plt.subplots()
+        ax.plot(times0, z0, label="z0(t)")
+        ax.plot(times, z, label="z(t)")
+        ax.legend()
+        plt.show()
 
 if __name__ == "__main__":
     retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    test_oscillator_class(show=True)
+    import os
+    os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    # test_oscillator_class(show=True)
     # test_2d(show=True)
+    test_sweep_oscillator()
