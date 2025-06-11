@@ -33,7 +33,7 @@ class Oscillator:
         c: tuple[float, float, float] | tuple[str, str, str] = (0.0, 0.0, 0.0),
         m: float = 1.0,
         tolerance: float = 1e-5,
-        f_func: Callable|None = None
+        f_func: Callable | None = None,
     ):
         self.k = np.array(k, float)
         self.c = np.array(c, float)
@@ -51,8 +51,8 @@ class Oscillator:
         if self.f_func is None:
             if f != 0:
                 res += np.array((f, 0), float)
-        elif i==2: # only implemented for z
-            res += np.array((self.f_func(t)[i], 0), float)            
+        elif i == 2:  # only implemented for z
+            res += np.array((self.f_func(t)[i], 0), float)
         return res
 
     def do_step(self, current_time: float, step_size: int | float) -> bool:

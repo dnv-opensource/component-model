@@ -146,7 +146,7 @@ def test_use_fmu(axle_fmu: Path, show: bool):
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rP -s -v", __file__])
+    retcode = 0  # pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
     import os
 

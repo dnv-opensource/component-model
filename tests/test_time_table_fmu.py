@@ -268,7 +268,7 @@ def test_use_with_new_data(show):
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 

@@ -68,7 +68,7 @@ class Unit:
         return txt
 
     def parse_quantity(self, quantity: PyType, ureg: UnitRegistry, typ: type | None = None) -> PyType:
-        """Disect the provided quantity in terms of magnitude and unit, if provided as string.
+        """Parse the provided quantity in terms of magnitude and unit, if provided as string.
         If another type is provided, dimensionless units are assumed.
 
         Args:

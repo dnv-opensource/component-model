@@ -7,9 +7,13 @@
       <Simulator name="drv" source="DrivingForce.fmu" stepSize="0.01" />
    </Simulators>
    <Connections>
-      <VariableConnection>
-         <Variable simulator="drv" name="f[2]" />
-         <Variable simulator="osc" name="f[2]" />
+      <VariableConnection powerBond="force-velocity">
+         <Variable simulator="drv" name="f[2]" causality="output"/>
+         <Variable simulator="osc" name="f[2]" causality="input"/>
+      </VariableConnection>
+      <VariableConnection powerBond="force-velocity">
+         <Variable simulator="osc" name="v[2]" causality="output"/>
+         <Variable simulator="drv" name="v_osc[2]" causality="input"/>
       </VariableConnection>
    </Connections>
    <EccoConfiguration>

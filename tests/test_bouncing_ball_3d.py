@@ -420,6 +420,8 @@ def test_from_osp(bouncing_ball_fmu):
     assert values[6] == 1.5, "Initial setting did not work"
     assert values[5] == -0.015, "Initial setting did not have the expected effect on speed"
 
+    manipulator.slave_real_values(ibb, [0, 1, 2], [1.0, 2.0, 3.0])
+
 
 #     values = observer.last_real_values(0, list(range(11)))
 #     print("VALUES2", values)
@@ -427,6 +429,7 @@ def test_from_osp(bouncing_ball_fmu):
 #     manipulator.reset_variables(0, CosimVariableType.REAL, [6])
 
 #    sim.simulate_until(target_time=3e9)
+
 
 def test_from_fmu(bouncing_ball_fmu):
     assert bouncing_ball_fmu.exists(), "FMU not found"
@@ -450,13 +453,13 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent / "test_working_directory")
     # test_bouncing_ball_class(show=False)
-    test_make_bouncing_ball(_bouncing_ball_fmu())
+    # test_make_bouncing_ball(_bouncing_ball_fmu())
     # test_use_fmu(_bouncing_ball_fmu(), True)
     # test_from_fmu( _bouncing_ball_fmu())
-    # test_from_osp( _bouncing_ball_fmu())
+    # test_from_osp(_bouncing_ball_fmu())
