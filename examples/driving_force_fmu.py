@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Callable
 from functools import partial
 from math import pi, sin
 from typing import Any
@@ -15,14 +14,18 @@ logger = logging.getLogger(__name__)
 # Note: PythonFMU (which component-model is built on) works on files and thus only one Model class allowed per file
 
 
-def func(time: float, ampl: float = 1.0, omega: float = 0.1, d_omega: float = 0.0):
+def func(time: float,
+         ampl: np.ndarray,
+         omega: np.ndarray,
+         d_omega: np.ndarray):
     """Generate a harmonic oscillating force function.
     Optionally it is possible to linearly change the angular frequency as omega + d_omega*time.
+    The function is intended to be initialized through partial, so that only 'time' is left as variable.
     """
     if d_omega == 0.0:
-        return np.array((0, 0, ampl * sin(omega * time)), float)
+        return ampl * np.sin(omega * time)
     else:
-        return np.array((0, 0, ampl * sin((omega + d_omega * time) * time)), float)
+        return ampl * sin((omega + d_omega * time) * time)
 
 
 class DrivingForce(Model):
@@ -36,13 +39,17 @@ class DrivingForce(Model):
 
     Args:
         func (callable)=func: The driving force function f(t).
+        ampl (float|tuple) = 1.0: the amplitude of the (sinusoidal) driving force. Same for all 3D if float.
+          Optional with units.
+        freq (float|tuple) = 1.0: the frequency of the (sinusoidal) driving force. Same for all 3D if float.
+          Optional with units.
+        d_freq (float) = 0.0: Optional frequency change per time unit (for frequency sweep experiments).
     """
 
     def __init__(
         self,
-        function: Callable[..., Any] = func,
-        ampl: float = 1.0,
-        freq: float = 1.0,
+        ampl: float | tuple[float] | tuple[str] = 1.0,
+        freq: float | tuple[float] | tuple[str] = 1.0,
         d_freq: float = 0.0,
         **kwargs: Any,
     ):
@@ -53,23 +60,29 @@ class DrivingForce(Model):
             **kwargs,
         )
         # interface Variables. We define first their values, to help pyright, since the basic model is missing
-        self.ampl: float = ampl
-        self.freq: float = freq
-        self.d_freq: float = d_freq
-        self.function: Callable = function
-        self.f = np.array((0, 0, 0), float)
-        self.v_osc = np.array((0, 0, 0), float)
-        self._ampl = Variable(self, "ampl", "The amplitude of the force in N", start=ampl)
-        self._freq = Variable(self, "freq", "The frequency of the force in 1/s", start=freq)
-        self._d_freq = Variable(self, "d_freq", "Change of frequency of the force in 1/s**2", start=d_freq)
-        self.function = function
+        print(f"DRIVING_FORCE.fmu from {__file__}( {ampl}, {freq}, {d_freq}")
+        _ampl = ampl if isinstance( ampl, tuple) else (ampl,)
+        self.dim = len(_ampl)
+        _freq = freq if isinstance( freq, tuple) else (freq,)
+        assert len(_freq) == self.dim, f"ampl and freq are expected of same length. Found {ampl}, {freq}"
+        _d_freq = d_freq if isinstance(d_freq, tuple) else (d_freq,)*self.dim 
+        assert len(_d_freq) == self.dim, f"d_freq expected as float or has same length as ampl:{ampl}. Found {d_freq}"
+        self.ampl = (1.0,) * self.dim
+        self.freq = (1.0,) * self.dim
+        self.d_freq = (0.0,)* self.dim
+        self.function = func
+        self.f = (0.0,) * self.dim
+        self.v_osc = (0.0,) * self.dim
+        self._ampl = Variable(self, "ampl", "The amplitude of the force in N", start=_ampl)
+        self._freq = Variable(self, "freq", "The frequency of the force in 1/s", start=_freq)
+        self._d_freq = Variable(self, "d_freq", "Change of frequency of the force in 1/s**2", start=_d_freq)
         self._f = Variable(
             self,
             "f",
             "Output connector for the driving force f(t) in N",
             causality="output",
             variability="continuous",
-            start=np.array((0, 0, 0), float),
+            start=(0.0,) * self.dim,
         )
         self._v_osc = Variable(
             self,
@@ -77,7 +90,7 @@ class DrivingForce(Model):
             "Input connector for the speed of the connected element in m/s",
             causality="input",
             variability="continuous",
-            start=np.array((0, 0, 0), float),
+            start=(0.0,) * self.dim,
         )
 
     def do_step(self, current_time: float, step_size: float):
@@ -88,8 +101,8 @@ class DrivingForce(Model):
         """Set internal state after initial variables are set."""
         self.func = partial(
             self.function,
-            ampl=self.ampl,
-            omega=2 * pi * self.freq,
-            d_omega=0.0 if self.d_freq == 0.0 else 2 * pi * self.d_freq,
+            ampl=np.array(self.ampl, float),
+            omega=np.array(2 * pi * self.freq, float),
+            d_omega=np.array( 2 * pi * self.d_freq, float),
         )
         logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}, d_freq={self.d_freq}")

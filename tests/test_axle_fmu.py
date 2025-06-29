@@ -99,7 +99,7 @@ def _axle_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        script=str(Path(__file__).parent.parent / "examples" / "axle_fmu.py"),
+        script=Path(__file__).parent.parent / "examples" / "axle_fmu.py",
         project_files=[Path(__file__).parent.parent / "examples" / "axle.py"],
         dest=build_path,
     )
@@ -146,11 +146,11 @@ def test_use_fmu(axle_fmu: Path, show: bool):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rP -s -v", __file__])
+    retcode = pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_axle_class(show=True)
     # test_make_fmu(_axle_fmu(), show=False)#True)
-    test_use_fmu(_axle_fmu(), show=True)
+    # test_use_fmu(_axle_fmu(), show=True)

@@ -23,27 +23,33 @@ class Oscillator:
     Args:
         k (tuple)=(1.0, 1.0, 1.0): spring constant in N/m. May vary in 3D
         c (tuple)=(0.0, 0.0, 0.0): Viscous damping coefficient in N.s/m. May vary in 3D
-        m (float)=1.0: Mass of the spring load (spring mass negligible) in kg
+        m (float | tuple)=1.0: Mass of the spring load (spring mass negligible) in kg. Same in all dim. if float
         tolerance (float)=1e-5: Optional tolerance in m, i.e. maximum uncertainty in displacement x.
     """
 
     def __init__(
         self,
-        k: tuple[float, float, float] | tuple[str, str, str] = (1.0, 1.0, 1.0),  # type str for FMU option
-        c: tuple[float, float, float] | tuple[str, str, str] = (0.0, 0.0, 0.0),
-        m: float = 1.0,
+        k: tuple[float, ...] | tuple[str, ...] = (1.0, 1.0, 1.0),  # type str for FMU option
+        c: tuple[float, ...] | tuple[str, ...] = (0.0, 0.0, 0.0),
+        m: float | tuple[float, ...] = 1.0,
         tolerance: float = 1e-5,
         f_func: Callable | None = None,
     ):
+        self.dim = len(k)
         self.k = np.array(k, float)
         self.c = np.array(c, float)
-        self.m = m
+        if isinstance(m, float):
+            self.m = np.array((m,) * self.dim, float)
+        else:
+            self.m = np.array(m, float)
         self.tolerance = tolerance
-        self.x = np.array((0, 0, 0), float)
-        self.v = np.array((0, 0, 0), float)
-        self.f = np.array((0, 0, 0), float)
+        self.x = np.array((0,) * self.dim, float)
+        self.v = np.array((0,) * self.dim, float)
+        self.f = np.array((0,) * self.dim, float)
         # standard ODE matrix (homogeneous system):
-        self.ode = [np.array(((-self.c[i] / self.m, -self.k[i] / self.m), (1, 0)), float) for i in range(3)]
+        self.ode = [
+            np.array(((-self.c[i] / self.m[i], -self.k[i] / self.m[i]), (1, 0)), float) for i in range(self.dim)
+        ]
         self.f_func = f_func
 
     def ode_func(self, t: float, y: np.ndarray, i: int, f: float) -> np.ndarray:
@@ -60,7 +66,8 @@ class Oscillator:
 
         We implement a very simplistic algoritm based on difference calculus.
         """
-        for i in range(3):  # this is a 3D oscillator
+        print(f"OSC do_step")
+        for i in range(self.dim):  # this is a xD oscillator
             if self.x[i] != 0 or self.v[i] != 0 or self.f[i] != 0 or self.f_func is not None:
                 y0 = np.array([self.v[i], self.x[i]], float)
                 sol = integrate.solve_ivp(
@@ -78,8 +85,8 @@ class Oscillator:
     def period(self):
         """Calculate the natural period of the oscillator (without damping an)."""
         w2 = []
-        for i in range(3):
-            w2i = self.k[i] / self.m - (self.c[i] / 2 / self.m) ** 2
+        for i in range(self.dim):
+            w2i = self.k[i] / self.m[i] - (self.c[i] / 2 / self.m[i]) ** 2
             if w2i > 0:
                 w2.append(2 * np.pi / np.sqrt(w2i))
             else:

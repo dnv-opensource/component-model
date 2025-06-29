@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 
 def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps=1e-7):
@@ -332,4 +333,4 @@ if __name__ == "__main__":
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_oscillator_class(show=True)
     # test_2d(show=True)
-    # test_sweep_oscillator()
+    # test_sweep_oscillator(show=True)

@@ -11,7 +11,12 @@ import pytest
 from fmpy.simulation import simulate_fmu
 from fmpy.util import fmu_info, plot_result
 from fmpy.validation import validate_fmu
-from libcosimpy.CosimEnums import CosimExecutionState
+from libcosimpy.CosimEnums import (
+    CosimExecutionState,
+    CosimVariableCausality,
+    CosimVariableType,
+    CosimVariableVariability,
+)
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimLogging import CosimLogLevel, log_output_level
 from libcosimpy.CosimManipulator import CosimManipulator
@@ -22,11 +27,77 @@ from component_model.model import Model
 from component_model.utils.xml import read_xml
 
 
+def _slave_index(simulator: CosimExecution, name: str):
+    """Get the slave index from the name."""
+    return simulator.slave_index_from_instance_name(name)
+
+
+def _var_ref(simulator: CosimExecution, slave_name: str, var_name: str):
+    """Get the variable value reference from slave and variable name.
+    Return both the slave index and the value reference as tuple."""
+    slave = _slave_index(simulator, slave_name)
+    if slave is None:
+        return (-1, -1)
+    for idx in range(simulator.num_slave_variables(slave)):
+        struct = simulator.slave_variables(slave)[idx]
+        if struct.name.decode() == var_name:
+            return (slave, struct.reference)
+    return (-1, -1)
+
+
+def _check_var(simulator: CosimExecution, slave_name: str, var_name: str, expected: int | tuple | None):
+    if var_name == "":
+        idx = _slave_index(simulator, slave_name)
+        assert idx == expected, f"Slave {slave_name}. Index: {idx}. Expected: {expected}"
+    else:
+        idx, vref = _var_ref(simulator, slave_name, var_name)
+        assert (idx, vref) == expected, f"Variable {slave_name}.{var_name}: ({idx},{vref}). Expected:{expected}"
+
+
+def _var_info(simulator: CosimExecution, slave_name: str, var_name: str):
+    slave = _slave_index(simulator, slave_name)
+    if slave is None:
+        return {}
+    for idx in range(simulator.num_slave_variables(slave)):
+        struct = simulator.slave_variables(slave)[idx]
+        if struct.name.decode() == var_name:
+            return {
+                "slave": 0,
+                "idx": idx,
+                "reference": struct.reference,
+                "type": CosimVariableType(struct.type).name,
+                "causality": CosimVariableCausality(struct.causality).name,
+                "variability": CosimVariableVariability(struct.variability).name,
+            }
+    return {}
+
+
+def _var_list(simulator: CosimExecution, slave_name: str, ret: str = "print"):
+    slave = _slave_index(simulator, slave_name)
+    assert slave is not None, f"Slave {slave_name} not found in system"
+    variables = {}
+    for idx in range(simulator.num_slave_variables(slave)):
+        struct = simulator.slave_variables(slave)[idx]
+        if ret == "print":
+            print(
+                f"Slave {slave_name}({slave}), var {struct.name.decode()}({struct.reference}), type: {CosimVariableType(struct.type).name}, causality: {CosimVariableCausality(struct.causality).name}, variability: {CosimVariableVariability(struct.variability)}"
+            )
+        else:
+            variables[struct.name.decode()] = {
+                "slave": slave,
+                "idx": idx,
+                "reference": struct.reference,
+                "type": CosimVariableType(struct.type).name,
+                "causality": CosimVariableCausality(struct.causality).name,
+                "variability": CosimVariableVariability(struct.variability),
+            }
+
+
 def system_structure_change(structure_file: Path, tag: str, what: str, newval: str):
     def register_all_namespaces(filename):
         namespaces: dict = {}
         for _, (ns, uri) in ET.iterparse(filename, events=["start-ns"]):
-            print("TYPES", ns, type(ns), uri, type(uri))
+            # print("TYPES", ns, type(ns), uri, type(uri))
             namespaces.update({ns: uri})
             ET.register_namespace(str(ns), str(uri))
         #         namespaces: dict = dict([node )])
@@ -81,8 +152,8 @@ def _oscillator_fmu():
     build_path.mkdir(exist_ok=True)
     src = Path(__file__).parent.parent / "examples" / "oscillator_fmu.py"
     fmu_path = Model.build(
-        script=str(src),
-        project_files=[src],
+        script=src,
+        project_files=[src.parent],
         dest=build_path,
     )
     return fmu_path
@@ -98,7 +169,12 @@ def _driver_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
-    fmu_path = Model.build(script=str(src), project_files=[src], dest=build_path)
+    fmu_path = Model.build(
+        script=src,
+        project_files=[],
+        dest=build_path,
+        newargs={"ampl": ("3N", "2N", "1N"), "freq": ("3Hz", "2Hz", "1Hz")},
+    )
     return fmu_path
 
 
@@ -142,7 +218,7 @@ def test_make_fmus(
 #
 
 
-def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
+def test_run_fmpy(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
     """Test single FMUs."""
     # sourcery skip: move-assign
     result = simulate_fmu(
@@ -167,15 +243,22 @@ def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
     osc = CosimLocalSlave(fmu_path=str(oscillator_fmu), instance_name="osc")
     _osc = sim.add_local_slave(osc)
     assert _osc == 0, f"local slave number {_osc}"
-    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(_osc)}
 
     dri = CosimLocalSlave(fmu_path=str(driver_fmu), instance_name="dri")
     _dri = sim.add_local_slave(dri)
     assert _dri == 1, f"local slave number {_dri}"
 
+    _check_var(sim, "dri", "", _dri)
+    _check_var(sim, "dri", "d_freq", (1, 6))
+    _check_var(sim, "dri", "f[2]", (1, 9))
+    info = _var_info(sim, "dri", "f[2]")
+    assert info["causality"] == "OUTPUT"
+    assert info["variability"] == "CONTINUOUS"
+    assert info["type"] == "REAL"
+
     # Set initial values
-    sim.real_initial_value(slave_index=_osc, variable_reference=reference_dict["x[2]"], value=1.0)
-    sim.real_initial_value(slave_index=_osc, variable_reference=reference_dict["c[2]"], value=0.1)
+    sim.real_initial_value(*_var_ref(sim, "osc", "x[2]"), value=1.0)
+    sim.real_initial_value(*_var_ref(sim, "osc", "c[2]"), value=0.1)
 
     sim_status = sim.status()
     assert sim_status.current_time == 0
@@ -191,66 +274,56 @@ def test_run_osp_system_structure(system_structure: Path, show: bool = True):
     log_output_level(CosimLogLevel.TRACE)
     print("STRUCTURE", system_structure)
     try:
-        simulator = CosimExecution.from_osp_config_file(str(system_structure))
+        sim = CosimExecution.from_osp_config_file(str(system_structure))
     except Exception as err:
         print("ERR", err)
         return
-    sim_status = simulator.status()
+    sim_status = sim.status()
     assert sim_status.current_time == 0
-    assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
-    comps = []
-    for comp in list(simulator.slave_infos()):
-        name = comp.name.decode()
-        comps.append(name)
-    assert comps == ["osc", "drv"]
-    variables = {}
-    for idx in range(simulator.num_slave_variables(0)):
-        struct = simulator.slave_variables(0)[idx]
-        variables[struct.name.decode()] = {
-            "reference": struct.reference,
-            "type": struct.type,
-            "causality": struct.causality,
-            "variability": struct.variability,
-        }
+    assert CosimExecutionState(sim_status.state).name == "STOPPED"
+    _check_var(sim, "osc", "", 0)
+    _check_var(sim, "drv", "", 1)
+    #_var_list(sim, 'drv')
+    _check_var(sim, "drv", "ampl[0]", (1, 0))
+    _check_var(sim, "drv", "ampl[1]", (1, 1))
+    _check_var(sim, "drv", "ampl[2]", (1, 2))
+    _check_var(sim, "drv", "d_freq[2]", (1, 8))
+    _check_var(sim, "drv", "f[2]", (1, 11))
+    info = _var_info(sim, "drv", "f[2]")
+    assert info["causality"] == "OUTPUT"
+    assert info["variability"] == "CONTINUOUS"
+    assert info["type"] == "REAL"
 
-    for idx in range(simulator.num_slave_variables(1)):
-        struct = simulator.slave_variables(1)[idx]
-        variables.update(
-            {
-                struct.name.decode(): {
-                    "reference": struct.reference,
-                    "type": struct.type,
-                    "causality": struct.causality,
-                    "variability": struct.variability,
-                }
-            }
-        )
-    assert variables["c[2]"]["type"] == 0
-    assert variables["c[2]"]["causality"] == 1
-    assert variables["c[2]"]["variability"] == 1
+    info = _var_info(sim, "osc", "c[2]")
+    assert info["type"] == "REAL"
+    assert info["causality"] == "PARAMETER"
+    assert info["variability"] == "FIXED"
 
-    assert variables["x[2]"]["type"] == 0
-    assert variables["x[2]"]["causality"] == 2
-    assert variables["x[2]"]["variability"] == 4
+    info = _var_info(sim, "osc", "x[2]")
+    assert info["type"] == "REAL"
+    assert info["causality"] == "OUTPUT"
+    assert info["variability"] == "CONTINUOUS"
 
-    assert variables["v[2]"]["type"] == 0
-    assert variables["v[2]"]["causality"] == 2, f"Found {variables['v[2]']['causality']}"
-    assert variables["v[2]"]["variability"] == 4
+    info = _var_info(sim, "osc", "v[2]")
+    assert info["type"] == "REAL"
+    assert info["causality"] == "OUTPUT"
+    assert info["variability"] == "CONTINUOUS"
 
     # Instantiate a suitable observer for collecting results.
     # Instantiate a suitable manipulator for changing variables.
     manipulator = CosimManipulator.create_override()
-    simulator.add_manipulator(manipulator=manipulator)
-    simulator.real_initial_value(slave_index=0, variable_reference=5, value=0.5)  # c[2]
-    simulator.real_initial_value(slave_index=0, variable_reference=9, value=1.0)  # x[2]
+    sim.add_manipulator(manipulator=manipulator)
+    sim.real_initial_value(*_var_ref(sim, "osc", "c[2]"), value=0.5)  # c[2]
+    sim.real_initial_value(*_var_ref(sim, "osc", "x[2]"), value=1.0)  # x[2]
     observer = CosimObserver.create_last_value()
-    simulator.add_observer(observer=observer)
-    times = []
-    pos = []
-    speed = []
+    sim.add_observer(observer=observer)
+    times : list[float] = []
+    pos : list[float] = []
+    speed : list[float] = []
     for step in range(1, 1000):
         time = step * 0.01
-        _ = simulator.simulate_until(step * 1e8)
+        _ = sim.simulate_until(step * 1e8)
+        return
         values = observer.last_real_values(slave_index=0, variable_references=[9, 12])  # x[2], v[2]
         times.append(time)
         pos.append(values[0])
@@ -264,7 +337,11 @@ def test_system_structure_change(system_structure):
 
 
 @pytest.mark.parametrize("alg", ["fixedStep", "ecco"])
-def test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "fixedStep"):
+def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = True):
+    _test_run_osp_sweep(system_structure, show, alg)
+
+
+def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "fixedStep"):
     "Run an OSP simulation of the oscillator and the force sweep as co-simulation."
 
     dt = 1.0
@@ -325,11 +402,10 @@ if __name__ == "__main__":
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
-    test_system_structure_change(_system_structure())
-    # test_make_fmus(_oscillator_fmu(), _driver_fmu(), show=True)
-    # test_make_system_structure( _system_structure(), show=True)
-    # test_use_fmu(_oscillator_fmu(), _driver_fmu(), show=True)
+    # test_system_structure_change(_system_structure())
+    # test_make_fmus(_oscillator_fmu(), _driver_fmu())
+    # test_run_fmpy(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_osp(_oscillator_fmu(), _driver_fmu())
-    # test_run_osp_system_structure(_system_structure(), show=True)
+    test_run_osp_system_structure(_system_structure(), show=True)
     # test_run_osp_sweep(_system_structure(), show=True, alg="fixedStep")
-    # test_run_osp_sweep( _system_structure(), show=True, alg='ecco')
+    # _test_run_osp_sweep( _system_structure(), show=True, alg='ecco')
