@@ -77,7 +77,7 @@ def test_model_description(bouncing_ball_fmu):
             "canNotUseMemoryManagementFunctions": "true",
         },
     )
-    #assert el.find("./SourceFiles") is not None, "SourceFiles expected"
+    # assert el.find("./SourceFiles") is not None, "SourceFiles expected"
     el = et.find("./UnitDefinitions")
     assert el is not None, "UnitDefinitions element expected"
     assert len(el) == 4, f"4 UnitDefinitions expected. Found {el}"
