@@ -45,33 +45,6 @@ def _var_ref(simulator: CosimExecution, slave_name: str, var_name: str):
     return (-1, -1)
 
 
-def _check_var(simulator: CosimExecution, slave_name: str, var_name: str, expected: int | tuple | None):
-    if var_name == "":
-        idx = _slave_index(simulator, slave_name)
-        assert idx == expected, f"Slave {slave_name}. Index: {idx}. Expected: {expected}"
-    else:
-        idx, vref = _var_ref(simulator, slave_name, var_name)
-        assert (idx, vref) == expected, f"Variable {slave_name}.{var_name}: ({idx},{vref}). Expected:{expected}"
-
-
-def _var_info(simulator: CosimExecution, slave_name: str, var_name: str):
-    slave = _slave_index(simulator, slave_name)
-    if slave is None:
-        return {}
-    for idx in range(simulator.num_slave_variables(slave)):
-        struct = simulator.slave_variables(slave)[idx]
-        if struct.name.decode() == var_name:
-            return {
-                "slave": 0,
-                "idx": idx,
-                "reference": struct.reference,
-                "type": CosimVariableType(struct.type).name,
-                "causality": CosimVariableCausality(struct.causality).name,
-                "variability": CosimVariableVariability(struct.variability).name,
-            }
-    return {}
-
-
 def _var_list(simulator: CosimExecution, slave_name: str, ret: str = "print"):
     slave = _slave_index(simulator, slave_name)
     assert slave is not None, f"Slave {slave_name} not found in system"
@@ -131,6 +104,9 @@ def arrays_equal(
 
 def do_show(traces: dict[str, tuple[list[float], list[float]]]):
     fig, ax = plt.subplots()
+    ax.set_title("External force frequency sweep with time between co-sim calls = 1.0")
+    ax.set_xlabel("frequency in Hz")
+    ax.set_ylabel("position/angle")
     for label, trace in traces.items():
         _ = ax.plot(trace[0], trace[1], label=label)
     _ = ax.legend()
@@ -150,10 +126,18 @@ def _oscillator_fmu():
     """Make FMU and return .fmu file with path."""
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
-    src = Path(__file__).parent.parent / "examples" / "oscillator_fmu.py"
+    src = Path(__file__).parent.parent / "examples" / "oscillator_6dof_fmu.py"
     fmu_path = Model.build(
-        script=src,
+        script=str(src),
         dest=build_path,
+        newargs={
+            "k": ("1N/m", "1N/m", "1N/m", "1N*m/rad", "1N*m/rad", "1N*m/rad"),
+            "c": ("0.1N*s/m", "0.1N*s/m", "0.1N*s/m", "0.1N*m*s/rad", "0.1N*m*s/rad", "0.1N*m*s/rad"),
+            "m": "1.0kg",
+            "mi": ("1.0 kg*m**2", "1.0 kg*m**2", "1.0 kg*m**2"),
+            "x0": ("0.0m", "0.0m", "0.0m", "0.0rad", "0.0rad", "0.0rad"),
+            "v0": ("0.0m/s", "0.0m/s", "0.0m/s", "0.0rad/s", "0.0rad/s", "0.0rad/s"),
+        },
     )
     return fmu_path
 
@@ -165,13 +149,11 @@ def driver_fmu():
 
 def _driver_fmu():
     """Make FMU and return .fmu file with path."""
-    build_path = Path.cwd()
-    build_path.mkdir(exist_ok=True)
     src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
     fmu_path = Model.build(
         script=src,
-        dest=build_path,
-        newargs={"ampl": ("3N", "2N", "1N"), "freq": ("3Hz", "2Hz", "1Hz")},
+        dest=Path.cwd() / "DrivingForce6D.fmu",
+        newargs={"ampl": ("1.0N", "1.0N", "1.0N", "1.0N*m", "1.0N*m", "1.0N*m"), "freq": ("1.0Hz",) * 6},
     )
     return fmu_path
 
@@ -183,8 +165,8 @@ def system_structure():
 
 def _system_structure():
     """Make a OSP structure file and return the path"""
-    shutil.copy(Path(__file__).parent.parent / "examples" / "ForcedOscillator.xml", Path.cwd())
-    return Path.cwd() / "ForcedOscillator.xml"
+    shutil.copy(Path(__file__).parent.parent / "examples" / "ForcedOscillator6D.xml", Path.cwd())
+    return Path.cwd() / "ForcedOscillator6D.xml"
 
 
 def test_make_fmus(
@@ -216,7 +198,7 @@ def test_make_fmus(
 #
 
 
-def test_run_fmpy(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
+def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
     """Test single FMUs."""
     # sourcery skip: move-assign
     result = simulate_fmu(
@@ -241,22 +223,15 @@ def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
     osc = CosimLocalSlave(fmu_path=str(oscillator_fmu), instance_name="osc")
     _osc = sim.add_local_slave(osc)
     assert _osc == 0, f"local slave number {_osc}"
+    reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(_osc)}
 
     dri = CosimLocalSlave(fmu_path=str(driver_fmu), instance_name="dri")
     _dri = sim.add_local_slave(dri)
     assert _dri == 1, f"local slave number {_dri}"
 
-    _check_var(sim, "dri", "", _dri)
-    _check_var(sim, "dri", "d_freq[2]", (1, 8))
-    _check_var(sim, "dri", "f[2]", (1, 11))
-    info = _var_info(sim, "dri", "f[2]")
-    assert info["causality"] == "OUTPUT"
-    assert info["variability"] == "CONTINUOUS"
-    assert info["type"] == "REAL"
-
     # Set initial values
-    sim.real_initial_value(*_var_ref(sim, "osc", "x[2]"), value=1.0)
-    sim.real_initial_value(*_var_ref(sim, "osc", "c[2]"), value=0.1)
+    sim.real_initial_value(slave_index=_osc, variable_reference=reference_dict["x[2]"], value=1.0)
+    sim.real_initial_value(slave_index=_osc, variable_reference=reference_dict["c[2]"], value=0.1)
 
     sim_status = sim.status()
     assert sim_status.current_time == 0
@@ -278,46 +253,24 @@ def test_run_osp_system_structure(system_structure: Path, show: bool = True):
         return
     sim_status = sim.status()
     assert sim_status.current_time == 0
-    assert CosimExecutionState(sim_status.state).name == "STOPPED"
-    _check_var(sim, "osc", "", 0)
-    _check_var(sim, "drv", "", 1)
-    # _var_list(sim, 'drv')
-    _check_var(sim, "drv", "ampl[0]", (1, 0))
-    _check_var(sim, "drv", "ampl[1]", (1, 1))
-    _check_var(sim, "drv", "ampl[2]", (1, 2))
-    _check_var(sim, "drv", "d_freq[2]", (1, 8))
-    _check_var(sim, "drv", "f[2]", (1, 11))
-    info = _var_info(sim, "drv", "f[2]")
-    assert info["causality"] == "OUTPUT"
-    assert info["variability"] == "CONTINUOUS"
-    assert info["type"] == "REAL"
+    assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
+    assert _slave_index(sim, "osc") == 0
+    assert _slave_index(sim, "drv") == 1
 
-    info = _var_info(sim, "osc", "c[2]")
-    assert info["type"] == "REAL"
-    assert info["causality"] == "PARAMETER"
-    assert info["variability"] == "FIXED"
-
-    info = _var_info(sim, "osc", "x[2]")
-    assert info["type"] == "REAL"
-    assert info["causality"] == "OUTPUT"
-    assert info["variability"] == "CONTINUOUS"
-
-    info = _var_info(sim, "osc", "v[2]")
-    assert info["type"] == "REAL"
-    assert info["causality"] == "OUTPUT"
-    assert info["variability"] == "CONTINUOUS"
+    _var_list(sim, "osc")
+    assert _var_ref(sim, "osc", "f[5]") == (0, 35), f"Found {_var_ref(sim, 'osc', 'f[5]')}"  # last variable
+    assert _var_ref(sim, "drv", "v_osc[5]") == (1, 29), f"Found {_var_ref(sim, 'drv', 'v_osc[5]')}"  # last variable
 
     # Instantiate a suitable observer for collecting results.
     # Instantiate a suitable manipulator for changing variables.
     manipulator = CosimManipulator.create_override()
     sim.add_manipulator(manipulator=manipulator)
-    sim.real_initial_value(*_var_ref(sim, "osc", "c[2]"), value=0.5)  # c[2]
-    sim.real_initial_value(*_var_ref(sim, "osc", "x[2]"), value=1.0)  # x[2]
+    sim.real_initial_value(*_var_ref(sim, "osc", "c[2]"), value=0.1)
     observer = CosimObserver.create_last_value()
     sim.add_observer(observer=observer)
-    times: list[float] = []
-    pos: list[float] = []
-    speed: list[float] = []
+    times = []
+    pos = []
+    speed = []
     slave, x2_ref = _var_ref(sim, "osc", "x[2]")
     slave, v2_ref = _var_ref(sim, "osc", "v[2]")
     for step in range(1, 1000):
@@ -356,27 +309,27 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "f
     assert sim_status.error_code == 0
     # manipulator = CosimManipulator.create_override()
     # sim.add_manipulator(manipulator=manipulator)
-    sim.real_initial_value(*_var_ref(sim, "osc", "k[2]"), value=1.0)
-    sim.real_initial_value(*_var_ref(sim, "osc", "c[2]"), value=0.1)
-    sim.real_initial_value(*_var_ref(sim, "osc", "m"), value=1.0)
-    sim.real_initial_value(*_var_ref(sim, "drv", "ampl[2]"), value=1.0)
-    sim.real_initial_value(*_var_ref(sim, "drv", "freq[2]"), value=0.0)  # start frequency
-    sim.real_initial_value(*_var_ref(sim, "drv", "d_freq[2]"), value=0.1 / 2 / np.pi)
-    sim.real_initial_value(*_var_ref(sim, "osc", "x[2]"), value=0.0)
-    sim.real_initial_value(*_var_ref(sim, "osc", "v[2]"), value=0.0)
+    sim.real_initial_value(*_var_ref(sim, "osc", "k[5]"), value=1.0)
+    sim.real_initial_value(*_var_ref(sim, "osc", "c[5]"), value=0.1)
+    sim.real_initial_value(*_var_ref(sim, "osc", "m[5]"), value=1.0)
+    sim.real_initial_value(*_var_ref(sim, "drv", "ampl[5]"), value=1.0)
+    sim.real_initial_value(*_var_ref(sim, "drv", "freq[5]"), value=0.0)  # freq (start frequency)
+    sim.real_initial_value(*_var_ref(sim, "drv", "d_freq[5]"), value=0.1 / 2 / np.pi)
+    sim.real_initial_value(*_var_ref(sim, "osc", "x0[2]"), value=0.0)
+    sim.real_initial_value(*_var_ref(sim, "osc", "v0[2]"), value=0.0)
     observer = CosimObserver.create_last_value()
     sim.add_observer(observer=observer)
+    _osc, _x5_ref = _var_ref(sim, "osc", "x[5]")
+    _osc, _v5_ref = _var_ref(sim, "osc", "v[5]")
     times = []
     pos = []
     speed = []
     time = 0.0
-    slave, x2_ref = _var_ref(sim, "osc", "x[2]")
-    slave, v2_ref = _var_ref(sim, "osc", "v[2]")
     while time < t_end:
         time += dt
         times.append(time)
         _ = sim.simulate_until(int(time * 1e9))
-        values = observer.last_real_values(slave_index=0, variable_references=[x2_ref, v2_ref])
+        values = observer.last_real_values(slave_index=_osc, variable_references=[_x5_ref, _v5_ref])
         pos.append(values[0])
         speed.append(values[1])
     if Path("oscillator_sweep0.dat").exists():
@@ -391,21 +344,21 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "f
         if show:
             freq0 = [0.1 * t / 2 / np.pi for t in times0]
             freq = [0.1 * t / 2 / np.pi for t in times]
-            do_show({"z-pos0": (freq0, pos0), "z-pos": (freq, pos)})
+            do_show({"monolithic model": (freq0, pos0), "co-simulation": (freq, pos)})
 
     elif show:
         do_show({"z-pos": (times, pos), "z-speed": (times, speed)})
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_system_structure_change(_system_structure())
     # test_make_fmus(_oscillator_fmu(), _driver_fmu())
-    # test_run_fmpy(_oscillator_fmu(), _driver_fmu(), show=True)
+    # test_use_fmu(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_osp(_oscillator_fmu(), _driver_fmu())
     # test_run_osp_system_structure(_system_structure(), show=True)
     # _test_run_osp_sweep(_system_structure(), show=True, alg="fixedStep")

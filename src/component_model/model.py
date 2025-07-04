@@ -250,7 +250,6 @@ class Model(Fmi2Slave):
         assert var.getter is not None, f"No getter method defined for {var}"
 
         # logger.info(f"REGISTER Variable {var.name}. getter: {var.getter}, setter: {var.setter}")
-        print(f"MODEL_var_register {var.name}: {vref}. Len:{len(var)}. {var}")
         for i in range(1, len(var)):
             self.vars[var.value_reference + i] = None  # marking that this is a sub-element
         self._unit_ensure_registered(var)

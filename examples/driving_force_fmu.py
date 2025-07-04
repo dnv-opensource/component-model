@@ -1,7 +1,6 @@
 import logging
 from functools import partial
-from math import pi, sin
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -14,18 +13,15 @@ logger = logging.getLogger(__name__)
 # Note: PythonFMU (which component-model is built on) works on files and thus only one Model class allowed per file
 
 
-def func(time: float,
-         ampl: np.ndarray,
-         omega: np.ndarray,
-         d_omega: np.ndarray):
+def func(time: float, ampl: np.ndarray, omega: np.ndarray, d_omega: np.ndarray):
     """Generate a harmonic oscillating force function.
     Optionally it is possible to linearly change the angular frequency as omega + d_omega*time.
     The function is intended to be initialized through partial, so that only 'time' is left as variable.
     """
-    if d_omega == 0.0:
+    if all(_do == 0.0 for _do in d_omega):
         return ampl * np.sin(omega * time)
     else:
-        return ampl * sin((omega + d_omega * time) * time)
+        return ampl * np.sin((omega + d_omega * time) * time)
 
 
 class DrivingForce(Model):
@@ -39,9 +35,9 @@ class DrivingForce(Model):
 
     Args:
         func (callable)=func: The driving force function f(t).
-        ampl (float|tuple) = 1.0: the amplitude of the (sinusoidal) driving force. Same for all 3D if float.
+        ampl (float|tuple) = 1.0: the amplitude of the (sinusoidal) driving force. Same for all D if float.
           Optional with units.
-        freq (float|tuple) = 1.0: the frequency of the (sinusoidal) driving force. Same for all 3D if float.
+        freq (float|tuple) = 1.0: the frequency of the (sinusoidal) driving force. Same for all D if float.
           Optional with units.
         d_freq (float) = 0.0: Optional frequency change per time unit (for frequency sweep experiments).
     """
@@ -50,7 +46,7 @@ class DrivingForce(Model):
         self,
         ampl: float | tuple[float] | tuple[str] = 1.0,
         freq: float | tuple[float] | tuple[str] = 1.0,
-        d_freq: float = 0.0,
+        d_freq: float | tuple[float] | tuple[str] = 0.0,
         **kwargs: Any,
     ):
         super().__init__(
@@ -60,18 +56,18 @@ class DrivingForce(Model):
             **kwargs,
         )
         # interface Variables. We define first their values, to help pyright, since the basic model is missing
-        print(f"DRIVING_FORCE.fmu from {__file__}( {ampl}, {freq}, {d_freq}")
-        _ampl = ampl if isinstance( ampl, tuple) else (ampl,)
+        _ampl = ampl if isinstance(ampl, tuple) else (ampl,)
         self.dim = len(_ampl)
-        _freq = freq if isinstance( freq, tuple) else (freq,)
+        _freq = freq if isinstance(freq, tuple) else (freq,)
         assert len(_freq) == self.dim, f"ampl and freq are expected of same length. Found {ampl}, {freq}"
-        _d_freq = d_freq if isinstance(d_freq, tuple) else (d_freq,)*self.dim 
+        _d_freq = d_freq if isinstance(d_freq, tuple) else (d_freq,) * self.dim
         assert len(_d_freq) == self.dim, f"d_freq expected as float or has same length as ampl:{ampl}. Found {d_freq}"
         self.ampl = (1.0,) * self.dim
         self.freq = (1.0,) * self.dim
-        self.d_freq = (0.0,)* self.dim
+        self.d_freq = (0.0,) * self.dim
         self.function = func
-        self.f = (0.0,) * self.dim
+        self.func: Callable
+        self.f = np.array((0.0,) * self.dim, float)
         self.v_osc = (0.0,) * self.dim
         self._ampl = Variable(self, "ampl", "The amplitude of the force in N", start=_ampl)
         self._freq = Variable(self, "freq", "The frequency of the force in 1/s", start=_freq)
@@ -99,10 +95,13 @@ class DrivingForce(Model):
 
     def exit_initialization_mode(self):
         """Set internal state after initial variables are set."""
+        assert isinstance(self.ampl, np.ndarray)
+        assert isinstance(self.freq, np.ndarray)
+        assert isinstance(self.d_freq, np.ndarray)
         self.func = partial(
             self.function,
             ampl=np.array(self.ampl, float),
-            omega=np.array(2 * pi * self.freq, float),
-            d_omega=np.array( 2 * pi * self.d_freq, float),
+            omega=np.array(2 * np.pi * self.freq, float),  # type: ignore # it is an ndarray!
+            d_omega=np.array(2 * np.pi * self.d_freq, float),  # type: ignore # it is an ndarray!
         )
         logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}, d_freq={self.d_freq}")

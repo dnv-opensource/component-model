@@ -291,7 +291,7 @@ def test_sweep_oscillator(show: bool = True):
         fig, ax = plt.subplots()
         ax.plot(freq, z0, label="z0(t)")
         ax.plot(freq, v0, label="v0(t)")
-        ax.plot(freq, f0, label="F0(t)")
+        # ax.plot(freq, f0, label="F0(t)")
         ax.legend()
         plt.show()
 

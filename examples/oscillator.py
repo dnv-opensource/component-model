@@ -52,12 +52,18 @@ class Oscillator:
         ]
         self.f_func = f_func
 
-    def ode_func(self, t: float, y: np.ndarray, i: int, f: float) -> np.ndarray:
+    def ode_func(
+        self,
+        t: float,  # scalar time
+        y: np.ndarray,  # combined array of position and speed for component i
+        i: int,  # dimension
+        f: float,
+    ) -> np.ndarray:  # force for component i
         res = self.ode[i].dot(y)
         if self.f_func is None:
             if f != 0:
                 res += np.array((f, 0), float)
-        elif i == 2:  # only implemented for z
+        else:
             res += np.array((self.f_func(t)[i], 0), float)
         return res
 
@@ -66,7 +72,6 @@ class Oscillator:
 
         We implement a very simplistic algoritm based on difference calculus.
         """
-        print(f"OSC do_step")
         for i in range(self.dim):  # this is a xD oscillator
             if self.x[i] != 0 or self.v[i] != 0 or self.f[i] != 0 or self.f_func is not None:
                 y0 = np.array([self.v[i], self.x[i]], float)
