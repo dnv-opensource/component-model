@@ -398,7 +398,7 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "f
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 

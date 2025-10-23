@@ -4,10 +4,11 @@ import logging
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum, IntFlag
 from functools import partial
-from math import acos, atan2, cos, degrees, radians, sin, sqrt
+from math import acos, atan2, cos, degrees, radians, sin, sqrt, isinf
 from typing import Any, Callable, Sequence, TypeAlias
 
 import numpy as np
+from scipy.spatial.transform import Rotation as Rot
 from pint import Quantity, UnitRegistry  # management of units
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
@@ -303,14 +304,14 @@ class Variable(ScalarVariable):
            and do not need to be repeated on every simulation step.
            If given, the function shall apply to the whole (vecor) variable,
            and after unit conversion and range checking.
-           The function is completely invisible by the user specifying inputs to the variable.
+           The function is invisible by the user specifying inputs to the variable.
         owner = None: Optional possibility to overwrite the default owner.
            If the related model uses structured variable naming this should not be necessary,
            but for flat variable naming within complex models (not recommended) ownership setting might be necessary.
         local_name (str) = None: Optional possibility to overwrite the automatic determination of local_name,
            which is used to access the variable value and must be a property of owner.
-           This is convenient for example to link a derivative name to a variable if the default name der_<base-var>
-           is not acceptable.
+           This is convenient for example to link a derivative name to a variable if the default name,
+           i.e. der_<base-var> is not acceptable.
     """
 
     def __init__(
@@ -417,15 +418,15 @@ class Variable(ScalarVariable):
             isinstance(der, (Sequence, np.ndarray)) and any(x != 0.0 for x in der)
         ):  # there is a slope
             varname = self.local_name[5:]  # local name of the base variable
-            val = getattr(self.owner, varname)  # previous value of base variable
+            basevar = self.model.derivatives[self.name]  # base variable object
+            val = getattr(self.owner, basevar.local_name) #getattr(self.owner, varname)  # previous value of base variable  # 
             if not isinstance(der, (Sequence, np.ndarray)):
                 der = [der]
                 assert not isinstance(val, (Sequence, np.ndarray)), "Should be the same as der"
                 val = [val]
-            is_nparray = isinstance(val, np.ndarray)
-            basevar = self.model.derivatives[self.name]  # base variable object
-            if is_nparray:
-                basevar.setter_internal(val + step_size * np.array(der, float), -1, True)
+            if isinstance(val, np.ndarray):
+                newval = val + step_size * np.array(der, float)
+                basevar.setter_internal(newval, -1, True)
             else:
                 newval = [val[i] + step_size * der[i] for i in range(len(der))]
                 basevar.setter_internal(newval, -1, False)
@@ -504,11 +505,11 @@ class Variable(ScalarVariable):
             for i in range(self._len):
                 values[i] = self._typ(values[i])  # type: ignore
 
-        if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
+        if True:#??self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
             if not self.check_range(values, idx):
                 raise VariableRangeError(f"set(): values {values} outside range.") from None
 
-        if self._check & Check.units:  #'values' expected as displayUnit. Convert to unit
+        if True: #?? self._check & Check.units:  #'values' expected as displayUnit. Convert to unit
             if idx >= 0:  # explicit index of single values
                 if self._unit[idx].du is None:
                     dvals = list(values)
@@ -559,6 +560,7 @@ class Variable(ScalarVariable):
                 setattr(self.owner, self.local_name, values if self.on_set is None else self.on_set(values))
         if self.on_set is None:
             logger.debug(f"SETTER {self.name}, {values}[{idx}] => {getattr(self.owner, self.local_name)}")
+        logger.info(f"Set variable {self.name}->{values}")
 
     def getter(self) -> list[PyType]:
         """Get the value (output a value from the model), including range checking and unit conversion.
@@ -915,6 +917,129 @@ def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.n
     phi = radians(vec[1]) if deg else vec[1]
     return np.array((vec[0] * cos(phi), vec[0] * sin(phi), vec[2]), dtype="float")
 
+def euler_rot_spherical(
+    rpy: Sequence|Rot,
+    vec: Sequence | None = None,
+    seq: str = 'XYZ', # sequence of axis of rotation as defined in scipy Rotation object
+    degrees:bool=False) -> Sequence:
+    """ Rotate the spherical vector vec using the Euler angles (yaw,pitch,roll).
+
+    Args:
+        rpy (Sequence|Rotation): The sequence of (yaw,pitch,roll) Euler angles or the pre-calculated Rotation object
+        vec: (Sequence): the spherical vector to be rotated
+           None: Use unit vector in z-direction, i.e. (1,0,0)
+           2-sequence: only polar and azimuth provided and returned => (polar,azimuth)
+           3-sequence: (r,polar,azimuth)
+        seq (str) = 'XYZ': Sequence of rotations as defined in scipy.spatial.transform.Rotation.from_euler()
+        degrees (bool): angles optionally provided in degrees. Default: radians
+    Returns:
+        The rotated vector in spherical coordinates (radius only if 3-vector is provided)
+    """
+    if isinstance(rpy, Rot):
+        r = rpy
+    elif isinstance( rpy, (Sequence,np.ndarray)):
+        r = Rot.from_euler(seq, (rpy[0], rpy[1], rpy[2]), degrees) #0: roll, 1: pitch, 2: yaw
+    else:
+        raise NotImplementedError(f"Unknown object {rpy} to rotate") from None 
+    if vec is None:
+        tp = (0,0)
+    else: # explicit vector provided
+        if len(vec)==3:
+            radius = vec[0]
+            tp = vec[1:]
+        else:
+            tp = vec
+        if degrees:
+            tp = np.radians( tp)
+    st = np.sin(tp[0])
+    x = r.apply( (st*np.cos(tp[1]), st*np.sin(tp[1]), np.cos(tp[0]))) # rotate the cartesian vector
+    x2 = x[2]
+    if abs(x2) < 1.0:
+        pass
+    elif abs(x2-1.0) < 1e-10:
+        x2 = 1.0
+    elif abs(x2+1.0) < 1e-10:
+        x2 = -1.0
+    else:
+        raise ValueError(f"Invalid argument {x2} for arccos calculation") from None
+    if abs(x[0])<1e-10 and abs(x[1])<1e-10: # define the normally undefined arctan
+        phi = 0.0
+    else:
+        phi = np.arctan2( x[1], x[0])
+    if vec is not None and len(vec) == 3:
+        return (radius, np.arccos( x2), phi) # return the spherical vector
+    else:
+        return (np.arccos( x2), phi) # return only the direction
+
+def rot_from_spherical( vec : Sequence | np.ndarray, degrees:bool = False):
+    """Return a scipy Rotation object from the spherical coordinates vec,
+    i.e. the rotation which turns a vector along the z-axis into vec.
+    
+    Args:
+        vec (Sequence | np.ndarray): a spherical vector as 3D or 2D (radius omitted)
+        degrees (bool): optional possibility to provide angles in degrees
+    """
+    angle = vec[1:] if len(vec)==3 else vec
+    return Rot.from_rotvec( (0.0,0.0,angle[1]), degrees) * Rot.from_rotvec( (0.0,angle[0],0.0), degrees)
+    
+def rot_from_vectors( vec1 : Sequence | np.ndarray, vec2 : Sequence | np.ndarray):
+    """Find the rotation object which rotates vec1 into vec2. Lengths of vec1 and vec2 shall be equal."""
+    n = np.linalg.norm( vec1)
+    assert abs( n - np.linalg.norm(vec2)) < 1e-10, f"Vectors len({vec1}={n} != len{vec2}. Cannot rotate into each other"
+    if abs(n-1.0) >1e-10:
+        vec1 /= n
+        vec2 /= n
+    _c = vec1.dot(vec2)
+    if abs(_c+1.0) < 1e-10: # vectors are exactly opposite to each other
+        imax,vmax,_sum = (-1, float('-inf'), 0.0)
+        for k, v in enumerate( vec1):
+            if isinf(vmax) or abs(v) > abs(vmax):
+                imax,vmax = (k,v)
+            _sum += v
+        vec = np.zeros(3)
+        vec[imax] = -(_sum-vmax)/vmax
+        vec[imax+1 if imax<2 else 0] = 0.0
+        i_remain = imax+2 if imax<1 else 1
+        vec[i_remain] = np.sqrt( 1.0/ (1 + (vec1[i_remain]/vmax)**2))
+        return Rot.from_rotvec( np.pi*vec)
+    else:
+        x = np.cross( vec1, vec2)
+        vx = np.array( [[0, -x[2], x[1]],
+                       [x[2], 0, -x[0]],
+                       [-x[1], x[0], 0]])
+        # print(vec1, vec2, _c, x,'\n',vx,'\n',np.matmul(vx,vx))
+        return Rot.from_matrix( np.identity(3) + vx + np.matmul(vx,vx)/ (1+_c))
+    
+def spherical_unique( vec : np.ndarray, eps : float = 1e-10) -> np.ndarray:
+    if len(vec) == 3:
+        if abs(vec[0]) < eps:
+            return np.array( (0,0,0), float)
+        elif vec[0] < 0:
+            return np.append( -vec[0], spherical_unique( np.array( (vec[1]+np.pi, vec[2]), float)))
+        else:
+            return np.append( vec[0], spherical_unique( vec[1:], eps))
+    else:
+        if abs( vec[0]) < eps:
+            return np.array( (0,0), float)
+        elif 0 <= vec[0] <= np.pi and 0 <= vec[1] <= 2*np.pi:
+            return vec
+        # angles not in unique range
+        theta = vec[0]
+        phi = vec[1]
+        _2pi = np.pi + np.pi
+        while theta > np.pi:
+            theta -= _2pi
+        while theta < -np.pi:
+            theta += _2pi
+        if theta < 0:
+            theta = -theta
+            phi += np.pi
+        while phi < 0:
+            phi += _2pi
+        while phi >= _2pi:
+            phi -= _2pi
+        return np.array( (theta,phi), float)
+            
 
 def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: bool = False) -> np.ndarray:
     """Turn a 4-tuple, consisting of quantity (float) and a direction 3-vector to a direction 3-vector,
@@ -935,3 +1060,10 @@ def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: 
         direction = np.array(quantity_direction[1:], dtype="float")
     n = np.linalg.norm(direction)  # normalize
     return quantity_direction[0] / n * direction
+
+def normalized(vec: np.ndarray):
+    """Return the normalized vector. Helper function."""
+    assert len(vec) == 3, f"{vec} should be a 3-dim vector"
+    norm = np.linalg.norm(vec)
+    assert norm > 0, f"Zero norm detected for vector {vec}"
+    return vec / norm

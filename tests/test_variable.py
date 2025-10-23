@@ -1,10 +1,12 @@
 # pyright: ignore[reportAttributeAccessIssue] # PythonFMU generates variable value objects using setattr()
 import logging
+from typing import Sequence
 import math
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
 
 import numpy as np
+from scipy.spatial.transform import Rotation as rot
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
@@ -18,6 +20,11 @@ from component_model.variable import (
     VariableRangeError,
     cartesian_to_spherical,
     spherical_to_cartesian,
+    spherical_unique,
+    rot_from_spherical,
+    rot_from_vectors,
+    euler_rot_spherical,
+    normalized
 )
 
 logger = logging.getLogger(__name__)
@@ -63,7 +70,6 @@ def tuples_nearly_equal(tuple1: tuple, tuple2: tuple, eps=1e-10):
         else:
             assert t1 == t2, f"{t1} != {t2}"
     return True
-
 
 def test_var_check():
     ck = Check.u_none | Check.r_none
@@ -122,7 +128,90 @@ def test_spherical_cartesian():
         _vec = spherical_to_cartesian(sVec)
         arrays_equal(np.array(vec, dtype="float"), _vec)
 
+def test_spherical_unique():
+    def do_test( x0: tuple, x1: tuple):
+        if len(x0) == 3:
+            _unique = spherical_unique( np.append(x0[0], np.radians(x0[1:])))
+            unique = np.append( _unique[0], np.degrees(_unique[1:]))
+        else:
+            unique = np.degrees(spherical_unique( np.radians(x0)))
+        assert np.allclose(unique, x1), f"{x0} -> {list(unique)} != {list(x1)}" 
+    do_test( (0,99), (0.,0.))
+    do_test( (-1, 10, 20), (1, 180-10.,180+20))
+    do_test( (10,300), (10,300))
+    do_test( (190,300), (170.,300.+180-360))
+    do_test( (170,300), (170.,300.))
+    do_test( (170,720), (170.,0.))
+    
+def test_rot_from_spherical():
+    assert np.allclose( rot_from_spherical( (0,0)).as_matrix(), rot.identity().as_matrix())
+    assert np.allclose( rot_from_spherical( (90,0), True).apply( (0,0,1)), (1.0,0,0))
+    assert np.allclose( rot_from_spherical( (0,90), True).apply( (0,0,1)), (0.0,0,1.0))
+    assert np.allclose( rot_from_spherical( (0,90), True).apply( (1.0,0,0)), (0.0,1.0,0.0))
+    assert np.allclose( rot_from_spherical( (1.0,45,45), True).apply( (0.0,0,1.0)), (0.5,0.5,np.sqrt(2)/2))
+    down = rot_from_spherical( (180,0), True)
+    print( "down+2", down, down*rot_from_spherical( (2,0), True))
 
+def test_rot_from_vectors():
+    def do_check( vec1:Sequence, vec2:Sequence):
+        v1 = np.array(vec1, float)
+        v2 = np.array(vec2, float)
+        r = rot_from_vectors( v1, v2)
+        v = r.apply(v1)
+        assert np.allclose( v2, v), f"{r.as_matrix} does not turn {v1} into {v2}"
+        
+    do_check( (1,0,0), (-1,0,0))
+    return
+    do_check( (1,0,0), (0,1,0))
+    rng = np.random.default_rng(12345)
+    for i in range(100):
+        v1 = normalized( rng.random(3))
+        do_check( v1, -v1) # opposite vectors
+        do_check( v1, v1) # identical vectors
+    for i in range(1000):
+        do_check( normalized( rng.random(3)), normalized( rng.random(3)))
+
+def test_euler_rot_spherical():
+    """Test euler rotations.
+    Note: We use XYZ + (roll, pitch, yaw) convention Tait-Brian."""
+    _re = rot.from_euler( 'zyx', (20,40,60), degrees=True) # extrinsic rotation
+    _ri = rot.from_euler( 'XYZ', (60,40,20), degrees=True) # intrinsic rotation
+    assert np.allclose(_re.as_matrix(), _ri.as_matrix()), "Rotation matrices for extrinsic == intrisic+reversed"
+    _re_inv = rot.from_euler( 'xyz', (-60,-40,-20), degrees=True)
+    assert np.allclose(_re.as_matrix(), _re_inv.as_matrix().transpose()), "_re_inv is inverse to _re"
+    assert np.allclose(_re.as_matrix() @ _re_inv.as_matrix(), rot.identity(3).as_matrix()), "_re_inv is the inverse."
+    
+    assert np.allclose( rot.from_euler('XYZ', (90,0,0), degrees=True).apply( (1,0,0)), (1,0,0)), "Roll invariant x"
+    assert np.allclose( rot.from_euler('XYZ', (90,0,0), degrees=True).apply( (0,1,0)), (0,0,1)), "Roll y(SB) -> z(down)"
+    assert np.allclose( rot.from_euler('XYZ', (90,0,0), degrees=True).apply( (0,0,-1)), (0,1,0)), "Roll -z(up) -> y(SB)"
+    assert np.allclose( rot.from_euler('XYZ', (0,90,0), degrees=True).apply( (1,0,0)), (0,0,-1)), "Pitch x(FW) -> -z(up)"
+    assert np.allclose( rot.from_euler('XYZ', (0,90,0), degrees=True).apply( (0,1,0)), (0,1,0)), "Pitch invariant y"
+    assert np.allclose( rot.from_euler('XYZ', (0,90,0), degrees=True).apply( (0,0,1)), (1,0,0)), "Pitch z(down) -> x(FW)"
+    assert np.allclose( rot.from_euler('XYZ', (0,0,90), degrees=True).apply( (1,0,0)), (0,1,0)), "Yaw x(FW) -> y(SB)"
+    assert np.allclose( rot.from_euler('XYZ', (0,0,90), degrees=True).apply( (0,1,0)), (-1,0,0)), "Yaw y(SB) -> -x(BW)"
+    assert np.allclose( rot.from_euler('XYZ', (0,0,90), degrees=True).apply( (0,0,1)), (0,0,1)), "Yaw invariant z"
+    assert np.allclose( np.degrees(euler_rot_spherical( (90,0,0), (90,90), degrees=True)), (0,0)), "Roll y -> z"
+    assert np.allclose( np.degrees(euler_rot_spherical( (0,90,0), (0,0), degrees=True)), (90,0)), "Pitch z -> x"
+    assert np.allclose( np.degrees(euler_rot_spherical( (0,0,90), (90,0), degrees=True)), (90,90)), "Yaw x -> y"
+
+def test_euler_rot():
+    """Test general issues about 3D rotations."""
+    _rot = rot.from_euler('XYZ', (90,0,0), degrees=True) # roll 90 deg
+    assert np.allclose( _rot.apply( (0,0,1)), (0,-1,0)), "z -> -y"
+    _rot2 = rot.from_euler('XYZ', (90,0,0), degrees=True) * _rot # another 90 deg in same direction
+    assert np.allclose( _rot2.apply( (0,0,1)), (0,0,-1)), "z -> -z"
+    assert np.allclose( _rot2.apply( (0,0,1)), rot.from_euler('XYZ', (180,0,0), degrees=True).apply( (0,0,1))), (
+        "Angles added")
+    _rot2 = _rot.from_euler('XYZ', (0,90,0), degrees=True) * _rot # + pitch 90 deg
+    print(_rot2.as_euler( seq='XYZ', degrees=True))
+    print(rot.from_euler('XYZ', (90,90,0), degrees=True).as_euler( seq='XYZ', degrees=True))
+    _rot3 = rot.from_euler('XYZ', (0,0,90), degrees=True) * _rot2 # +yaw 90 deg
+    assert np.allclose( _rot3.apply((1,0,0)), (0,0,-1))
+    assert np.allclose( _rot3.apply((0,1,0)), (0,1,0))
+    assert np.allclose( _rot3.apply((0,0,1)), (1,0,0))
+    assert np.allclose( np.cross(_rot3.apply((1,0,0)), _rot3.apply((0,1,0))), _rot3.apply((0,0,1))), "Still right-hand"
+    
+    
 def init_model_variables():
     """Define model and a few variables for various tests"""
     mod = DummyModel("MyModel")
@@ -639,6 +728,9 @@ def test_on_set():
     mod.dirty_do()
     arrays_equal(mod.np2, (0.9 * 0.9 * 4, 0.9 * 7, 0.9 * 8))
 
+def test_normalized():
+    assert np.allclose( normalized( (1,0,0)), (1,0,0))
+    assert np.allclose( normalized( (1,1,1)), np.array( (1,1,1), float)/np.sqrt(3))
 
 if __name__ == "__main__":
     retcode = pytest.main(["-rP -s -v", __file__])
@@ -655,3 +747,9 @@ if __name__ == "__main__":
     # test_set()
     # test_on_set()
     # test_xml()
+    # test_spherical_unique()
+    # test_rot_from_spherical()
+    # test_rot_from_vectors()
+    # test_euler_rot_spherical()
+    # test_euler_rot()
+    # test_normalized()

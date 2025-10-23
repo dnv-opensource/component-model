@@ -71,8 +71,6 @@ class Model(Fmi2Slave):
 
     * TypeDefinitions. Instead of defining SimpleType variables,
       ScalarVariable variables are always based on the pre-defined types and details provided there.
-    * Explicit <Derivatives> (see <ModelStructure>) are so far not implemented.
-      This could be done as an additional (optional) property in Variable.
 
     Args:
         name (str): name of the model. The name is also used to construct the FMU file name.
@@ -107,7 +105,7 @@ class Model(Fmi2Slave):
         copyright: str | None = None,
         default_experiment: dict[str, float] | None = None,
         flags: dict | None = None,
-        guid=None,
+        guid : str = None,
         **kwargs,
     ):
         kwargs.update(
@@ -123,8 +121,6 @@ class Model(Fmi2Slave):
         self.name = name
         if "instance_name" not in kwargs:  # NOTE: within builder.py this is always changed to 'dummyInstance'
             kwargs["instance_name"] = self.name  # make_instancename(__name__)
-        if "resources" not in kwargs:
-            kwargs["resources"] = None
         super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
         # Additional variables which are hidden here: .vars,
         # PythonFMU sets the default_experiment and the following items always to None! Correct it here
@@ -164,7 +160,7 @@ class Model(Fmi2Slave):
 
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
-        super().exit_initialization_mode()
+        #super().exit_initialization_mode()
         self.dirty_do()  # run on_set on all dirty variables
 
     @abstractmethod  # mark the class as 'still abstract'
@@ -793,6 +789,7 @@ class Model(Fmi2Slave):
         Variable range check, unit check and type check are performed by setter() function.
         on_set (if defined) is only run if the whole variable (all elements) are set.
         """
+        print(f"Set {vrs} to {values}. Type {typ.__qualname__}")
         for var, sv, svr in self._vrs_slices(vrs):
             assert isinstance(var, Variable)
             assert isinstance(var.typ, type)

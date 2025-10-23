@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.integrate import solve_ivp
 import pytest
 
 
@@ -16,10 +17,17 @@ def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ..
     return True
 
 
-def do_show(time: list, z: list, v: list, compare1: list | None = None, compare2: list | None = None):
+def do_show(
+    time: list,
+    z: list,
+    v: list,
+    compare1: list | None = None,
+    compare2: list | None = None,
+    z_label: str = "z-position",
+    v_label: str = "z-speed"):
     fig, ax = plt.subplots()
-    ax.plot(time, z, label="z-position")
-    ax.plot(time, v, label="z-speed")
+    ax.plot(time, z, label=z_label)
+    ax.plot(time, v, label=v_label)
     if compare1 is not None:
         ax.plot(time, compare1, label="compare1")
     if compare2 is not None:
@@ -324,9 +332,40 @@ def test_sweep_oscillator(show: bool = True):
         ax.legend()
         plt.show()
 
+def test_ivp(show: bool = True):
+    """Perform a few tests to get more acquainted with the IVP solver. Taken from scipy documentation"""
+    def upward_cannon(t, y): # return speed and accelleration as function of (position, speed)
+        return [y[1], -9.81]
+    def hit_ground(t, y):
+        return y[0]
+    sol = solve_ivp(
+        upward_cannon, # initial value function
+        [0, 100], # time range
+        [0, 200], # start values (position, speed)
+        t_eval=[t for t in range(100)] # evaluate at these points (not only last time value. For plotting)
+        )
+    assert sol.status==0, "No events involved. Successful status should be 0"
+    assert len(sol.y)==2, "y is a double vector of (position, speed), which is also reflected in results"
+    if show:
+        do_show( sol.t, sol.y[0], sol.y[1], z_label='pos', v_label='speed')
+    # include hit_ground event
+    hit_ground.terminal = True # attributes can be added to any function! Used here to qualify event.
+    hit_ground.direction = -1
+    sol = solve_ivp(
+        upward_cannon,
+        [0, 100],
+        [0, 200],
+        t_eval=[t for t in range(100)],
+        events=hit_ground)
+    print( sol)
+    assert np.allclose(sol.t_events, [2*200/9.81]), "Time when hitting the ground"
+    assert np.allclose( sol.y_events, [[ 0.0, -200.0]]), "Position and speed when hitting the ground"
+    #print( sol)
+    if show:
+        do_show( sol.t, sol.y[0], sol.y[1], z_label='pos', v_label='speed')
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
@@ -334,3 +373,4 @@ if __name__ == "__main__":
     # test_oscillator_class(show=True)
     # test_2d(show=True)
     # test_sweep_oscillator(show=True)
+    # test_ivp()
