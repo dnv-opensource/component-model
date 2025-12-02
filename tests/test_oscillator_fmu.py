@@ -142,11 +142,6 @@ def do_show(traces: dict[str, tuple[list[float], list[float]]]):
 #     return np.array((0, 0, ampl * np.sin(omega * t)), dtype=float)
 
 
-@pytest.fixture(scope="session")
-def oscillator_fmu():
-    return _oscillator_fmu()
-
-
 def _oscillator_fmu():
     """Make FMU and return .fmu file with path."""
     build_path = Path(__file__).parent.parent / "examples"
@@ -156,11 +151,6 @@ def _oscillator_fmu():
         dest=build_path,
     )
     return fmu_path
-
-
-@pytest.fixture(scope="session")
-def driver_fmu():
-    return _driver_fmu()
 
 
 def _driver_fmu():
@@ -436,10 +426,12 @@ if __name__ == "__main__":
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_system_structure_change(_system_structure())
-    test_make_fmus(_oscillator_fmu(), _driver_fmu(), show=True)
-    # test_run_fmpy(_oscillator_fmu(), _driver_fmu(), show=True)
-    # test_run_fmpy2(_oscillator_fmu(), _driver_fmu(), show=True)
-    # test_run_osp(_oscillator_fmu(), _driver_fmu())
+    osc = _oscillator_fmu()
+    drv = _driver_fmu()
+    test_make_fmus(osc, drv, show=True)
+    # test_run_fmpy(osc, drv, show=True)
+    # test_run_fmpy2(osc, drv, show=True)
+    # test_run_osp(osc, drv)
     # test_run_osp_system_structure(_system_structure(), show=True)
     # _test_run_osp_sweep(_system_structure(), show=True, alg="fixedStep")
     # _test_run_osp_sweep( _system_structure(), show=True, alg='ecco')

@@ -1,9 +1,11 @@
+# ruff: noqa: I001
 import shutil
 import sys
 import xml.etree.ElementTree as ET  # noqa: N817
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+from libcosimpy.CosimExecution import CosimExecution
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +19,7 @@ from libcosimpy.CosimEnums import (
     CosimVariableType,
     CosimVariableVariability,
 )
-from libcosimpy.CosimExecution import CosimExecution
+#from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimLogging import CosimLogLevel, log_output_level
 from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
@@ -122,11 +124,6 @@ def do_show(
 #     return np.array((0, 0, ampl * np.sin(omega * t)), dtype=float)
 
 
-@pytest.fixture(scope="session")
-def oscillator_fmu():
-    return _oscillator_fmu()
-
-
 def _oscillator_fmu():
     """Make FMU and return .fmu file with path."""
     build_path = Path.cwd()
@@ -145,11 +142,6 @@ def _oscillator_fmu():
         },
     )
     return fmu_path
-
-
-@pytest.fixture(scope="session")
-def driver_fmu():
-    return _driver_fmu()
 
 
 def _driver_fmu():
@@ -369,15 +361,17 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = False, alg: str = "
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
+    drv = _driver_fmu()
+    osc = _oscillator_fmu()
     # test_system_structure_change(_system_structure())
-    test_make_fmus(_oscillator_fmu(), _driver_fmu())
-    # test_use_fmu(_oscillator_fmu(), _driver_fmu(), show=True)
-    # test_run_osp(_oscillator_fmu(), _driver_fmu())
+    # test_make_fmus(osc, drv)
+    # test_use_fmu(osc, drv, show=True)
+    # test_run_osp(osc, drv)
     # test_run_osp_system_structure(_system_structure(), show=True)
     # _test_run_osp_sweep(_system_structure(), show=True, alg="fixedStep")
     # _test_run_osp_sweep( _system_structure(), show=True, alg='ecco')

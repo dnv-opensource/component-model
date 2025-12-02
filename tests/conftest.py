@@ -5,6 +5,33 @@ from shutil import rmtree
 
 import pytest
 
+from component_model.model import Model
+
+
+@pytest.fixture(scope="session")
+def oscillator_fmu():
+    """Make FMU and return .fmu file with path."""
+    build_path = Path(__file__).parent.parent / "examples"
+    src = Path(__file__).parent.parent / "examples" / "oscillator_fmu.py"
+    fmu_path = Model.build(
+        script=src,
+        dest=build_path,
+    )
+    return fmu_path
+
+
+@pytest.fixture(scope="session")
+def driver_fmu():
+    """Make FMU and return .fmu file with path."""
+    build_path = Path(__file__).parent.parent / "examples"
+    src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
+    fmu_path = Model.build(
+        script=src,
+        dest=build_path,
+        newargs={"ampl": ("3N", "2N", "1N"), "freq": ("3Hz", "2Hz", "1Hz")},
+    )
+    return fmu_path
+
 
 @pytest.fixture(scope="package", autouse=True)
 def chdir() -> None:
