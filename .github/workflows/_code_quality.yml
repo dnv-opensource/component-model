@@ -78,6 +78,6 @@ jobs:
           python-version: "3.12.8"
           python-version-file: "pyproject.toml"
       - name: Install the project
-        run: uv sync --upgrade --extra modelTest
+        run: uv sync --upgrade --extra tests
       - name: Run mypy
         run: uv run mypy
