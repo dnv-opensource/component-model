@@ -51,7 +51,7 @@ class GetFromCode(SphinxDirective):
         par = nodes.paragraph(text=text)
         if self.typ is None:  # need to parse the extracted text
             parNode = nodes.paragraph(text="")  # use an empty paragraph node as parent
-            self.state.nested_parse(par, 0, parNode)  # here the content of the retrieved text is parsed
+            self.state.nested_parse(par, 0, parNode)  # type: ignore  #here the content of the retrieved text is parsed
         else:  # use the text as is
             parNode = par
         return [parNode]

@@ -77,4 +77,4 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def show(request):
-    return request.config.getoption("--show") == "True"
+    return request.config.getoption("--show") == "False"

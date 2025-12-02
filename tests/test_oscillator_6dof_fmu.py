@@ -102,11 +102,16 @@ def arrays_equal(
         assert abs(x - y) < eps, f"Element {i} not nearly equal in {x}, {y}"
 
 
-def do_show(traces: dict[str, tuple[list[float], list[float]]]):
+def do_show(
+    traces: dict[str, tuple[list[float], list[float]]],
+    xlabel: str = "frequency in Hz",
+    ylabel: str = "position/angle",
+    title: str = "External force frequency sweep with time between co-sim calls = 1.0",
+):
     fig, ax = plt.subplots()
-    ax.set_title("External force frequency sweep with time between co-sim calls = 1.0")
-    ax.set_xlabel("frequency in Hz")
-    ax.set_ylabel("position/angle")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     for label, trace in traces.items():
         _ = ax.plot(trace[0], trace[1], label=label)
     _ = ax.legend()
@@ -198,7 +203,7 @@ def test_make_fmus(
 #
 
 
-def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
+def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool = False):
     """Test single FMUs."""
     # sourcery skip: move-assign
     result = simulate_fmu(
@@ -242,7 +247,7 @@ def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
 
 
 @pytest.mark.skipif(sys.platform.startswith("linux"), reason="HarmonicOsciallatorFMU.fmu throws an error on Linux")
-def test_run_osp_system_structure(system_structure: Path, show: bool = True):
+def test_run_osp_system_structure(system_structure: Path, show: bool = False):
     "Run an OSP simulation in the same way as the SimulatorInterface of sim-explorer is implemented"
     log_output_level(CosimLogLevel.TRACE)
     print("STRUCTURE", system_structure)
@@ -271,17 +276,30 @@ def test_run_osp_system_structure(system_structure: Path, show: bool = True):
     times = []
     pos = []
     speed = []
+    for i in range(6):
+        sim.real_initial_value(*_var_ref(sim, "osc", f"m[{i}]"), value=10000.0)
+        sim.real_initial_value(*_var_ref(sim, "osc", f"k[{i}]"), value=10000.0)
+    sim.real_initial_value(*_var_ref(sim, "osc", "v[0]"), value=1.0)
+    slave, x0_ref = _var_ref(sim, "osc", "x[0]")
+    slave, v0_ref = _var_ref(sim, "osc", "v[0]")
     slave, x2_ref = _var_ref(sim, "osc", "x[2]")
     slave, v2_ref = _var_ref(sim, "osc", "v[2]")
-    for step in range(1, 1000):
+    for step in range(1, 100):
         time = step * 0.01
-        _ = sim.simulate_until(step * 1e8)
-        values = observer.last_real_values(slave_index=0, variable_references=[x2_ref, v2_ref])
+        _ = sim.simulate_until(step * 1e7)
+        values = observer.last_real_values(slave_index=0, variable_references=[x0_ref, v0_ref, x2_ref, v2_ref])
         times.append(time)
         pos.append(values[0])
         speed.append(values[1])
     if show:
-        do_show(traces={"z-pos": (times, pos), "z-speed": (times, speed)})
+        do_show(
+            traces={"z-pos": (times, pos), "z-speed": (times, speed)},
+            xlabel="time",
+            ylabel="pos/speed",
+            title="Oscillator excited through initial speed",
+        )
+    for t, p, v in zip(times, pos, speed, strict=True):
+        print(f"@{t}, {p}, {v}, {np.sin(t)}")
 
 
 def test_system_structure_change(system_structure):
@@ -289,11 +307,11 @@ def test_system_structure_change(system_structure):
 
 
 @pytest.mark.parametrize("alg", ["fixedStep", "ecco"])
-def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = True):
+def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = False):
     _test_run_osp_sweep(system_structure, show, alg)
 
 
-def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "fixedStep"):
+def _test_run_osp_sweep(system_structure: Path, show: bool = False, alg: str = "fixedStep"):
     "Run an OSP simulation of the oscillator and the force sweep as co-simulation."
 
     dt = 1.0
@@ -351,13 +369,13 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "f
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = 0  # pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_system_structure_change(_system_structure())
-    # test_make_fmus(_oscillator_fmu(), _driver_fmu())
+    test_make_fmus(_oscillator_fmu(), _driver_fmu())
     # test_use_fmu(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_osp(_oscillator_fmu(), _driver_fmu())
     # test_run_osp_system_structure(_system_structure(), show=True)

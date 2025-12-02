@@ -1,31 +1,29 @@
 # pyright: ignore[reportAttributeAccessIssue] # PythonFMU generates variable value objects using setattr()
 import logging
-from typing import Sequence
 import math
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
+from typing import Sequence
 
 import numpy as np
-from scipy.spatial.transform import Rotation as rot
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from scipy.spatial.transform import Rotation as Rot
 
 from component_model.model import Model
-from component_model.variable import (
-    Check,
-    Variable,
-    VariableInitError,
-    VariableRangeError,
+from component_model.utils.analysis import extremum, extremum_series
+from component_model.utils.transform import (
     cartesian_to_spherical,
-    spherical_to_cartesian,
-    spherical_unique,
+    euler_rot_spherical,
+    normalized,
     rot_from_spherical,
     rot_from_vectors,
-    euler_rot_spherical,
-    normalized
+    spherical_to_cartesian,
+    spherical_unique,
 )
+from component_model.variable import Check, Variable
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -70,6 +68,7 @@ def tuples_nearly_equal(tuple1: tuple, tuple2: tuple, eps=1e-10):
         else:
             assert t1 == t2, f"{t1} != {t2}"
     return True
+
 
 def test_var_check():
     ck = Check.u_none | Check.r_none
@@ -128,90 +127,111 @@ def test_spherical_cartesian():
         _vec = spherical_to_cartesian(sVec)
         arrays_equal(np.array(vec, dtype="float"), _vec)
 
+
 def test_spherical_unique():
-    def do_test( x0: tuple, x1: tuple):
+    def do_test(x0: tuple, x1: tuple):
         if len(x0) == 3:
-            _unique = spherical_unique( np.append(x0[0], np.radians(x0[1:])))
-            unique = np.append( _unique[0], np.degrees(_unique[1:]))
+            _unique = spherical_unique(np.append(x0[0], np.radians(x0[1:])))
+            unique = np.append(_unique[0], np.degrees(_unique[1:]))
         else:
-            unique = np.degrees(spherical_unique( np.radians(x0)))
-        assert np.allclose(unique, x1), f"{x0} -> {list(unique)} != {list(x1)}" 
-    do_test( (0,99), (0.,0.))
-    do_test( (-1, 10, 20), (1, 180-10.,180+20))
-    do_test( (10,300), (10,300))
-    do_test( (190,300), (170.,300.+180-360))
-    do_test( (170,300), (170.,300.))
-    do_test( (170,720), (170.,0.))
-    
+            unique = np.degrees(spherical_unique(np.radians(x0)))
+        assert np.allclose(unique, x1), f"{x0} -> {list(unique)} != {list(x1)}"
+
+    do_test((0, 99), (0.0, 0.0))
+    do_test((-1, 10, 20), (1, 180 - 10.0, 180 + 20))
+    do_test((10, 300), (10, 300))
+    do_test((190, 300), (170.0, 300.0 + 180 - 360))
+    do_test((170, 300), (170.0, 300.0))
+    do_test((170, 720), (170.0, 0.0))
+
+
 def test_rot_from_spherical():
-    assert np.allclose( rot_from_spherical( (0,0)).as_matrix(), rot.identity().as_matrix())
-    assert np.allclose( rot_from_spherical( (90,0), True).apply( (0,0,1)), (1.0,0,0))
-    assert np.allclose( rot_from_spherical( (0,90), True).apply( (0,0,1)), (0.0,0,1.0))
-    assert np.allclose( rot_from_spherical( (0,90), True).apply( (1.0,0,0)), (0.0,1.0,0.0))
-    assert np.allclose( rot_from_spherical( (1.0,45,45), True).apply( (0.0,0,1.0)), (0.5,0.5,np.sqrt(2)/2))
-    down = rot_from_spherical( (180,0), True)
-    print( "down+2", down, down*rot_from_spherical( (2,0), True))
+    assert np.allclose(rot_from_spherical((0, 0)).as_matrix(), Rot.identity().as_matrix())
+    assert np.allclose(rot_from_spherical((90, 0), True).apply((0, 0, 1)), (1.0, 0, 0))
+    assert np.allclose(rot_from_spherical((0, 90), True).apply((0, 0, 1)), (0.0, 0, 1.0))
+    assert np.allclose(rot_from_spherical((0, 90), True).apply((1.0, 0, 0)), (0.0, 1.0, 0.0))
+    assert np.allclose(rot_from_spherical((1.0, 45, 45), True).apply((0.0, 0, 1.0)), (0.5, 0.5, np.sqrt(2) / 2))
+    down = rot_from_spherical((180, 0), True)
+    print("down+2", down, down * rot_from_spherical((2, 0), True))
+
 
 def test_rot_from_vectors():
-    def do_check( vec1:Sequence, vec2:Sequence):
+    def do_check(vec1: Sequence, vec2: Sequence):
         v1 = np.array(vec1, float)
         v2 = np.array(vec2, float)
-        r = rot_from_vectors( v1, v2)
+        r = rot_from_vectors(v1, v2)
         v = r.apply(v1)
-        assert np.allclose( v2, v), f"{r.as_matrix} does not turn {v1} into {v2}"
-        
-    do_check( (1,0,0), (-1,0,0))
+        assert np.allclose(v2, v), f"{r.as_matrix} does not turn {v1} into {v2}"
+
+    do_check((1, 0, 0), (-1, 0, 0))
     return
-    do_check( (1,0,0), (0,1,0))
+    do_check((1, 0, 0), (0, 1, 0))
     rng = np.random.default_rng(12345)
-    for i in range(100):
-        v1 = normalized( rng.random(3))
-        do_check( v1, -v1) # opposite vectors
-        do_check( v1, v1) # identical vectors
-    for i in range(1000):
-        do_check( normalized( rng.random(3)), normalized( rng.random(3)))
+    for _i in range(100):
+        v1 = normalized(rng.random(3))
+        do_check(v1, -v1)  # opposite vectors
+        do_check(v1, v1)  # identical vectors
+    for _i in range(1000):
+        do_check(normalized(rng.random(3)), normalized(rng.random(3)))
+
 
 def test_euler_rot_spherical():
     """Test euler rotations.
     Note: We use XYZ + (roll, pitch, yaw) convention Tait-Brian."""
-    _re = rot.from_euler( 'zyx', (20,40,60), degrees=True) # extrinsic rotation
-    _ri = rot.from_euler( 'XYZ', (60,40,20), degrees=True) # intrinsic rotation
+    _re = Rot.from_euler("zyx", (20, 40, 60), degrees=True)  # extrinsic rotation
+    _ri = Rot.from_euler("XYZ", (60, 40, 20), degrees=True)  # intrinsic rotation
     assert np.allclose(_re.as_matrix(), _ri.as_matrix()), "Rotation matrices for extrinsic == intrisic+reversed"
-    _re_inv = rot.from_euler( 'xyz', (-60,-40,-20), degrees=True)
+    _re_inv = Rot.from_euler("xyz", (-60, -40, -20), degrees=True)
     assert np.allclose(_re.as_matrix(), _re_inv.as_matrix().transpose()), "_re_inv is inverse to _re"
-    assert np.allclose(_re.as_matrix() @ _re_inv.as_matrix(), rot.identity(3).as_matrix()), "_re_inv is the inverse."
-    
-    assert np.allclose( rot.from_euler('XYZ', (90,0,0), degrees=True).apply( (1,0,0)), (1,0,0)), "Roll invariant x"
-    assert np.allclose( rot.from_euler('XYZ', (90,0,0), degrees=True).apply( (0,1,0)), (0,0,1)), "Roll y(SB) -> z(down)"
-    assert np.allclose( rot.from_euler('XYZ', (90,0,0), degrees=True).apply( (0,0,-1)), (0,1,0)), "Roll -z(up) -> y(SB)"
-    assert np.allclose( rot.from_euler('XYZ', (0,90,0), degrees=True).apply( (1,0,0)), (0,0,-1)), "Pitch x(FW) -> -z(up)"
-    assert np.allclose( rot.from_euler('XYZ', (0,90,0), degrees=True).apply( (0,1,0)), (0,1,0)), "Pitch invariant y"
-    assert np.allclose( rot.from_euler('XYZ', (0,90,0), degrees=True).apply( (0,0,1)), (1,0,0)), "Pitch z(down) -> x(FW)"
-    assert np.allclose( rot.from_euler('XYZ', (0,0,90), degrees=True).apply( (1,0,0)), (0,1,0)), "Yaw x(FW) -> y(SB)"
-    assert np.allclose( rot.from_euler('XYZ', (0,0,90), degrees=True).apply( (0,1,0)), (-1,0,0)), "Yaw y(SB) -> -x(BW)"
-    assert np.allclose( rot.from_euler('XYZ', (0,0,90), degrees=True).apply( (0,0,1)), (0,0,1)), "Yaw invariant z"
-    assert np.allclose( np.degrees(euler_rot_spherical( (90,0,0), (90,90), degrees=True)), (0,0)), "Roll y -> z"
-    assert np.allclose( np.degrees(euler_rot_spherical( (0,90,0), (0,0), degrees=True)), (90,0)), "Pitch z -> x"
-    assert np.allclose( np.degrees(euler_rot_spherical( (0,0,90), (90,0), degrees=True)), (90,90)), "Yaw x -> y"
+    assert np.allclose(_re.as_matrix() @ _re_inv.as_matrix(), Rot.identity(3).as_matrix()), "_re_inv is the inverse."
+
+    assert np.allclose(Rot.from_euler("XYZ", (90, 0, 0), degrees=True).apply((1, 0, 0)), (1, 0, 0)), "Roll invariant x"
+    assert np.allclose(Rot.from_euler("XYZ", (90, 0, 0), degrees=True).apply((0, 1, 0)), (0, 0, 1)), (
+        "Roll y(SB) -> z(down)"
+    )
+    assert np.allclose(Rot.from_euler("XYZ", (90, 0, 0), degrees=True).apply((0, 0, -1)), (0, 1, 0)), (
+        "Roll -z(up) -> y(SB)"
+    )
+    assert np.allclose(Rot.from_euler("XYZ", (0, 90, 0), degrees=True).apply((1, 0, 0)), (0, 0, -1)), (
+        "Pitch x(FW) -> -z(up)"
+    )
+    assert np.allclose(Rot.from_euler("XYZ", (0, 90, 0), degrees=True).apply((0, 1, 0)), (0, 1, 0)), "Pitch invariant y"
+    assert np.allclose(Rot.from_euler("XYZ", (0, 90, 0), degrees=True).apply((0, 0, 1)), (1, 0, 0)), (
+        "Pitch z(down) -> x(FW)"
+    )
+    assert np.allclose(Rot.from_euler("XYZ", (0, 0, 90), degrees=True).apply((1, 0, 0)), (0, 1, 0)), (
+        "Yaw x(FW) -> y(SB)"
+    )
+    assert np.allclose(Rot.from_euler("XYZ", (0, 0, 90), degrees=True).apply((0, 1, 0)), (-1, 0, 0)), (
+        "Yaw y(SB) -> -x(BW)"
+    )
+    assert np.allclose(Rot.from_euler("XYZ", (0, 0, 90), degrees=True).apply((0, 0, 1)), (0, 0, 1)), "Yaw invariant z"
+    assert np.allclose(np.degrees(euler_rot_spherical((90, 0, 0), (90, 90), degrees=True)), (0, 0)), "Roll y -> z"
+    assert np.allclose(np.degrees(euler_rot_spherical((0, 90, 0), (0, 0), degrees=True)), (90, 0)), "Pitch z -> x"
+    assert np.allclose(np.degrees(euler_rot_spherical((0, 0, 90), (90, 0), degrees=True)), (90, 90)), "Yaw x -> y"
+
 
 def test_euler_rot():
     """Test general issues about 3D rotations."""
-    _rot = rot.from_euler('XYZ', (90,0,0), degrees=True) # roll 90 deg
-    assert np.allclose( _rot.apply( (0,0,1)), (0,-1,0)), "z -> -y"
-    _rot2 = rot.from_euler('XYZ', (90,0,0), degrees=True) * _rot # another 90 deg in same direction
-    assert np.allclose( _rot2.apply( (0,0,1)), (0,0,-1)), "z -> -z"
-    assert np.allclose( _rot2.apply( (0,0,1)), rot.from_euler('XYZ', (180,0,0), degrees=True).apply( (0,0,1))), (
-        "Angles added")
-    _rot2 = _rot.from_euler('XYZ', (0,90,0), degrees=True) * _rot # + pitch 90 deg
-    print(_rot2.as_euler( seq='XYZ', degrees=True))
-    print(rot.from_euler('XYZ', (90,90,0), degrees=True).as_euler( seq='XYZ', degrees=True))
-    _rot3 = rot.from_euler('XYZ', (0,0,90), degrees=True) * _rot2 # +yaw 90 deg
-    assert np.allclose( _rot3.apply((1,0,0)), (0,0,-1))
-    assert np.allclose( _rot3.apply((0,1,0)), (0,1,0))
-    assert np.allclose( _rot3.apply((0,0,1)), (1,0,0))
-    assert np.allclose( np.cross(_rot3.apply((1,0,0)), _rot3.apply((0,1,0))), _rot3.apply((0,0,1))), "Still right-hand"
-    
-    
+    _rot = Rot.from_euler("XYZ", (90, 0, 0), degrees=True)  # roll 90 deg
+    assert np.allclose(_rot.apply((0, 0, 1)), (0, -1, 0)), "z -> -y"
+    _rot2 = Rot.from_euler("XYZ", (90, 0, 0), degrees=True) * _rot  # another 90 deg in same direction
+    assert np.allclose(_rot2.apply((0, 0, 1)), (0, 0, -1)), "z -> -z"
+    assert np.allclose(_rot2.apply((0, 0, 1)), Rot.from_euler("XYZ", (180, 0, 0), degrees=True).apply((0, 0, 1))), (
+        "Angles added"
+    )
+    _rot2 = _rot.from_euler("XYZ", (0, 90, 0), degrees=True) * _rot  # + pitch 90 deg
+    print(_rot2.as_euler(seq="XYZ", degrees=True))
+    print(Rot.from_euler("XYZ", (90, 90, 0), degrees=True).as_euler(seq="XYZ", degrees=True))
+    _rot3 = Rot.from_euler("XYZ", (0, 0, 90), degrees=True) * _rot2  # +yaw 90 deg
+    assert np.allclose(_rot3.apply((1, 0, 0)), (0, 0, -1))
+    assert np.allclose(_rot3.apply((0, 1, 0)), (0, 1, 0))
+    assert np.allclose(_rot3.apply((0, 0, 1)), (1, 0, 0))
+    assert np.allclose(np.cross(_rot3.apply((1, 0, 0)), _rot3.apply((0, 1, 0))), _rot3.apply((0, 0, 1))), (
+        "Still right-hand"
+    )
+
+
 def init_model_variables():
     """Define model and a few variables for various tests"""
     mod = DummyModel("MyModel")
@@ -335,9 +355,7 @@ def test_init():
     assert mod.int1 == 99, "Value directly accessible as model variable"
     mod.int1 = 110
     assert mod.int1 == 110, "Internal changes not range-checked!"
-    with pytest.raises(VariableRangeError) as err:  # ... but getter() detects the range error
-        _ = int1.getter()
-    assert str(err.value) == "getter(): Value [110] outside range."
+    assert not int1.check_range(int1.getter(), -1), "Error detected during getter()"
     assert mod.int1 == 110, f"Value {mod.int1} should still be unchanged"
     int1.setter([50])
     assert mod.int1 == 50, f"Value {mod.int1} changed back."
@@ -362,9 +380,7 @@ def test_init():
     assert mod.float1 == 0.99, "Value directly accessible as model variable"
     mod.float1 = 1.0
     assert mod.float1 == 1.0, "Internal changes not range-checked!"
-    with pytest.raises(VariableRangeError) as err:  # ... but getter() detects the range error
-        _ = float1.getter()
-    assert str(err.value) == "getter(): Value [100.0] outside range."
+    assert not float1.check_range(float1.getter(), -1), "Range check during getter detects the range errror"
     assert mod.float1 == 1.0, f"Value {mod.float1} should still be unchanged"
     float1.setter([50])
     assert mod.float1 == 0.5, f"Value {mod.float1} changed back."
@@ -458,9 +474,7 @@ def test_init():
     assert mod.np1[1] == math.radians(2), "Value directly accessible as model variable"
     mod.np1[1] = -1.0
     assert mod.np1[1] == -1.0, "Internal changes not range-checked!"
-    with pytest.raises(VariableRangeError) as err:  # ... but getter() detects the range error
-        _ = np1.getter()
-    assert str(err.value) == "getter(): Value [1.0, -57.29577951308233, 3.0] outside range."
+    assert not np1.check_range(np1.getter(), 1), "Error detected during getter()"
     assert mod.np1[1] == -1.0, f"Value {mod.np1} should still be unchanged"
     mod.np1 = np.array((1.5, 2.5, 3.5), float)
     assert np.linalg.norm(mod.np1) == math.sqrt(1.5**2 + 2.5**2 + 3.5**2), "np calculations are done on value"
@@ -488,7 +502,7 @@ def test_init():
         )
     assert err2.value.args[0] == "Variable int1 already used as index 0 in model MyModel"
 
-    with pytest.raises(VariableInitError) as err3:
+    with pytest.raises(KeyError) as err3:
         int1 = Variable(
             mod,
             "bool1",
@@ -500,7 +514,7 @@ def test_init():
             annotations=None,
             typ=int,
         )
-    assert err3.value.args[0].startswith("Range must be specified for int variable")
+    assert err3.value.args[0].startswith("Variable bool1 already used")
     assert float1.range[0][1] == 99.0
     assert enum1.range[0] == (0, 4)
     assert enum1.check_range([Causality.parameter])
@@ -511,24 +525,18 @@ def test_init():
 def test_range():
     """Test the various ways of providing a range for a variable"""
     mod = DummyModel("MyModel2", instance_name="MyModel2")
-    with pytest.raises(VariableInitError) as err:
-        int1 = Variable(mod, "int1", start=1)
-    assert (
-        str(err.value)
-        == "Range must be specified for int variable <class 'component_model.variable.Variable'> or use float."
-    )
-    int1 = Variable(mod, "int1", start=1, rng=(0, 5))  # that works
-    mod.int1 = 6
-    with pytest.raises(VariableRangeError) as err2:  # causes an error
-        _ = int1.getter()
-    assert err2.value.args[0] == "getter(): Value [6.0] outside range."
+    int1 = Variable(mod, "int1", start=1)
+    assert int1.range == ((1, 1),), "Missing range. restricted to fixed start value."
+    int2 = Variable(mod, "int2", start=1, rng=(0, 5))
+    assert int2.range == ((0, 5),), "That works"
+    mod.int2 = 6
+    assert not int2.check_range(int2.getter(), -1), "Error detected in getter() function"
     float1 = Variable(mod, "float1", start=1, typ=float)  # explicit type
     assert float1.range == ((float("-inf"), float("inf")),), "Auto_extreme. Same as rng=()"
     float2 = Variable(mod, "float2", start=1.0, rng=None)  # implicit type through start value and no range
     assert float2.range == ((1.0, 1.0),), "No range."
-    with pytest.raises(VariableRangeError) as err3:
-        float2.setter([2.0])
-    assert err3.value.args[0] == "set(): values [2.0] outside range."
+    mod.float2 = 99.9  # type: ignore[reportAttributeAccessIssue] ## values are accessible through model
+    assert not float2.check_range(float2.getter(), -1), "Error detected in getter() function"
 
     np1 = Variable(mod, "np1", start=("1.0m", 2, 3), rng=((0, "3m"), None, tuple()))
     assert np1.range == ((0.0, 3.0), (2.0, 2.0), (float("-inf"), float("inf")))
@@ -685,9 +693,9 @@ def test_xml():
     assert len(lst) == 3
     expected = '<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
     assert ET.tostring(lst[0], encoding="unicode") == expected, ET.tostring(lst[0], encoding="unicode")
-    expected = '<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="1.9999999999999993" max="2.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    expected = '<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="2.0000000000000004" max="2.0000000000000004" unit="radian" displayUnit="degree" /></ScalarVariable>'
     assert ET.tostring(lst[1], encoding="unicode") == expected, ET.tostring(lst[1], encoding="unicode")
-    expected = '<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="2.9999999999999996" max="3.0000000000000013" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    expected = '<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="3.0000000000000004" max="3.0000000000000004" unit="radian" displayUnit="degree" /></ScalarVariable>'
     assert ET.tostring(lst[2], encoding="unicode") == expected, ET.tostring(lst[2], encoding="unicode")
 
     int1 = Variable(
@@ -728,9 +736,29 @@ def test_on_set():
     mod.dirty_do()
     arrays_equal(mod.np2, (0.9 * 0.9 * 4, 0.9 * 7, 0.9 * 8))
 
+
 def test_normalized():
-    assert np.allclose( normalized( (1,0,0)), (1,0,0))
-    assert np.allclose( normalized( (1,1,1)), np.array( (1,1,1), float)/np.sqrt(3))
+    assert np.allclose(normalized(np.array((1, 0, 0), float)), (1, 0, 0))
+    assert np.allclose(normalized(np.array((1, 1, 1), float)), np.array((1, 1, 1), float) / np.sqrt(3))
+
+
+def test_extremum():
+    t = [np.radians(10 * x) for x in range(100)]
+    x = [np.cos(x) for x in t]
+    e, p = extremum(t[0:3], x[0:3], 2e-3)  # allow a small error
+    assert e == 1
+    assert p[0] > -2e-3 and p[1] < 1 + 1e-6, (
+        "Top of parabola somewhat to the left due to cos not exactly equal to 2.order"
+    )
+    # for i in range(100):
+    #    print(i, t[i], x[i])
+    e, p = extremum(t[17:20], x[17:20])
+    assert e == -1 and abs(p[0] - np.pi) < 1e-10 and p[1] == -1
+    ex = extremum_series(t, x, "all")
+    assert len(ex) == 2
+    assert np.allclose(ex[0], (12.566370614359142, 1.0))
+    assert np.allclose(ex[1], (15.707963267948958, -1.0))
+
 
 if __name__ == "__main__":
     retcode = pytest.main(["-rP -s -v", __file__])
@@ -753,3 +781,4 @@ if __name__ == "__main__":
     # test_euler_rot_spherical()
     # test_euler_rot()
     # test_normalized()
+    # test_extremum()

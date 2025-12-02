@@ -4,11 +4,9 @@ import logging
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum, IntFlag
 from functools import partial
-from math import acos, atan2, cos, degrees, radians, sin, sqrt, isinf
 from typing import Any, Callable, Sequence, TypeAlias
 
 import numpy as np
-from scipy.spatial.transform import Rotation as Rot
 from pint import Quantity, UnitRegistry  # management of units
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
@@ -95,6 +93,7 @@ class Unit:
                     # transform to base units ('SI' units). All internal calculations will be performed with these
                     val = self.val_unit_display(q, ureg)
                 else:
+                    logger.critical(f"Unknown quantity {quantity} to disect")
                     raise VariableInitError(f"Unknown quantity {quantity} to disect") from None
             # no recognized units. Assume a free string. ??Maybe we should be more selective about the exact error type:
             except Exception as warn:
@@ -110,6 +109,7 @@ class Unit:
             try:  # try to convert the magnitude to the correct type.
                 val = typ(val)
             except Exception as err:
+                logger.critical(f"Value {val} is not of the correct type {typ}")
                 raise VariableInitError(f"Value {val} is not of the correct type {typ}") from err
         return val
 
@@ -244,7 +244,7 @@ class Variable(ScalarVariable):
     #. The Variable value is per default owned by the related model (see `self.model`).
        Through the `owner` parameter this can be changes.
        In structured models like the crane_fmu this might be adequate.
-    #. The current value of the variable directly accessible through the owner.
+    #. The current value of the variable is directly accessible through the owner.
        Direct value access assumes always internal units (per default: SI units) and range checking is not performed.
     #. Other access to the value is achieved through the `self.getter()` and the `self.setter( v)` functions,
        which are also used by the FMU getxxx and setxxx functions (external access).
@@ -278,12 +278,15 @@ class Variable(ScalarVariable):
            If None, _typ is set to Enum/str if derived from these after disection or float if a number. 'int' is not automatically detected.
         start (PyType): The initial value of the variable.
 
-           Optionally, the unit can be included, providing the initial value as string, evaluating to quantity of type typ a display unit and base unit.
-           Note that the quantities are always converted to standard units of the same type, while the display unit may be different, i.e. the preferred user communication.
-        rng (tuple) = (): Optional range of the variable in terms of a tuple of the same type as initial value. Should be specified with units (as string).
+           Optionally, the unit can be included, providing the initial value as string,
+           evaluating to quantity of type typ a display unit and base unit.
+           Note that the quantities are always converted to standard units of the same type, while the display unit may be different,
+           i.e. the preferred user communication.
+        rng (tuple) = (): Optional range of the variable in terms of a tuple of the same type as initial value.
+           Should be specified with units (as string).
 
            * If an empty tuple is specified, the range is automatically determined.
-             That is only possible float or enum type variables, where the former evaluates to (-inf, inf).
+             That is only possible for float or enum type variables, where the former evaluates to (-inf, inf).
              Maximum or minimum int values do not exist in Python, such that these always must be provided explicitly.
              It is not possible to set only one of the elements of the tuple automatically.
            * If None is specified, the initial value is chosen, i.e. no range.
@@ -404,8 +407,10 @@ class Variable(ScalarVariable):
             self.range = self._init_range(rng)
 
         if not self.check_range(self._start, disp=False):  # range checks of initial value
+            logger.critical(f"The provided value {self._start} is not in the valid range {self._range}")
             raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
         self.model.register_variable(self)
+        assert len(self._start) > 0, "Empty tuples are not handled here:"
         try:
             setattr(self.owner, self.local_name, np.array(self._start, self.typ) if self._len > 1 else self._start[0])
         except AttributeError as _:  # can happen if a @property is defined for local_name, but no @local_name.setter
@@ -417,9 +422,11 @@ class Variable(ScalarVariable):
         if (isinstance(der, float) and der != 0.0) or (
             isinstance(der, (Sequence, np.ndarray)) and any(x != 0.0 for x in der)
         ):  # there is a slope
-            varname = self.local_name[5:]  # local name of the base variable
+            # varname = self.local_name[5:]  # local name of the base variable
             basevar = self.model.derivatives[self.name]  # base variable object
-            val = getattr(self.owner, basevar.local_name) #getattr(self.owner, varname)  # previous value of base variable  # 
+            val = getattr(
+                self.owner, basevar.local_name
+            )  # getattr(self.owner, varname)  # previous value of base variable  #
             if not isinstance(der, (Sequence, np.ndarray)):
                 der = [der]
                 assert not isinstance(val, (Sequence, np.ndarray)), "Should be the same as der"
@@ -433,6 +440,7 @@ class Variable(ScalarVariable):
 
     # disable super() functions and properties which are not in use here
     def to_xml(self) -> ET.Element:
+        logger.critical("The function to_xml() shall not be used from component-model")
         raise NotImplementedError("The function to_xml() shall not be used from component-model") from None
 
     # External access to read-only variables:
@@ -505,11 +513,11 @@ class Variable(ScalarVariable):
             for i in range(self._len):
                 values[i] = self._typ(values[i])  # type: ignore
 
-        if True:#??self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
+        if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
             if not self.check_range(values, idx):
-                raise VariableRangeError(f"set(): values {values} outside range.") from None
+                logger.error(f"set(): values {values} outside range.")
 
-        if True: #?? self._check & Check.units:  #'values' expected as displayUnit. Convert to unit
+        if self._check & Check.units:  #'values' expected as displayUnit. Convert to unit
             if idx >= 0:  # explicit index of single values
                 if self._unit[idx].du is None:
                     dvals = list(values)
@@ -560,24 +568,25 @@ class Variable(ScalarVariable):
                 setattr(self.owner, self.local_name, values if self.on_set is None else self.on_set(values))
         if self.on_set is None:
             logger.debug(f"SETTER {self.name}, {values}[{idx}] => {getattr(self.owner, self.local_name)}")
-        logger.info(f"Set variable {self.name}->{values}")
 
     def getter(self) -> list[PyType]:
         """Get the value (output a value from the model), including range checking and unit conversion.
-        The whole variable value is returned.
-        The return a list of values. Can later be indexed/sliced to get elements of compound variables.
+        For compound variables, the whole variable is returned as list (even for scalar variables).
+        Returned value lists can later be indexed/sliced to get elements of (compound) variables.
         """
         assert self._typ is not None, "Need a proper type at this stage"
         if self._len == 1:
-            value = getattr(self.owner, self.local_name)
+            value = getattr(self.owner, self.local_name)  # work with the single value
             if issubclass(self._typ, Enum):  # native Enums do not exist in FMI2. Convert to int
-                value = value.value
-            elif not isinstance(value, self._typ):  # other type conversion
-                value = self._typ(value)  # type: ignore[call-arg]
-            if self._check & Check.units:  # Convert 'value' display.u -> base unit
-                if self._unit[0].du is not None:
-                    value = self._unit[0].from_base(value)
-            values = [value]
+                values = [value.value]
+            else:
+                if not isinstance(value, self._typ):  # other type conversion
+                    value = self._typ(value)  # type: ignore[call-arg]
+                if self._check & Check.units:  # Convert 'value' base unit -> display.u
+                    if self._unit[0].du is not None:
+                        assert isinstance(value, float)
+                        value = self._unit[0].from_base(value)
+                values = [value]
 
         else:  # compound variable
             values = list(getattr(self.owner, self.local_name))  # make value available as copy
@@ -588,13 +597,13 @@ class Variable(ScalarVariable):
                 for i in range(self._len):  # check whether conversion to _typ is necessary
                     if not isinstance(values[i], self._typ):
                         values[i] = self._typ(values[i])  # type: ignore[call-arg]
-            if self._check & Check.units:  # Convert 'value' display.u -> base unit
+            if self._check & Check.units:  # Convert 'value' base unit -> display.u
                 for i in range(self._len):
                     if self._unit[i].du is not None:
                         values[i] = self._unit[i].from_base(values[i])
 
-        if self._check & Check.ranges and not self.check_range(values, -1):
-            raise VariableRangeError(f"getter(): Value {values} outside range.") from None
+        if self._check & Check.ranges and not self.check_range(values, -1):  # check the range if so instructed
+            logger.error(f"getter(): Value of {self.name}: {values} outside range {self.range}!")
         return values
 
     def _init_range(self, rng: tuple | None) -> tuple:
@@ -606,17 +615,6 @@ class Variable(ScalarVariable):
               Always for the whole variable with scalar variables packed in a singleton
         """
 
-        def ensure_display_limits(val: float, idx: int, right: bool):
-            """Ensure that value is provided as display unit and that limits are included in range."""
-            if self._unit[idx].du is not None:  # Range in display units!
-                val = self._unit[idx].from_base(val)
-            if isinstance(val, float) and abs(val) != float("inf") and int(val) != val:
-                if right:
-                    val += 1e-15
-                else:
-                    val -= 1e-15
-            return val
-
         assert hasattr(self, "_start") and hasattr(self, "_unit"), "Missing self._start / self._unit"
         assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
         # Configure input. Could be None, () or (min,max) of scalar
@@ -627,13 +625,10 @@ class Variable(ScalarVariable):
         for idx in range(self._len):  # go through all elements
             _rng = rng[idx]
             if _rng is None:  # => no range. Used for compound variables if not all elements have a range
-                assert isinstance(self._start[idx], float)
-                _range.append(
-                    (
-                        ensure_display_limits(self._start[idx], idx, right=False),  # type: ignore ## it is a float!
-                        ensure_display_limits(self._start[idx], idx, right=True),  # type: ignore ## it is a float!
-                    )
-                )  # no range
+                s0 = self._start[idx]
+                assert isinstance(s0, float)
+                v = self._unit[idx].from_base(s0) if self._unit[idx].du is not None else s0
+                _range.append((v, v))
             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
                 _range.append(self._auto_extreme(self._start[idx]))
             elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
@@ -648,20 +643,23 @@ class Variable(ScalarVariable):
                             if check:
                                 logger.warn(f"{self.name}[{idx}] range {r}: Use display units {self._unit[idx].du}!")
                             else:
-                                raise VariableInitError(
-                                    f"{self.name}[{idx}]: range {r} does not conform to the unit type {self._unit[idx]}"
-                                )
+                                msg = f"{self.name}[{idx}]: range {r} not conformant to the unit type {self._unit[idx]}"
+                                logger.critical(msg)
+                                raise VariableInitError(msg)
                     assert isinstance(q, float) or (self._typ is int and isinstance(q, int))
-                    q = ensure_display_limits(q, idx, len(i_range) > 0)
+                    if self._unit[idx].du is not None:
+                        q = self._unit[idx].from_base(q)
                     i_range.append(q)
 
                 try:  # check variable type
                     i_range = [self._typ(x) for x in i_range]
                 except Exception as err:
+                    logger.critical(f"Incompatible types range {rng} - {self._start}")
                     raise VariableRangeError(f"Incompatible types range {rng} - {self._start}") from err
                 assert all(isinstance(x, self._typ) for x in i_range)
                 _range.append(tuple(i_range))  # type: ignore
             else:
+                logger.critical(f"init_range(): Unhandled range argument {rng}")
                 raise AssertionError(f"init_range(): Unhandled range argument {rng}")
         return tuple(_range)
 
@@ -688,9 +686,10 @@ class Variable(ScalarVariable):
         elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
             if not disp and self._unit[idx].du is not None:  # check an internal unit values
                 value = self._unit[idx].from_base(value)
-            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]  # type: ignore
+            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]
         else:
-            raise VariableUseError(f"check_range(): value={value}, type={self.typ}, range={self.range}") from None
+            logger.error(f"check_range(): value={value}, type={self.typ}, range={self.range}")
+            return False
 
     def check_range(self, values: Sequence[PyType | None] | np.ndarray, idx: int = 0, disp: bool = True) -> bool:
         """Check the provided 'values' with respect to the range.
@@ -754,8 +753,10 @@ class Variable(ScalarVariable):
                         elif typ is int and t is float:  # we allow that, even if no subclass
                             typ = float
                     else:
+                        logger.critical(f"Incompatible variable types {typ}, {t} in {val}")
                         raise VariableInitError(f"Incompatible variable types {typ}, {t} in {val}") from None
                 else:
+                    logger.critical(f"auto_type(). Unhandled {t}, {typ}")
                     raise ValueError(f"auto_type(). Unhandled {t}, {typ}")
             return typ
         else:  # single value
@@ -773,8 +774,10 @@ class Variable(ScalarVariable):
         """Return the extreme values of the variable.
 
         Args:
-            var: the variable for which to determine the extremes. Represented by an instantiated object
-        Returns:
+            var: the variable for which to determine the extremes, represented by an instantiated object (example)
+
+        Returns
+        -------
             A tuple containing the minimum and maximum value the given variable can have
         """
         if isinstance(var, bool):
@@ -782,7 +785,8 @@ class Variable(ScalarVariable):
         elif isinstance(var, float):
             return (float("-inf"), float("inf"))
         elif isinstance(var, int):
-            raise VariableInitError(f"Range must be specified for int variable {cls} or use float.")
+            logger.critical(f"Range must be specified for int variable {cls} or use float.")
+            return (var, var)  # restrict to start value
         elif isinstance(var, Enum):
             return (min(x.value for x in type(var)), max(x.value for x in type(var)))
         else:
@@ -865,205 +869,3 @@ class Variable(ScalarVariable):
         else:
             name = parsed.as_string(("parent", "var", "der"), simplified=True, primitive=True)
             return self.model.variable_by_name(name)
-
-
-# Utility functions for handling special variable types
-def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
-    """Turn spherical vector 'vec' (defined according to ISO 80000-2 (r,polar,azimuth)) into cartesian coordinates."""
-    if deg:
-        theta = radians(vec[1])
-        phi = radians(vec[2])
-    else:
-        theta = vec[1]
-        phi = vec[2]
-    sinTheta = sin(theta)
-    cosTheta = cos(theta)
-    sinPhi = sin(phi)
-    cosPhi = cos(phi)
-    r = vec[0]
-    return np.array((r * sinTheta * cosPhi, r * sinTheta * sinPhi, r * cosTheta))
-
-
-def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
-    """Turn the vector 'vec' given in cartesian coordinates into spherical coordinates.
-    (defined according to ISO 80000-2, (r, polar, azimuth)).
-    """
-    r = np.linalg.norm(vec)
-    if vec[0] == vec[1] == 0:
-        if vec[2] == 0:
-            return np.array((0, 0, 0), dtype="float")
-        else:
-            return np.array((r, 0, 0), dtype="float")
-    elif deg:
-        return np.array((r, degrees(acos(vec[2] / r)), degrees(atan2(vec[1], vec[0]))), dtype="float64")
-    else:
-        return np.array((r, acos(vec[2] / r), atan2(vec[1], vec[0])), dtype="float")
-
-
-def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
-    """Turn the vector 'vec' given in cartesian coordinates into cylindrical coordinates.
-    (defined according to ISO, (r, phi, z), with phi right-handed wrt. x-axis).
-    """
-    phi = atan2(vec[1], vec[0])
-    if deg:
-        phi = degrees(phi)
-    return np.array((sqrt(vec[0] * vec[0] + vec[1] * vec[1]), phi, vec[2]), dtype="float")
-
-
-def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
-    """Turn cylinder coordinate vector 'vec' (defined according to ISO (r,phi,z)) into cartesian coordinates.
-    The angle phi is measured with respect to x-axis, right hand.
-    """
-    phi = radians(vec[1]) if deg else vec[1]
-    return np.array((vec[0] * cos(phi), vec[0] * sin(phi), vec[2]), dtype="float")
-
-def euler_rot_spherical(
-    rpy: Sequence|Rot,
-    vec: Sequence | None = None,
-    seq: str = 'XYZ', # sequence of axis of rotation as defined in scipy Rotation object
-    degrees:bool=False) -> Sequence:
-    """ Rotate the spherical vector vec using the Euler angles (yaw,pitch,roll).
-
-    Args:
-        rpy (Sequence|Rotation): The sequence of (yaw,pitch,roll) Euler angles or the pre-calculated Rotation object
-        vec: (Sequence): the spherical vector to be rotated
-           None: Use unit vector in z-direction, i.e. (1,0,0)
-           2-sequence: only polar and azimuth provided and returned => (polar,azimuth)
-           3-sequence: (r,polar,azimuth)
-        seq (str) = 'XYZ': Sequence of rotations as defined in scipy.spatial.transform.Rotation.from_euler()
-        degrees (bool): angles optionally provided in degrees. Default: radians
-    Returns:
-        The rotated vector in spherical coordinates (radius only if 3-vector is provided)
-    """
-    if isinstance(rpy, Rot):
-        r = rpy
-    elif isinstance( rpy, (Sequence,np.ndarray)):
-        r = Rot.from_euler(seq, (rpy[0], rpy[1], rpy[2]), degrees) #0: roll, 1: pitch, 2: yaw
-    else:
-        raise NotImplementedError(f"Unknown object {rpy} to rotate") from None 
-    if vec is None:
-        tp = (0,0)
-    else: # explicit vector provided
-        if len(vec)==3:
-            radius = vec[0]
-            tp = vec[1:]
-        else:
-            tp = vec
-        if degrees:
-            tp = np.radians( tp)
-    st = np.sin(tp[0])
-    x = r.apply( (st*np.cos(tp[1]), st*np.sin(tp[1]), np.cos(tp[0]))) # rotate the cartesian vector
-    x2 = x[2]
-    if abs(x2) < 1.0:
-        pass
-    elif abs(x2-1.0) < 1e-10:
-        x2 = 1.0
-    elif abs(x2+1.0) < 1e-10:
-        x2 = -1.0
-    else:
-        raise ValueError(f"Invalid argument {x2} for arccos calculation") from None
-    if abs(x[0])<1e-10 and abs(x[1])<1e-10: # define the normally undefined arctan
-        phi = 0.0
-    else:
-        phi = np.arctan2( x[1], x[0])
-    if vec is not None and len(vec) == 3:
-        return (radius, np.arccos( x2), phi) # return the spherical vector
-    else:
-        return (np.arccos( x2), phi) # return only the direction
-
-def rot_from_spherical( vec : Sequence | np.ndarray, degrees:bool = False):
-    """Return a scipy Rotation object from the spherical coordinates vec,
-    i.e. the rotation which turns a vector along the z-axis into vec.
-    
-    Args:
-        vec (Sequence | np.ndarray): a spherical vector as 3D or 2D (radius omitted)
-        degrees (bool): optional possibility to provide angles in degrees
-    """
-    angle = vec[1:] if len(vec)==3 else vec
-    return Rot.from_rotvec( (0.0,0.0,angle[1]), degrees) * Rot.from_rotvec( (0.0,angle[0],0.0), degrees)
-    
-def rot_from_vectors( vec1 : Sequence | np.ndarray, vec2 : Sequence | np.ndarray):
-    """Find the rotation object which rotates vec1 into vec2. Lengths of vec1 and vec2 shall be equal."""
-    n = np.linalg.norm( vec1)
-    assert abs( n - np.linalg.norm(vec2)) < 1e-10, f"Vectors len({vec1}={n} != len{vec2}. Cannot rotate into each other"
-    if abs(n-1.0) >1e-10:
-        vec1 /= n
-        vec2 /= n
-    _c = vec1.dot(vec2)
-    if abs(_c+1.0) < 1e-10: # vectors are exactly opposite to each other
-        imax,vmax,_sum = (-1, float('-inf'), 0.0)
-        for k, v in enumerate( vec1):
-            if isinf(vmax) or abs(v) > abs(vmax):
-                imax,vmax = (k,v)
-            _sum += v
-        vec = np.zeros(3)
-        vec[imax] = -(_sum-vmax)/vmax
-        vec[imax+1 if imax<2 else 0] = 0.0
-        i_remain = imax+2 if imax<1 else 1
-        vec[i_remain] = np.sqrt( 1.0/ (1 + (vec1[i_remain]/vmax)**2))
-        return Rot.from_rotvec( np.pi*vec)
-    else:
-        x = np.cross( vec1, vec2)
-        vx = np.array( [[0, -x[2], x[1]],
-                       [x[2], 0, -x[0]],
-                       [-x[1], x[0], 0]])
-        # print(vec1, vec2, _c, x,'\n',vx,'\n',np.matmul(vx,vx))
-        return Rot.from_matrix( np.identity(3) + vx + np.matmul(vx,vx)/ (1+_c))
-    
-def spherical_unique( vec : np.ndarray, eps : float = 1e-10) -> np.ndarray:
-    if len(vec) == 3:
-        if abs(vec[0]) < eps:
-            return np.array( (0,0,0), float)
-        elif vec[0] < 0:
-            return np.append( -vec[0], spherical_unique( np.array( (vec[1]+np.pi, vec[2]), float)))
-        else:
-            return np.append( vec[0], spherical_unique( vec[1:], eps))
-    else:
-        if abs( vec[0]) < eps:
-            return np.array( (0,0), float)
-        elif 0 <= vec[0] <= np.pi and 0 <= vec[1] <= 2*np.pi:
-            return vec
-        # angles not in unique range
-        theta = vec[0]
-        phi = vec[1]
-        _2pi = np.pi + np.pi
-        while theta > np.pi:
-            theta -= _2pi
-        while theta < -np.pi:
-            theta += _2pi
-        if theta < 0:
-            theta = -theta
-            phi += np.pi
-        while phi < 0:
-            phi += _2pi
-        while phi >= _2pi:
-            phi -= _2pi
-        return np.array( (theta,phi), float)
-            
-
-def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: bool = False) -> np.ndarray:
-    """Turn a 4-tuple, consisting of quantity (float) and a direction 3-vector to a direction 3-vector,
-    where the norm denotes the direction and the length denotes the quantity.
-    The return vector is always a cartesian vector.
-
-    Args:
-        quantity_direction (tuple): a 4-tuple consisting of the desired length of the resulting vector (in standard units (m or m/s))
-           and the direction 3-vector (in standard units)
-        spherical (bool)=False: Optional possibility to provide the input direction vector in spherical coordinates
-        deg (bool)=False: Optional possibility to provide the input angle (of spherical coordinates) in degrees. Only relevant if spherical=True
-    """
-    if quantity_direction[0] < 1e-15:
-        return np.array((0, 0, 0), dtype="float")
-    if spherical:
-        direction = spherical_to_cartesian(quantity_direction[1:], deg)  # turn to cartesian coordinates, if required
-    else:
-        direction = np.array(quantity_direction[1:], dtype="float")
-    n = np.linalg.norm(direction)  # normalize
-    return quantity_direction[0] / n * direction
-
-def normalized(vec: np.ndarray):
-    """Return the normalized vector. Helper function."""
-    assert len(vec) == 3, f"{vec} should be a 3-dim vector"
-    norm = np.linalg.norm(vec)
-    assert norm > 0, f"Zero norm detected for vector {vec}"
-    return vec / norm

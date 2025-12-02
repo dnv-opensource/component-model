@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 import shutil
 import sys
 import xml.etree.ElementTree as ET  # noqa: N817
@@ -5,6 +6,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from libcosimpy.CosimExecution import CosimExecution
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -17,7 +19,6 @@ from libcosimpy.CosimEnums import (
     CosimVariableType,
     CosimVariableVariability,
 )
-from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimLogging import CosimLogLevel, log_output_level
 from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
@@ -148,8 +149,7 @@ def oscillator_fmu():
 
 def _oscillator_fmu():
     """Make FMU and return .fmu file with path."""
-    build_path = Path.cwd()
-    build_path.mkdir(exist_ok=True)
+    build_path = Path(__file__).parent.parent / "examples"
     src = Path(__file__).parent.parent / "examples" / "oscillator_fmu.py"
     fmu_path = Model.build(
         script=src,
@@ -165,8 +165,7 @@ def driver_fmu():
 
 def _driver_fmu():
     """Make FMU and return .fmu file with path."""
-    build_path = Path.cwd()
-    build_path.mkdir(exist_ok=True)
+    build_path = Path(__file__).parent.parent / "examples"
     src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
     fmu_path = Model.build(
         script=src,
@@ -190,14 +189,19 @@ def _system_structure():
 def test_make_fmus(
     oscillator_fmu: Path,
     driver_fmu: Path,
+    show: bool = False,
 ):
     info = fmu_info(filename=str(oscillator_fmu))  # this is a formatted string. Not easy to check
-    print(f"Info Oscillator: {info}")
+    if show:
+        print(f"Info Oscillator @{oscillator_fmu}")
+        print(info)
     val = validate_fmu(filename=str(oscillator_fmu))
     assert not len(val), f"Validation of of {oscillator_fmu.name} was not successful. Errors: {val}"
 
     info = fmu_info(filename=str(driver_fmu))  # this is a formatted string. Not easy to check
-    print(f"Info Driver: {info}")
+    if show:
+        print(f"Info Driver: @{driver_fmu}")
+        print(info)
     val = validate_fmu(filename=str(driver_fmu))
     assert not len(val), f"Validation of of {driver_fmu.name} was not successful. Errors: {val}"
 
@@ -216,7 +220,7 @@ def test_make_fmus(
 #
 
 
-def test_run_fmpy(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
+def test_run_fmpy(oscillator_fmu: Path, driver_fmu: Path, show: bool = False):
     """Test single FMUs."""
     # sourcery skip: move-assign
     result = simulate_fmu(
@@ -228,6 +232,34 @@ def test_run_fmpy(oscillator_fmu: Path, driver_fmu: Path, show: bool = True):
         debug_logging=True,
         logger=print,  # fmi_call_logger=print,
         start_values={"x[2]": 1.0, "c[2]": 0.1},
+        step_finished=None,  # pyright: ignore[reportArgumentType]  # (typing incorrect in fmpy)
+        fmu_instance=None,  # pyright: ignore[reportArgumentType]  # (typing incorrect in fmpy)
+    )
+    if show:
+        plot_result(result)
+
+
+def test_run_fmpy2(oscillator_fmu: Path, driver_fmu: Path, show: bool = False):
+    """Test oscillator in setting similar to 'crane_on_spring'"""
+    # sourcery skip: move-assign
+    result = simulate_fmu(
+        oscillator_fmu,
+        stop_time=10,
+        step_size=0.01,
+        validate=True,
+        solver="Euler",
+        debug_logging=True,
+        logger=print,  # fmi_call_logger=print,
+        start_values={
+            "m": 10000.0,
+            "k[0]": 10000.0,
+            "k[1]": 10000.0,
+            "k[2]": 10000.0,
+            "x[0]": 0.0,
+            "x[1]": 0.0,
+            "x[2]": 0.0,
+            "v[0]": 1.0,
+        },
         step_finished=None,  # pyright: ignore[reportArgumentType]  # (typing incorrect in fmpy)
         fmu_instance=None,  # pyright: ignore[reportArgumentType]  # (typing incorrect in fmpy)
     )
@@ -267,7 +299,7 @@ def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
 
 
 @pytest.mark.skipif(sys.platform.startswith("linux"), reason="HarmonicOsciallatorFMU.fmu throws an error on Linux")
-def test_run_osp_system_structure(system_structure: Path, show: bool = True):
+def test_run_osp_system_structure(system_structure: Path, show: bool = False):
     "Run an OSP simulation in the same way as the SimulatorInterface of sim-explorer is implemented"
     log_output_level(CosimLogLevel.TRACE)
     print("STRUCTURE", system_structure)
@@ -336,11 +368,11 @@ def test_system_structure_change(system_structure):
 
 
 @pytest.mark.parametrize("alg", ["fixedStep", "ecco"])
-def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = True):
+def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = False):
     _test_run_osp_sweep(system_structure, show, alg)
 
 
-def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "fixedStep"):
+def _test_run_osp_sweep(system_structure: Path, show: bool = False, alg: str = "fixedStep"):
     "Run an OSP simulation of the oscillator and the force sweep as co-simulation."
 
     dt = 1.0
@@ -398,14 +430,15 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = True, alg: str = "f
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
+    retcode = 0  # pytest.main(args=["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_system_structure_change(_system_structure())
-    # test_make_fmus(_oscillator_fmu(), _driver_fmu())
+    test_make_fmus(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_fmpy(_oscillator_fmu(), _driver_fmu(), show=True)
+    # test_run_fmpy2(_oscillator_fmu(), _driver_fmu(), show=True)
     # test_run_osp(_oscillator_fmu(), _driver_fmu())
     # test_run_osp_system_structure(_system_structure(), show=True)
     # _test_run_osp_sweep(_system_structure(), show=True, alg="fixedStep")

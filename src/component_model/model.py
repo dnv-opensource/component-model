@@ -105,7 +105,7 @@ class Model(Fmi2Slave):
         copyright: str | None = None,
         default_experiment: dict[str, float] | None = None,
         flags: dict | None = None,
-        guid : str = None,
+        guid: str | None = None,
         **kwargs,
     ):
         kwargs.update(
@@ -160,7 +160,7 @@ class Model(Fmi2Slave):
 
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
-        #super().exit_initialization_mode()
+        # super().exit_initialization_mode()
         self.dirty_do()  # run on_set on all dirty variables
 
     @abstractmethod  # mark the class as 'still abstract'
@@ -200,10 +200,12 @@ class Model(Fmi2Slave):
             elif len(parsed.indices) == 1:
                 idx = parsed.indices[0]
             else:
+                logger.critical("Object indices other than 0 and 1D not implement. Found {parsed.indices}")
                 raise NotImplementedError(
                     "Object indices other than 0 and 1D not implement. Found {parsed.indices}"
                 ) from None
             if parsed.der > 0:
+                logger.critical("Derivatives are so far not implemented")
                 raise NotImplementedError("Derivatives are so far not implemented") from None
             ownernames.append((parsed.var, idx))
             parent = parsed.parent
@@ -237,6 +239,7 @@ class Model(Fmi2Slave):
         assert isinstance(var, Variable), f"Variable object expected here. Found {var}"
         for idx, v in self.vars.items():
             if v is not None and v.name == var.name:
+                logger.critical(f"Variable {var.name} already used as index {idx} in model {self.name}")
                 raise KeyError(f"Variable {var.name} already used as index {idx} in model {self.name}") from None
         # ensure that the model has the value as attribute:
         vref = len(self.vars)
@@ -717,6 +720,7 @@ class Model(Fmi2Slave):
                     yield v
 
         else:
+            logger.critical(f"Unknown iteration key {key} in 'vars_iter'")
             raise KeyError(f"Unknown iteration key {key} in 'vars_iter'")
 
     def ref_to_var(self, vr: int) -> tuple[Variable, int]:
@@ -744,6 +748,7 @@ class Model(Fmi2Slave):
             try:
                 test = self.vars[vr]
             except KeyError as err:
+                logger.critical(f"valueReference={vr} does not exist in model {self.name}")
                 raise AssertionError(f"valueReference={vr} does not exist in model {self.name}") from err
             if vr != _vr + 1 or test is not None:  # new slice
                 if var is not None:  # only if initialized
@@ -789,7 +794,6 @@ class Model(Fmi2Slave):
         Variable range check, unit check and type check are performed by setter() function.
         on_set (if defined) is only run if the whole variable (all elements) are set.
         """
-        print(f"Set {vrs} to {values}. Type {typ.__qualname__}")
         for var, sv, svr in self._vrs_slices(vrs):
             assert isinstance(var, Variable)
             assert isinstance(var.typ, type)
@@ -803,6 +807,7 @@ class Model(Fmi2Slave):
                         var.setter((values[_svr],), idx=_sv)
             else:  # simple Variable
                 var.setter(values[svr], idx=0)
+        # print(f"{self.name}. Set {vrs}:{values}")
 
     def set_integer(self, vrs: Sequence[int], values: Sequence[int]):
         self._set(vrs, values, int)
