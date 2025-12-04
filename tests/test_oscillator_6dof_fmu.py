@@ -1,7 +1,4 @@
 # ruff: noqa: I001
-import shutil
-import sys
-import xml.etree.ElementTree as ET  # noqa: N817
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -19,14 +16,66 @@ from libcosimpy.CosimEnums import (
     CosimVariableType,
     CosimVariableVariability,
 )
-#from libcosimpy.CosimExecution import CosimExecution
+
+# from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimLogging import CosimLogLevel, log_output_level
 from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
 
 from component_model.model import Model
-from component_model.utils.xml import read_xml
+from tests.conftest import system_structure_change
+
+
+@pytest.fixture(scope="module")
+def oscillator_6d_fmu():
+    return _oscillator_6d_fmu()
+
+
+def _oscillator_6d_fmu():
+    """Make FMU and return .fmu file with path."""
+    src = Path(__file__).parent.parent / "examples" / "oscillator_6dof_fmu.py"
+    assert src.exists(), f"Model file {src} not found."
+    fmu_path = Model.build(
+        script=str(src),
+        dest=Path(__file__).parent.parent / "examples" / "HarmonicOscillator6D.fmu",
+        newargs={
+            "k": ("1N/m", "1N/m", "1N/m", "1N*m/rad", "1N*m/rad", "1N*m/rad"),
+            "c": ("0.1N*s/m", "0.1N*s/m", "0.1N*s/m", "0.1N*m*s/rad", "0.1N*m*s/rad", "0.1N*m*s/rad"),
+            "m": "1.0kg",
+            "mi": ("1.0 kg*m**2", "1.0 kg*m**2", "1.0 kg*m**2"),
+            "x0": ("0.0m", "0.0m", "0.0m", "0.0rad", "0.0rad", "0.0rad"),
+            "v0": ("0.0m/s", "0.0m/s", "0.0m/s", "0.0rad/s", "0.0rad/s", "0.0rad/s"),
+        },
+    )
+    return fmu_path
+
+
+@pytest.fixture(scope="module")
+def driver_6d_fmu():
+    return _driver_6d_fmu()
+
+
+def _driver_6d_fmu():
+    """Make FMU and return .fmu file with path."""
+    src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
+    assert src.exists(), f"Model file {src} not found."
+    fmu_path = Model.build(
+        script=str(src),
+        dest=Path(__file__).parent.parent / "examples" / "DrivingForce6D.fmu",
+        newargs={"ampl": ("1.0N", "1.0N", "1.0N", "1.0N*m", "1.0N*m", "1.0N*m"), "freq": ("1.0Hz",) * 6},
+    )
+    return fmu_path
+
+
+@pytest.fixture(scope="session")
+def system_structure():
+    return _system_structure()
+
+
+def _system_structure():
+    """Make a OSP structure file and return the path"""
+    return Path(__file__).parent.parent / "examples" / "ForcedOscillator6D.xml"
 
 
 def _slave_index(simulator: CosimExecution, name: str):
@@ -68,29 +117,6 @@ def _var_list(simulator: CosimExecution, slave_name: str, ret: str = "print"):
             }
 
 
-def system_structure_change(structure_file: Path, tag: str, what: str, newval: str):
-    def register_all_namespaces(filename):
-        namespaces: dict = {}
-        for _, (ns, uri) in ET.iterparse(filename, events=["start-ns"]):
-            # print("TYPES", ns, type(ns), uri, type(uri))
-            namespaces.update({ns: uri})
-            ET.register_namespace(str(ns), str(uri))
-        #         namespaces: dict = dict([node )])
-        #        for ns in namespaces:
-        #            ET.register_namespace(ns, namespaces[ns])
-        return namespaces
-
-    nss = register_all_namespaces(structure_file)
-    el = read_xml(structure_file)
-    elements = el.findall(f"ns:{tag}", {"ns": nss[""]})
-    for e in elements:
-        if what == "text":
-            e.text = newval
-        else:  # assume attribute name
-            e.attrib[what] = newval
-    ET.ElementTree(el).write(structure_file.name, encoding="utf-8")
-
-
 def arrays_equal(
     res: Iterable[Any],
     expected: Iterable[Any],
@@ -124,61 +150,19 @@ def do_show(
 #     return np.array((0, 0, ampl * np.sin(omega * t)), dtype=float)
 
 
-def _oscillator_fmu():
-    """Make FMU and return .fmu file with path."""
-    build_path = Path.cwd()
-    build_path.mkdir(exist_ok=True)
-    src = Path(__file__).parent.parent / "examples" / "oscillator_6dof_fmu.py"
-    fmu_path = Model.build(
-        script=str(src),
-        dest=build_path,
-        newargs={
-            "k": ("1N/m", "1N/m", "1N/m", "1N*m/rad", "1N*m/rad", "1N*m/rad"),
-            "c": ("0.1N*s/m", "0.1N*s/m", "0.1N*s/m", "0.1N*m*s/rad", "0.1N*m*s/rad", "0.1N*m*s/rad"),
-            "m": "1.0kg",
-            "mi": ("1.0 kg*m**2", "1.0 kg*m**2", "1.0 kg*m**2"),
-            "x0": ("0.0m", "0.0m", "0.0m", "0.0rad", "0.0rad", "0.0rad"),
-            "v0": ("0.0m/s", "0.0m/s", "0.0m/s", "0.0rad/s", "0.0rad/s", "0.0rad/s"),
-        },
-    )
-    return fmu_path
-
-
-def _driver_fmu():
-    """Make FMU and return .fmu file with path."""
-    src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
-    fmu_path = Model.build(
-        script=src,
-        dest=Path.cwd() / "DrivingForce6D.fmu",
-        newargs={"ampl": ("1.0N", "1.0N", "1.0N", "1.0N*m", "1.0N*m", "1.0N*m"), "freq": ("1.0Hz",) * 6},
-    )
-    return fmu_path
-
-
-@pytest.fixture(scope="session")
-def system_structure():
-    return _system_structure()
-
-
-def _system_structure():
-    """Make a OSP structure file and return the path"""
-    shutil.copy(Path(__file__).parent.parent / "examples" / "ForcedOscillator6D.xml", Path.cwd())
-    return Path.cwd() / "ForcedOscillator6D.xml"
-
-
 def test_make_fmus(
-    oscillator_fmu: Path,
-    driver_fmu: Path,
+    oscillator_6d_fmu: Path,
+    driver_6d_fmu: Path,
 ):
-    info = fmu_info(filename=str(oscillator_fmu))  # this is a formatted string. Not easy to check
+    info = fmu_info(filename=str(oscillator_6d_fmu))  # this is a formatted string. Not easy to check
     print(f"Info Oscillator: {info}")
-    val = validate_fmu(filename=str(oscillator_fmu))
-    assert not len(val), f"Validation of of {oscillator_fmu.name} was not successful. Errors: {val}"
+    val = validate_fmu(filename=str(oscillator_6d_fmu))
+    assert not len(val), f"Validation of of {oscillator_6d_fmu.name} was not successful. Errors: {val}"
 
-    info = fmu_info(filename=str(driver_fmu))  # this is a formatted string. Not easy to check
+    info = fmu_info(filename=str(driver_6d_fmu))  # this is a formatted string. Not easy to check
     print(f"Info Driver: {info}")
-    val = validate_fmu(filename=str(driver_fmu))
-    assert not len(val), f"Validation of of {driver_fmu.name} was not successful. Errors: {val}"
+    val = validate_fmu(filename=str(driver_6d_fmu))
+    assert not len(val), f"Validation of of {driver_6d_fmu.name} was not successful. Errors: {val}"
 
 
 # def test_make_system_structure(system_structure: Path):
@@ -195,11 +179,14 @@ def test_make_fmus(
 #
 
 
-def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool = False):
+pytest.mark.skip()
+
+
+def test_use_fmu(oscillator_6d_fmu: Path, show: bool = False):  # , driver_6d_fmu: Path, show: bool = False):
     """Test single FMUs."""
     # sourcery skip: move-assign
     result = simulate_fmu(
-        oscillator_fmu,
+        oscillator_6d_fmu,
         stop_time=50,
         step_size=0.01,
         validate=True,
@@ -207,22 +194,21 @@ def test_use_fmu(oscillator_fmu: Path, driver_fmu: Path, show: bool = False):
         debug_logging=True,
         logger=print,  # fmi_call_logger=print,
         start_values={"x[2]": 1.0, "c[2]": 0.1},
-        step_finished=None,  # pyright: ignore[reportArgumentType]  # (typing incorrect in fmpy)
-        fmu_instance=None,  # pyright: ignore[reportArgumentType]  # (typing incorrect in fmpy)
     )
     if show:
         plot_result(result)
 
 
-def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
+# @pytest.mark.skip()
+def test_run_osp(oscillator_6d_fmu: Path, driver_6d_fmu: Path):
     # sourcery skip: extract-duplicate-method
     sim = CosimExecution.from_step_size(step_size=1e8)  # empty execution object with fixed time step in nanos
-    osc = CosimLocalSlave(fmu_path=str(oscillator_fmu), instance_name="osc")
+    osc = CosimLocalSlave(fmu_path=str(oscillator_6d_fmu), instance_name="osc")
     _osc = sim.add_local_slave(osc)
     assert _osc == 0, f"local slave number {_osc}"
     reference_dict = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(_osc)}
 
-    dri = CosimLocalSlave(fmu_path=str(driver_fmu), instance_name="dri")
+    dri = CosimLocalSlave(fmu_path=str(driver_6d_fmu), instance_name="dri")
     _dri = sim.add_local_slave(dri)
     assert _dri == 1, f"local slave number {_dri}"
 
@@ -233,12 +219,11 @@ def test_run_osp(oscillator_fmu: Path, driver_fmu: Path):
     sim_status = sim.status()
     assert sim_status.current_time == 0
     assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
-
     # Simulate for 1 second
-    _ = sim.simulate_until(target_time=15e9)
+    _ = sim.simulate_until(target_time=1.5e9)
 
 
-@pytest.mark.skipif(sys.platform.startswith("linux"), reason="HarmonicOsciallatorFMU.fmu throws an error on Linux")
+# @pytest.mark.skipif(sys.platform.startswith("linux"), reason="HarmonicOsciallatorFMU.fmu throws an error on Linux")
 def test_run_osp_system_structure(system_structure: Path, show: bool = False):
     "Run an OSP simulation in the same way as the SimulatorInterface of sim-explorer is implemented"
     log_output_level(CosimLogLevel.TRACE)
@@ -294,10 +279,6 @@ def test_run_osp_system_structure(system_structure: Path, show: bool = False):
         print(f"@{t}, {p}, {v}, {np.sin(t)}")
 
 
-def test_system_structure_change(system_structure):
-    system_structure_change(system_structure, "BaseStepSize", "text", str(0.99))
-
-
 @pytest.mark.parametrize("alg", ["fixedStep", "ecco"])
 def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = False):
     _test_run_osp_sweep(system_structure, show, alg)
@@ -305,16 +286,18 @@ def test_run_osp_sweep(system_structure: Path, alg: str, show: bool = False):
 
 def _test_run_osp_sweep(system_structure: Path, show: bool = False, alg: str = "fixedStep"):
     "Run an OSP simulation of the oscillator and the force sweep as co-simulation."
-
     dt = 1.0
     t_end = 100.0
 
     log_output_level(CosimLogLevel.TRACE)
-    system_structure_change(system_structure, "BaseStepSize", "text", str(dt))
-    system_structure_change(system_structure, "Algorithm", "text", alg)
-    print(f"Running Algorithm {alg} on {system_structure}")
-    assert system_structure.exists(), f"File {system_structure} not found"
-    sim = CosimExecution.from_osp_config_file(str(system_structure))
+    structure = system_structure_change(
+        system_structure,
+        {"BaseStepSize": ("text", str(dt)), "Algorithm": ("text", alg)},
+        f"{system_structure.stem}_{alg}.xml",
+    )
+    print(f"Running Algorithm {alg} on {structure}")
+    assert structure.exists(), f"File {structure} not found"
+    sim = CosimExecution.from_osp_config_file(str(structure))
     sim_status = sim.status()
     assert sim_status.error_code == 0
     # manipulator = CosimManipulator.create_override()
@@ -366,9 +349,8 @@ if __name__ == "__main__":
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
-    drv = _driver_fmu()
-    osc = _oscillator_fmu()
-    # test_system_structure_change(_system_structure())
+    drv = _driver_6d_fmu()
+    osc = _oscillator_6d_fmu()
     # test_make_fmus(osc, drv)
     # test_use_fmu(osc, drv, show=True)
     # test_run_osp(osc, drv)

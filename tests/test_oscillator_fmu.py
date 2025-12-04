@@ -1,7 +1,5 @@
 # ruff: noqa: I001
-import shutil
 import sys
-import xml.etree.ElementTree as ET  # noqa: N817
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -26,6 +24,36 @@ from libcosimpy.CosimSlave import CosimLocalSlave
 
 from component_model.model import Model
 from component_model.utils.xml import read_xml
+from tests.conftest import system_structure_change
+
+
+@pytest.fixture(scope="module")
+def oscillator_fmu():
+    return _oscillator_fmu()
+
+
+def _oscillator_fmu():
+    """Make FMU and return .fmu file with path."""
+    fmu_path = Model.build(
+        script=Path(__file__).parent.parent / "examples" / "oscillator_fmu.py",
+        dest=Path(__file__).parent.parent / "examples" / "HarmonicOscillator.fmu",
+    )
+    return fmu_path
+
+
+@pytest.fixture(scope="module")
+def driver_fmu():
+    return _driver_fmu()
+
+
+def _driver_fmu():
+    """Make FMU and return .fmu file with path."""
+    fmu_path = Model.build(
+        script=Path(__file__).parent.parent / "examples" / "driving_force_fmu.py",
+        dest=Path(__file__).parent.parent / "examples" / "DrivingForce.fmu",
+        newargs={"ampl": ("3N", "2N", "1N"), "freq": ("3Hz", "2Hz", "1Hz")},
+    )
+    return fmu_path
 
 
 def _slave_index(simulator: CosimExecution, name: str):
@@ -94,29 +122,6 @@ def _var_list(simulator: CosimExecution, slave_name: str, ret: str = "print"):
             }
 
 
-def system_structure_change(structure_file: Path, tag: str, what: str, newval: str):
-    def register_all_namespaces(filename):
-        namespaces: dict = {}
-        for _, (ns, uri) in ET.iterparse(filename, events=["start-ns"]):
-            # print("TYPES", ns, type(ns), uri, type(uri))
-            namespaces.update({ns: uri})
-            ET.register_namespace(str(ns), str(uri))
-        #         namespaces: dict = dict([node )])
-        #        for ns in namespaces:
-        #            ET.register_namespace(ns, namespaces[ns])
-        return namespaces
-
-    nss = register_all_namespaces(structure_file)
-    el = read_xml(structure_file)
-    elements = el.findall(f"ns:{tag}", {"ns": nss[""]})
-    for e in elements:
-        if what == "text":
-            e.text = newval
-        else:  # assume attribute name
-            e.attrib[what] = newval
-    ET.ElementTree(el).write(structure_file.name, encoding="utf-8")
-
-
 def arrays_equal(
     res: Iterable[Any],
     expected: Iterable[Any],
@@ -142,29 +147,6 @@ def do_show(traces: dict[str, tuple[list[float], list[float]]]):
 #     return np.array((0, 0, ampl * np.sin(omega * t)), dtype=float)
 
 
-def _oscillator_fmu():
-    """Make FMU and return .fmu file with path."""
-    build_path = Path(__file__).parent.parent / "examples"
-    src = Path(__file__).parent.parent / "examples" / "oscillator_fmu.py"
-    fmu_path = Model.build(
-        script=src,
-        dest=build_path,
-    )
-    return fmu_path
-
-
-def _driver_fmu():
-    """Make FMU and return .fmu file with path."""
-    build_path = Path(__file__).parent.parent / "examples"
-    src = Path(__file__).parent.parent / "examples" / "driving_force_fmu.py"
-    fmu_path = Model.build(
-        script=src,
-        dest=build_path,
-        newargs={"ampl": ("3N", "2N", "1N"), "freq": ("3Hz", "2Hz", "1Hz")},
-    )
-    return fmu_path
-
-
 @pytest.fixture(scope="session")
 def system_structure():
     return _system_structure()
@@ -172,8 +154,7 @@ def system_structure():
 
 def _system_structure():
     """Make a OSP structure file and return the path"""
-    shutil.copy(Path(__file__).parent.parent / "examples" / "ForcedOscillator.xml", Path.cwd())
-    return Path.cwd() / "ForcedOscillator.xml"
+    return Path(__file__).parent.parent / "examples" / "ForcedOscillator.xml"
 
 
 def test_make_fmus(
@@ -354,7 +335,24 @@ def test_run_osp_system_structure(system_structure: Path, show: bool = False):
 
 
 def test_system_structure_change(system_structure):
-    system_structure_change(system_structure, "BaseStepSize", "text", str(0.99))
+    path = system_structure_change(
+        system_structure,
+        {
+            "BaseStepSize": ("text", str(0.99)),
+            "Algorithm": ("text", "ecco"),
+            "VariableConnection": ("powerBond", "myBond"),
+        },
+        "changed_structure.xml",
+    )
+    assert str(path) == str(Path(__file__).parent.parent / "examples" / "changed_structure.xml")
+    assert path.exists()
+    el = read_xml(path)
+    elements = el.findall("{*}BaseStepSize")
+    assert elements[0].text == "0.99", f"Found {elements[0].text}"
+    elements = el.findall("{*}Algorithm")
+    assert elements[0].text == "ecco", f"Found {elements[0].text}"
+    elements = el.findall(".//{*}VariableConnection")
+    assert elements[0].attrib["powerBond"] == "myBond", f"Found {elements[0].attrib}"
 
 
 @pytest.mark.parametrize("alg", ["fixedStep", "ecco"])
@@ -369,11 +367,14 @@ def _test_run_osp_sweep(system_structure: Path, show: bool = False, alg: str = "
     t_end = 100.0
 
     log_output_level(CosimLogLevel.TRACE)
-    system_structure_change(system_structure, "BaseStepSize", "text", str(dt))
-    system_structure_change(system_structure, "Algorithm", "text", alg)
-    print(f"Running Algorithm {alg} on {system_structure}")
-    assert system_structure.exists(), f"File {system_structure} not found"
-    sim = CosimExecution.from_osp_config_file(str(system_structure))
+    structure = system_structure_change(
+        system_structure,
+        {"BaseStepSize": ("text", str(dt)), "Algorithm": ("text", alg)},
+        f"{system_structure.stem}_{alg}.xml",
+    )
+    print(f"Running Algorithm {alg} on {structure}")
+    assert structure.exists(), f"File {structure} not found"
+    sim = CosimExecution.from_osp_config_file(str(structure))
     sim_status = sim.status()
     assert sim_status.error_code == 0
     # manipulator = CosimManipulator.create_override()
@@ -425,10 +426,10 @@ if __name__ == "__main__":
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
-    # test_system_structure_change(_system_structure())
     osc = _oscillator_fmu()
     drv = _driver_fmu()
-    test_make_fmus(osc, drv, show=True)
+    test_system_structure_change(_system_structure())
+    # test_make_fmus(osc, drv, show=True)
     # test_run_fmpy(osc, drv, show=True)
     # test_run_fmpy2(osc, drv, show=True)
     # test_run_osp(osc, drv)

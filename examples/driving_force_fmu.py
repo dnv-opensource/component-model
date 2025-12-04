@@ -62,9 +62,9 @@ class DrivingForce(Model):
         assert len(_freq) == self.dim, f"ampl and freq are expected of same length. Found {ampl}, {freq}"
         _d_freq = d_freq if isinstance(d_freq, tuple) else (d_freq,) * self.dim
         assert len(_d_freq) == self.dim, f"d_freq expected as float or has same length as ampl:{ampl}. Found {d_freq}"
-        self.ampl = (1.0,) * self.dim
-        self.freq = (1.0,) * self.dim
-        self.d_freq = (0.0,) * self.dim
+        self.ampl = np.array((1.0,) * self.dim, float)
+        self.freq = np.array((1.0,) * self.dim, float)
+        self.d_freq = np.array((0.0,) * self.dim, float)
         self.function = func
         self.func: Callable
         self.f = np.array((0.0,) * self.dim, float)
@@ -98,6 +98,7 @@ class DrivingForce(Model):
         assert isinstance(self.ampl, np.ndarray)
         assert isinstance(self.freq, np.ndarray)
         assert isinstance(self.d_freq, np.ndarray)
+
         self.func = partial(
             self.function,
             ampl=np.array(self.ampl, float),
