@@ -57,7 +57,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "numpy>=1.26,<2.0",
+    "numpy>=2.0",
     "pint>=0.24.4",
     "jsonpath-ng>=1.7.0",
     "pythonfmu==0.6.9",
