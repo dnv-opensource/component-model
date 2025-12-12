@@ -11,7 +11,9 @@ _reg: UnitRegistry = UnitRegistry(system="SI", autoconvert_offset_to_baseunit=Tr
 
 
 def test_needed_functions():
-    _reg: UnitRegistry = UnitRegistry(system="SI", autoconvert_offset_to_baseunit=True)  # , auto_reduce_dimensions=True)
+    _reg: UnitRegistry = UnitRegistry(
+        system="SI", autoconvert_offset_to_baseunit=True
+    )  # , auto_reduce_dimensions=True)
     print("AVAILABLE UNITS", dir(_reg.sys.SI))
     print(
         "degrees_Celsius defined?",
