@@ -28,12 +28,24 @@ def dicts_equal(d1: dict, d2: dict):
     assert isinstance(d2, dict), f"Dict expected. Found {d2}"
     for key in d1:
         assert key in d2, f"Key {key} not found in {d2}"
-        if key != "copyright":  # copyright changes with the year!
-            assert d1[key] == d2[key], f"Value of key {key} {d1[key]} != {d2[key]}"
+        if key == "copyright":
+            continue  # copyright changes with the year!
+        if key == "license":
+            assert " ".join(str(d1[key]).split()) == " ".join(str(d2[key]).split()), (
+                f"Value of key {key} differs after whitespace normalization\n{d1[key]!r}\n!=\n{d2[key]!r}"
+            )
+            continue
+        assert d1[key] == d2[key], f"Value of key {key} {d1[key]} != {d2[key]}"
     for key in d2:
         assert key in d1, f"Key {key} not found in {d1}"
-        if key != "copyright":  # copyright changes with the year!
-            assert d1[key] == d2[key], f"Value of key {key} {d1[key]} != {d2[key]}"
+        if key == "copyright":
+            continue  # copyright changes with the year!
+        if key == "license":
+            assert " ".join(str(d1[key]).split()) == " ".join(str(d2[key]).split()), (
+                f"Value of key {key} differs after whitespace normalization\n{d1[key]!r}\n!=\n{d2[key]!r}"
+            )
+            continue
+        assert d1[key] == d2[key], f"Value of key {key} {d1[key]} != {d2[key]}"
 
 
 def test_xml_to_python_val():

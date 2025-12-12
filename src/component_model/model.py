@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from abc import abstractmethod
 from enum import Enum
 from math import log
+from numbers import Real
 from pathlib import Path
 from typing import Generator, Sequence, TypeAlias
 
@@ -139,7 +140,7 @@ class Model(Fmi2Slave):
         if guid is not None:
             self.guid = guid
         # use a common UnitRegistry for all variables:
-        self.ureg = UnitRegistry(system=unit_system)
+        self.ureg: UnitRegistry = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
@@ -538,8 +539,14 @@ class Model(Fmi2Slave):
                     "substance": "mol",
                     "luminosity": "cd",
                 }.items():
-                    if "[" + key + "]" in dim:
-                        exponents.update({value: str(int(dim["[" + key + "]"]))})
+                    dim_key = f"[{key}]"
+                    if dim_key not in dim:
+                        continue
+                    dim_value = dim[dim_key]
+                    if not isinstance(dim_value, Real):
+                        logger.debug("Skipping non-real dimensionality entry for %s", dim_key)
+                        continue
+                    exponents.update({value: str(int(float(dim_value)))})
                 if (
                     "radian" in str(ubase.units)
                 ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
