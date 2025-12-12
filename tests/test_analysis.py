@@ -21,7 +21,7 @@ def test_extremum():
     # for i in range(100):
     #    print(i, t[i], x[i])
     e, p = extremum(t[17:20], x[17:20])
-    assert e == -1 and abs(p[0] - np.pi) < 1e-10 and p[1] == -1
+    assert e == -1 and abs(p[0] - np.pi) < 1e-10 and np.isclose(p[1], -1)
     ex = extremum_series(t, x, "all")
     assert len(ex) == 2
     assert np.allclose(ex[0], (12.566370614359142, 1.0))
