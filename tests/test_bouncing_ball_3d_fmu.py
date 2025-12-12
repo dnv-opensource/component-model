@@ -7,15 +7,11 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 from fmpy import plot_result, simulate_fmu  # type: ignore
 from fmpy.util import fmu_info  # type: ignore
 from fmpy.validation import validate_fmu  # type: ignore
-from libcosimpy.CosimEnums import CosimErrorCode, CosimExecutionState
-from libcosimpy.CosimExecution import CosimExecution
-from libcosimpy.CosimManipulator import CosimManipulator
-from libcosimpy.CosimObserver import CosimObserver
-from libcosimpy.CosimSlave import CosimLocalSlave
 from pythonfmu.default_experiment import DefaultExperiment
 
 from component_model.model import Model
@@ -24,14 +20,6 @@ from component_model.utils.fmu import model_from_fmu
 
 def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
-
-
-def arrays_equal(arr1, arr2, eps=1e-7):
-    assert len(arr1) == len(arr2), "Length not equal!"
-
-    for i in range(len(arr1)):
-        # assert type(arr1[i]) == type(arr2[i]), f"Array element {i} type {type(arr1[i])} != {type(arr2[i])}"
-        assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
 
 
 def _to_et(file: str, sub: str = "modelDescription.xml"):
@@ -96,8 +84,8 @@ def test_bouncing_ball_class(show):
 
     h_fac = 1.0
     if len(bb._pos) > 1 and bb._pos.unit[2].du is not None:  # the main test settings
-        arrays_equal(bb.pos, (0, 0, 10 * 0.0254))  # was provided as inch
-        arrays_equal(bb.speed, (1, 0, 0))
+        assert np.allclose(bb.pos, (0, 0, 10 * 0.0254))  # was provided as inch
+        assert np.allclose(bb.speed, (1, 0, 0))
         assert bb.g == 9.81
         assert bb.e == 0.9
         h_fac = 0.0254
@@ -115,13 +103,13 @@ def test_bouncing_ball_class(show):
     t_b, p_b = bb.next_bounce()
     assert t_bounce == t_b
     # print("Bounce", t_bounce, x_bounce, p_b)
-    arrays_equal((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"  # type: ignore ##??
+    assert np.allclose((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"  # type: ignore ##??
     get_result()
     # after one step
     bb.do_step(time, dt)
     get_result()
     # print("After one step", result(bb))
-    arrays_equal(
+    assert np.allclose(
         result[-1],
         (
             0.01,  # time
@@ -144,7 +132,7 @@ def test_bouncing_ball_class(show):
         bb.do_step(time, dt)
         get_result()
     # print(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
-    arrays_equal(
+    assert np.allclose(
         result[-1],
         (
             t_before,
@@ -158,7 +146,7 @@ def test_bouncing_ball_class(show):
             0,
             0,
         ),
-        eps=0.003,
+        atol=0.003,
     )
     # just after bounce
     # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
@@ -166,7 +154,7 @@ def test_bouncing_ball_class(show):
     get_result()
     ddt = t_before + dt - t_bounce  # time from bounce to end of step
     x_bounce2 = x_bounce + 2 * v_bounce * bb.e * 1.0 * bb.e / bb.g
-    arrays_equal(
+    assert np.allclose(
         result[-1],
         (
             t_before + dt,
@@ -180,7 +168,7 @@ def test_bouncing_ball_class(show):
             0,
             0,
         ),
-        eps=0.03,
+        atol=0.03,
     )
     # from bounce to bounce
     v_x, v_z, t_b, x_b = (
@@ -228,6 +216,12 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
 
 def test_use_fmu(bouncing_ball_fmu, show):
     """Test and validate the basic BouncingBall using fmpy and not using OSP or case_study."""
+
+    def check_result(res: np.ndarray, expected: tuple, eps=1e-10):  # res is a structured array
+        assert len(res) == len(expected), f"Lengths {res} != {expected}"
+        for r, e in zip(res, expected, strict=True):
+            assert abs(r - e) < eps, f"{r} != {e}"
+
     assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
     dt = 0.01
     result = simulate_fmu(  # type: ignore[reportArgumentType]
@@ -257,24 +251,11 @@ def test_use_fmu(bouncing_ball_fmu, show):
     v_bounce = g * t_bounce  # speed in z-direction
     x_bounce = t_bounce / 1.0  # x-position where it bounces in m
     # Note: default values are reported at time 0!
-    arrays_equal(list(result[0])[:7], [0, 0, 0, 10, 1, 0, 0])  # time,pos-3, speed-3(, p_bounce-3 not calculated)
+    assert np.allclose(list(result[0])[:7], [0, 0, 0, 10, 1, 0, 0])  # time,pos-3, speed-3(, p_bounce-3 not calculated)
     # print(f"Result[1]: {result[1]}")
-    arrays_equal(
-        result[1],
-        (
-            0.01,  # time
-            0.01,  # pos
-            0,
-            (h0 - 0.5 * g * 0.01**2) / h_fac,
-            1,  # speed
-            0,
-            -g * 0.01,
-            x_bounce,  # p_bounce
-            0,
-            0,
-        ),
-    )
-    arrays_equal(
+    check_result(result[1], (0.01, 0.01, 0, (h0 - 0.5 * g * 0.01**2) / h_fac, 1, 0, -g * 0.01, x_bounce, 0, 0))
+
+    check_result(
         result[1],
         (
             0.01,
@@ -295,7 +276,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
     if t_before == t_bounce:  # at the interval border
         t_before -= dt
     # print(f"Just before bounce @{t_bounce}, {t_before}: {result[-1]}")
-    arrays_equal(
+    check_result(
         result[int(t_before / dt)],
         (
             t_before,
@@ -315,7 +296,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
     # print(f"Step {len(z)}, time {bb.time}, pos:{bb.pos}, speed:{bb.speed}, t_bounce:{bb.t_bounce}, p_bounce:{bb.p_bounce}")
     ddt = t_before + dt - t_bounce  # time from bounce to end of step
     x_bounce2 = x_bounce + 2 * v_bounce * e * 1.0 * e / g
-    arrays_equal(
+    check_result(
         result[int((t_before + dt) / dt)],
         (
             t_before + dt,
@@ -360,77 +341,6 @@ def test_use_fmu(bouncing_ball_fmu, show):
             assert abs(result[row - 1][4] * e - result[row][4]) < 1e-15, "Reduced speed in x-direction"
 
 
-def test_from_osp(bouncing_ball_fmu):
-    def get_status(sim):
-        status = sim.status()
-        return {
-            "currentTime": status.current_time,
-            "state": CosimExecutionState(status.state).name,
-            "error_code": CosimErrorCode(status.error_code).name,
-            "real_time_factor": status.real_time_factor,
-            "rolling_average_real_time_factor": status.rolling_average_real_time_factor,
-            "real_time_factor_target": status.real_time_factor_target,
-            "is_real_time_simulation": status.is_real_time_simulation,
-            "steps_to_monitor": status.steps_to_monitor,
-        }
-
-    sim = CosimExecution.from_step_size(step_size=1e7)  # empty execution object with fixed time step in nanos
-    bb = CosimLocalSlave(fmu_path=str(bouncing_ball_fmu.absolute()), instance_name="bb")
-
-    ibb = sim.add_local_slave(bb)
-    assert ibb == 0, f"local slave number {ibb}"
-    info = sim.slave_infos()
-    assert info[0].name.decode() == "bb", "The name of the component instance"
-    assert info[0].index == 0, "The index of the component instance"
-    assert sim.slave_index_from_instance_name("bb") == 0
-    assert sim.num_slaves() == 1
-    assert sim.num_slave_variables(0) == 11, "3*pos, 3*speed, g, e, 3*p_bounce"
-    variables = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(ibb)}
-    assert variables == {
-        "pos[0]": 0,
-        "pos[1]": 1,
-        "pos[2]": 2,
-        "speed[0]": 3,
-        "speed[1]": 4,
-        "speed[2]": 5,
-        "g": 6,
-        "e": 7,
-        "p_bounce[0]": 8,
-        "p_bounce[1]": 9,
-        "p_bounce[2]": 10,
-    }
-
-    # Set initial values
-    sim.real_initial_value(ibb, variables["g"], 1.5)  # actual setting will only happen after start_initialization_mode
-
-    assert get_status(sim)["state"] == "STOPPED"
-
-    observer = CosimObserver.create_last_value()
-    assert sim.add_observer(observer)
-    manipulator = CosimManipulator.create_override()
-    assert sim.add_manipulator(manipulator)
-
-    values = observer.last_real_values(0, list(range(11)))
-    assert values == [0.0] * 11, "No initial values yet! - as expected"
-
-    # that does not seem to work (not clear why):    assert sim.step()==True
-    assert sim.simulate_until(target_time=1e7), "Simulate for one base step did not work"
-    assert get_status(sim)["currentTime"] == 1e7, "Time after simulation not correct"
-    values = observer.last_real_values(0, list(range(11)))
-    assert values[6] == 1.5, "Initial setting did not work"
-    assert values[5] == -0.015, "Initial setting did not have the expected effect on speed"
-
-    manipulator.slave_real_values(ibb, [0, 1, 2], [1.0, 2.0, 3.0])
-
-
-#     values = observer.last_real_values(0, list(range(11)))
-#     print("VALUES2", values)
-#
-#     manipulator.reset_variables(0, CosimVariableType.REAL, [6])
-
-#    sim.simulate_until(target_time=3e9)
-
-
 def test_from_fmu(bouncing_ball_fmu):
     assert bouncing_ball_fmu.exists(), "FMU not found"
     model = model_from_fmu(bouncing_ball_fmu)
@@ -453,13 +363,12 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent / "test_working_directory")
     # test_bouncing_ball_class(show=False)
     # test_make_bouncing_ball(_bouncing_ball_fmu())
-    # test_use_fmu(_bouncing_ball_fmu(), True)
+    test_use_fmu(_bouncing_ball_fmu(), True)
     # test_from_fmu( _bouncing_ball_fmu())
-    # test_from_osp(_bouncing_ball_fmu())

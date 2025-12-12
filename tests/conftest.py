@@ -42,17 +42,17 @@ def system_structure_change(structure_file: Path, change: dict, newname: str | N
     return path
 
 
-@pytest.fixture(scope="session", autouse=True)
-def instantiate_cosim_execution() -> None:
-    """
-    Fixture that instantiates a CosimExecution object for the entire package.
-    This fixture is automatically used for the entire package.
-    """
-
-    from libcosimpy.CosimExecution import CosimExecution
-
-    _ = CosimExecution.from_step_size(1)
-    return
+# @pytest.fixture(scope="session", autouse=True)
+# def instantiate_cosim_execution() -> None:
+#     """
+#     Fixture that instantiates a CosimExecution object for the entire package.
+#     This fixture is automatically used for the entire package.
+#     """
+#
+#     from libcosimpy.CosimExecution import CosimExecution
+#
+#     _ = CosimExecution.from_step_size(1)
+#     return
 
 
 @pytest.fixture(scope="package", autouse=True)

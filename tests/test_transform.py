@@ -152,7 +152,8 @@ def test_euler_rot():
     )
     _rot2 = _rot.from_euler("XYZ", (0, 90, 0), degrees=True) * _rot  # + pitch 90 deg
     print(_rot2.as_euler(seq="XYZ", degrees=True))
-    print(Rot.from_euler("XYZ", (90, 90, 0), degrees=True).as_euler(seq="XYZ", degrees=True))
+    with pytest.warns(UserWarning, match="Gimbal lock detected"):
+        print(Rot.from_euler("XYZ", (90, 90, 0), degrees=True).as_euler(seq="XYZ", degrees=True))
     _rot3 = Rot.from_euler("XYZ", (0, 0, 90), degrees=True) * _rot2  # +yaw 90 deg
     assert np.allclose(_rot3.apply((1, 0, 0)), (0, 0, -1))
     assert np.allclose(_rot3.apply((0, 1, 0)), (0, 1, 0))
@@ -168,12 +169,12 @@ def test_normalized():
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
+    retcode = 0  # pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
     # test_spherical_cartesian()
     # test_spherical_unique()
     # test_rot_from_spherical()
     # test_rot_from_vectors()
     # test_euler_rot_spherical()
-    # test_euler_rot()
+    test_euler_rot()
     # test_normalized()
