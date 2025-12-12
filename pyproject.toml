@@ -60,7 +60,7 @@ dependencies = [
     "numpy>=1.26,<2.0",
     "pint>=0.24",
     "jsonpath-ng>=1.7.0",
-    "pythonfmu>=0.7.0",
+    "pythonfmu==0.6.9",
     "flexparser<0.4",
 ]
 
