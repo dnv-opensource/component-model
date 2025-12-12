@@ -1,5 +1,6 @@
 from typing import Sequence
 
+import numpy as np
 from scipy.interpolate import make_interp_spline
 
 
@@ -34,11 +35,11 @@ class TimeTable:
         assert self._rows > 0, "Empty lookup table detected, which does not make sense"
         self._cols = len(data[0]) - 1
         assert self._cols > 0, "No data column found in lookup table"
-        self.times = tuple(float(row[0]) for row in data)  # column 0 as times
+        self.times = np.array(list(row[0] for row in data), float)  # column 0 as times
         assert all(self.times[i - 1] < self.times[i] for i in range(1, len(self.times))), (
             "The times in the input data are not properly sorted in ascending order"
         )
-        self.data = tuple(float(row[1:]) for row in data)
+        self.data = np.array(list(row[1:] for row in data), float)
         if header is None:
             self.header = tuple([f"out.{i}" for i in range(self._cols)])
         else:
