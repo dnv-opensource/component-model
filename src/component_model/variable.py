@@ -435,8 +435,8 @@ class Variable(ScalarVariable):
                 newval = val + step_size * np.array(der, float)
                 basevar.setter_internal(newval, -1, True)
             else:
-                newval = [val[i] + step_size * der[i] for i in range(len(der))]
-                basevar.setter_internal(newval, -1, False)
+                newval_list = [val[i] + step_size * der[i] for i in range(len(der))]
+                basevar.setter_internal(newval_list, -1, False)
 
     # disable super() functions and properties which are not in use here
     def to_xml(self) -> ET.Element:
