@@ -7,6 +7,21 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 -/-
 
+## [0.3.0] - 2025-12-15
+
+### Added
+* Added the documentation file `component-development-process.rst`, outlining the recommended FMU development workflow, best practices, and the role of virtual derivatives.
+* Added the example XML structures `BouncingBallStructure.xml` and `ForcedOscillator6D.xml` to showcase richer algorithm and ECCO configuration sections together with clarified causality definitions.
+
+### Changed
+* Refined the existing FMU XML examples with explicit algorithm sections, ECCO configuration, and clearer variable linkage descriptions.
+* Updated `driving_force_fmu.py` to support vectorized amplitudes, frequencies, and frequency sweeps, while improving type annotations and initialization semantics.
+* Changed the upper bound for the `height` variable in `bouncing_ball_3d.py` to inches to align with the rest of the example unit system.
+
+### GitHub workflows
+* Added Python 3.13 to the main CI matrix to ensure compatibility with the current stable release.
+* Updated the future/experimental workflow to track Python 3.14 instead of 3.13 for forward-looking coverage.
+
 ## [0.2.0] - 2025.30.04
 
 ### Changed
