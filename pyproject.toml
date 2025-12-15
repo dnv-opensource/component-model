@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 only-include = [
     "src/component_model",
     "tests",
-    "tests/examples",
+    "examples",
     ".coveragerc",
     ".editorconfig",
     "pytest.ini",
@@ -22,12 +22,15 @@ packages = [
     "examples",
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
 name = "component-model"
 version = "0.2.0"
 description = "Constructs a Functional Mockup Interface component model from a python script (fulfilling some requirements)."
 readme = "README.rst"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 license = { file = "LICENSE" }
 authors = [
     { name = "Siegfried Eisinger", email = "Siegfried.Eisinger@dnv.com" },
@@ -54,30 +57,24 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "numpy>=1.26,<2.0",
-    "matplotlib>=3.9.1",
-    "pint>=0.24",
-    "sympy>=1.13.3",
+    "numpy>=2.0",
+    "pint>=0.24.4",
     "jsonpath-ng>=1.7.0",
-    "libcosimpy>=0.0.2",
-    "pythonfmu>=0.6.7",
-    "flexparser<0.4",
-    "pdfminer>=20191125",
-    "pypdf2>=3.0.1",
-    "scipy>=1.15.1",
+    "pythonfmu==0.6.9",
+    "flexparser>=0.4",
 ]
 
 [project.optional-dependencies]
-modelTest = [
-    "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
-    "matplotlib>=3.9.1",
-]
-rest = [
-    "docutils>=0.21",
-]
-editor = [
-    "thonny>=4.1",
-]
+    tests = [
+        "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
+        "scipy>=1.15.1",
+        "matplotlib>=3.9.1",
+        "plotly>=6.0.1",
+#        "libcosimpy>=0.0.5",
+#        "libcosimpy @ file:///C:/Users/eis/Downloads/libcosimpy-0.0.4-cp312-cp312-win_amd64.whl",
+    ]
+    rest = ["docutils>=0.21"]
+    editor = []
 
 [project.urls]
 Homepage = "https://github.com/dnv-opensource/component-model"
@@ -102,7 +99,12 @@ dev-dependencies = [
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-parser>=4.0",
     "furo>=2024.8",
-]
+    ]
+required-environments = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'linux'",
+#    "sys_platform == 'darwin'",
+    ]
 native-tls = true
 
 
@@ -113,11 +115,11 @@ plugins = [
 mypy_path = "stubs"
 files = [
     "src",
-    # "tests",
-    # "demos",
+    "tests",
+    "examples",
 ]
 exclude = [
-    "^src/folder_to_be_excluded/",
+    "tests/test_working_directory",
 ]
 check_untyped_defs = true
 disable_error_code = [
@@ -134,5 +136,4 @@ include = [
 ]
 exclude = [
     "tests/test_working_directory",
-    "examples/new_pythonfmu_features*",
 ]

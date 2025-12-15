@@ -1,9 +1,58 @@
 import logging
 import os
+import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 from shutil import rmtree
 
 import pytest
+
+from component_model.utils.xml import read_xml
+
+
+def system_structure_change(structure_file: Path, change: dict, newname: str | None = None):
+    """Do changes to an existing 'structure_file' and save as newname.
+    Changes are provided as dict: { tag : (what, newval),...}
+    where 'what'='text' marks the text part else, an attribute is assumed.
+    """
+
+    def register_all_namespaces(filename: Path):
+        namespaces: dict = {}
+        for _, (ns, uri) in ET.iterparse(filename, events=["start-ns"]):
+            # print("TYPES", ns, type(ns), uri, type(uri))
+            namespaces.update({ns: uri})
+            ET.register_namespace(str(ns), str(uri))
+        #         namespaces: dict = dict([node )])
+        #        for ns in namespaces:
+        #            ET.register_namespace(ns, namespaces[ns])
+        return namespaces
+
+    if newname is None:
+        newname = structure_file.name  # same as old
+    nss = register_all_namespaces(structure_file)
+    el = read_xml(structure_file)
+    for tag, (what, newval) in change.items():
+        elements = el.findall(f".//ns:{tag}", {"ns": nss[""]})
+        for e in elements:
+            if what == "text":
+                e.text = newval
+            else:  # assume attribute name
+                e.attrib[what] = newval
+    path = structure_file.parent / newname
+    ET.ElementTree(el).write(path, encoding="utf-8")
+    return path
+
+
+# @pytest.fixture(scope="session", autouse=True)
+# def instantiate_cosim_execution() -> None:
+#     """
+#     Fixture that instantiates a CosimExecution object for the entire package.
+#     This fixture is automatically used for the entire package.
+#     """
+#
+#     from libcosimpy.CosimExecution import CosimExecution
+#
+#     _ = CosimExecution.from_step_size(1)
+#     return
 
 
 @pytest.fixture(scope="package", autouse=True)
@@ -77,4 +126,4 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def show(request):
-    return request.config.getoption("--show") == "True"
+    return request.config.getoption("--show") == "False"

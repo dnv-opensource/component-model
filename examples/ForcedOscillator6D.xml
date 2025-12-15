@@ -3,17 +3,17 @@
    <BaseStepSize>0.01</BaseStepSize>
    <Algorithm>fixedStep</Algorithm>
    <Simulators>
-      <Simulator name="osc" source="HarmonicOscillator.fmu" stepSize="0.01" />
-      <Simulator name="drv" source="DrivingForce.fmu" stepSize="0.01" />
+      <Simulator name="osc" source="HarmonicOscillator6D.fmu" stepSize="0.01" />
+      <Simulator name="drv" source="DrivingForce6D.fmu" stepSize="0.01" />
    </Simulators>
    <Connections>
       <VariableConnection powerBond="force-velocity">
-         <Variable simulator="drv" name="f[2]" causality="output"/>
-         <Variable simulator="osc" name="f[2]" causality="input"/>
+         <Variable simulator="drv" name="f[5]" causality="output"/>
+         <Variable simulator="osc" name="f[5]" causality="input"/>
       </VariableConnection>
       <VariableConnection powerBond="force-velocity">
-         <Variable simulator="osc" name="v[2]" causality="output"/>
-         <Variable simulator="drv" name="v_osc[2]" causality="input"/>
+         <Variable simulator="osc" name="v[5]" causality="output"/>
+         <Variable simulator="drv" name="v_osc[5]" causality="input"/>
       </VariableConnection>
    </Connections>
    <EccoConfiguration>
