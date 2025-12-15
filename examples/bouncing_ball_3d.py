@@ -130,7 +130,7 @@ class BouncingBall3D(Model):
                 variability="continuous",
                 initial="exact",
                 start=start,
-                rng=((0, "100 m"), None, (0, "10 m")),
+                rng=((0, "100 m"), None, (0, "39.371 inch")),
             )
         elif name == "speed":
             return Variable(

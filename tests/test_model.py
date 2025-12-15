@@ -147,9 +147,9 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_license()
     # test_xml()
-    test_from_fmu(_bouncing_ball_fmu())
+    # test_from_fmu(_bouncing_ball_fmu())
     # test_variable_naming()

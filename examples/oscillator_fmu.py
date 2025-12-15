@@ -30,12 +30,12 @@ class HarmonicOscillator(Model, Oscillator):  # refer to Model first!
 
     def __init__(
         self,
-        k: tuple[float, float, float] | tuple[str, str, str] = (1.0, 1.0, 1.0),
-        c: tuple[float, float, float] | tuple[str, str, str] = (0.0, 0.0, 0.0),
+        k: tuple[float, ...] | tuple[str, ...] = (1.0, 1.0, 1.0),
+        c: tuple[float, ...] | tuple[str, ...] = (0.0, 0.0, 0.0),
         m: float | str = 1.0,
         tolerance: float = 1e-5,
-        x0: tuple[float, float, float] | tuple[str, str, str] = (1.0, 1.0, 1.0),
-        v0: tuple[float, float, float] | tuple[str, str, str] = (0.0, 0.0, 0.0),
+        x0: tuple[float, ...] | tuple[str, ...] = (1.0, 1.0, 1.0),
+        v0: tuple[float, ...] | tuple[str, ...] = (0.0, 0.0, 0.0),
         **kwargs: Any,
     ):
         Model.__init__(

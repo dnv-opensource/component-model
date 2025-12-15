@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from abc import abstractmethod
 from enum import Enum
 from math import log
+from numbers import Real
 from pathlib import Path
 from typing import Generator, Sequence, TypeAlias
 
@@ -20,7 +21,7 @@ from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
 
 from component_model.enums import ensure_enum
-from component_model.variable import Variable
+from component_model.variable import Unit, Variable
 from component_model.variable_naming import ParsedVariable, VariableNamingConvention
 
 logger = logging.getLogger(__name__)
@@ -71,8 +72,6 @@ class Model(Fmi2Slave):
 
     * TypeDefinitions. Instead of defining SimpleType variables,
       ScalarVariable variables are always based on the pre-defined types and details provided there.
-    * Explicit <Derivatives> (see <ModelStructure>) are so far not implemented.
-      This could be done as an additional (optional) property in Variable.
 
     Args:
         name (str): name of the model. The name is also used to construct the FMU file name.
@@ -87,6 +86,11 @@ class Model(Fmi2Slave):
           Valid keys: startTime,stopTime,stepSize,tolerance
         guid (str)=None: Unique identifier of the model (supplied or automatically generated)
         flags (dict)=None: Any of the defined FMI flags with a non-default value (see FMI 2.0.4, Section 4.3.1)
+
+    .. todo::
+
+        Include support for model units with respect to time, degrees/radians,...
+        Make sure that such base units are consistently used in the model.
     """
 
     instances: list[str] = []
@@ -102,7 +106,7 @@ class Model(Fmi2Slave):
         copyright: str | None = None,
         default_experiment: dict[str, float] | None = None,
         flags: dict | None = None,
-        guid=None,
+        guid: str | None = None,
         **kwargs,
     ):
         kwargs.update(
@@ -118,8 +122,6 @@ class Model(Fmi2Slave):
         self.name = name
         if "instance_name" not in kwargs:  # NOTE: within builder.py this is always changed to 'dummyInstance'
             kwargs["instance_name"] = self.name  # make_instancename(__name__)
-        if "resources" not in kwargs:
-            kwargs["resources"] = None
         super().__init__(**kwargs)  # in addition, OrderedDict vars is initialized
         # Additional variables which are hidden here: .vars,
         # PythonFMU sets the default_experiment and the following items always to None! Correct it here
@@ -138,17 +140,17 @@ class Model(Fmi2Slave):
         if guid is not None:
             self.guid = guid
         # use a common UnitRegistry for all variables:
-        self.ureg = UnitRegistry(system=unit_system)
+        self.ureg: UnitRegistry = UnitRegistry(system=unit_system)
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
         variable_naming = kwargs.pop("variable_naming", "structured")
         self.variable_naming = ensure_enum(variable_naming, VariableNamingConvention.flat)
-        self._units: dict[str, list] = {}  # def units and display units (unitName:conversionFactor). => UnitDefinitions
+        self._units: list[Unit] = []  # list of all Unit objects defined in the model => UnitDefinitions
         self.flags = self.check_flags(flags)
         self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
         self.time = self.default_experiment.start_time  # keeping track of time when dynamic calculations are performed
-        self.derivatives: list = []  # list of non-explicit derivatives
+        self.derivatives: dict = {}  # dict of non-explicit derivatives {dername : basevar, ...}
 
     def setup_experiment(self, start_time: float = 0.0):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
@@ -159,7 +161,7 @@ class Model(Fmi2Slave):
 
     def exit_initialization_mode(self):
         """Initialize the model after initial variables are set."""
-        super().exit_initialization_mode()
+        # super().exit_initialization_mode()
         self.dirty_do()  # run on_set on all dirty variables
 
     @abstractmethod  # mark the class as 'still abstract'
@@ -169,7 +171,6 @@ class Model(Fmi2Slave):
         """
         self.time = current_time
         self.dirty_do()  # run on_set on all dirty variables
-
         for var in self.vars.values():
             if var is not None and var.on_step is not None:
                 var.on_step(current_time, step_size)
@@ -180,21 +181,12 @@ class Model(Fmi2Slave):
         To register the units of a compound variable, the whole variable is entered
         and a recursive call to the underlying display units is made.
         """
-        unit_display = []
         for i in range(len(candidate)):
-            if candidate.display[i] is None:
-                unit_display.append((candidate.unit[i], None))
-            else:
-                unit_display.append((candidate.unit[i], candidate.display[i]))
-        # here the actual work is done
-        for u, du in unit_display:
-            if u not in self._units:  # the main unit is not yet registered
-                self._units[u] = []  # main unit has no factor
-            if du is not None:  # displays are defined
-                if not len(self._units[u]) or all(
-                    du[0] not in self._units[u][i][0] for i in range(len(self._units[u]))
-                ):
-                    self._units[u].append(du)
+            cu = candidate.unit[i]
+            for u in self._units:
+                if cu.u == u.u and cu.du == u.du:  # already registered
+                    break
+            self._units.append(cu)
 
     def owner_hierarchy(self, parent: str | None) -> list:
         """Analyse the parent of a variable down to the Model and return the owners as list."""
@@ -209,10 +201,12 @@ class Model(Fmi2Slave):
             elif len(parsed.indices) == 1:
                 idx = parsed.indices[0]
             else:
+                logger.critical("Object indices other than 0 and 1D not implement. Found {parsed.indices}")
                 raise NotImplementedError(
                     "Object indices other than 0 and 1D not implement. Found {parsed.indices}"
                 ) from None
             if parsed.der > 0:
+                logger.critical("Derivatives are so far not implemented")
                 raise NotImplementedError("Derivatives are so far not implemented") from None
             ownernames.append((parsed.var, idx))
             parent = parsed.parent
@@ -246,6 +240,7 @@ class Model(Fmi2Slave):
         assert isinstance(var, Variable), f"Variable object expected here. Found {var}"
         for idx, v in self.vars.items():
             if v is not None and v.name == var.name:
+                logger.critical(f"Variable {var.name} already used as index {idx} in model {self.name}")
                 raise KeyError(f"Variable {var.name} already used as index {idx} in model {self.name}") from None
         # ensure that the model has the value as attribute:
         vref = len(self.vars)
@@ -292,15 +287,20 @@ class Model(Fmi2Slave):
         """
         return Variable(self, *args, **kwargs)
 
-    def add_derivative(self, var: Variable, order: int):
-        """Add the derivative of var to the exposed Variables as virtual variable.
+    def add_derivative(self, dername: str, basename: str) -> Variable:
+        """Add the derivative of basename to the dict of virtual derivatives.
 
         This is convenient as many physical systems do not tolerate to abruptly change variable values,
         but require to ramp up/down values by setting the derivative to suitable values.
         This can be achieved without adding an internal variable to the model.
         The model will in this case do the ramping when the derivative is set != 0.0.
+
+        Args:
+            basename (str): the full name of the base variable name, i.e. d basename / dt = dername(t)
         """
-        self.derivatives.append(var)
+        basevar = self.variable_by_name(basename)
+        self.derivatives.update({dername: basevar})
+        return basevar
 
     def variable_by_name(self, name: str) -> Variable:
         """Return Variable object related to name, or None, if not found.
@@ -411,7 +411,7 @@ class Model(Fmi2Slave):
             project_files = []
         project_files.append(Path(__file__).parents[0])
 
-        # Make sure the dest path is of type Patch
+        # Make sure the dest path is of type Path
         dest = dest if isinstance(dest, Path) else Path(dest)
 
         with (
@@ -445,7 +445,7 @@ class Model(Fmi2Slave):
                 dest=dest,
                 documentation_folder=doc_dir,
                 newargs=newargs,
-            )  # , xFunc=None)
+            )
             return asBuilt
 
     def to_xml(self, model_options: dict | None = None) -> ET.Element:
@@ -523,46 +523,61 @@ class Model(Fmi2Slave):
     def xml_unit_definitions(self):
         """Make the xml element for the unit definitions used in the model. See FMI 2.0.4 specification 2.2.2."""
         defs = ET.Element("UnitDefinitions")
-        for u in self._units:
-            ubase = self.ureg(u).to_base_units()
-            dim = ubase.dimensionality
-            exponents = {}
-            for key, value in {
-                "mass": "kg",
-                "length": "m",
-                "time": "s",
-                "current": "A",
-                "temperature": "K",
-                "substance": "mol",
-                "luminosity": "cd",
-            }.items():
-                if "[" + key + "]" in dim:
-                    exponents.update({value: str(int(dim["[" + key + "]"]))})
-            if (
-                "radian" in str(ubase.units)
-            ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
-                # udeg = str(ubase.units).replace("radian", "degree")
-                # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
-                exponents.update(
-                    {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
-                )
-
-            unit = ET.Element("Unit", {"name": u})
-            base = ET.Element("BaseUnit", exponents)
-            base.attrib.update({"factor": str(self.ureg(u).to_base_units().magnitude)})
-            unit.append(base)
-            for du in self._units[u]:  # list also the displays (if defined)
-                unit.append(
-                    ET.Element(
-                        "DisplayUnit",
-                        {
-                            "name": du[0],
-                            "factor": str(du[1](1.0)),
-                            "offset": str(du[1](0.0)),
-                        },
+        u_done: list[str] = []
+        for u in self._units:  # all registered unit objects
+            unit = ET.Element("NoUnit")  # dummy element
+            if u.u not in u_done:  # multiple entries are possible if there are multiple display units
+                ubase = self.ureg(u.u).to_base_units()
+                dim = ubase.dimensionality
+                exponents = {}
+                for key, value in {
+                    "mass": "kg",
+                    "length": "m",
+                    "time": "s",
+                    "current": "A",
+                    "temperature": "K",
+                    "substance": "mol",
+                    "luminosity": "cd",
+                }.items():
+                    dim_key = f"[{key}]"
+                    if dim_key not in dim:
+                        continue
+                    dim_value = dim[dim_key]
+                    if not isinstance(dim_value, Real):
+                        logger.debug("Skipping non-real dimensionality entry for %s", dim_key)
+                        continue
+                    exponents.update({value: str(int(float(dim_value)))})
+                if (
+                    "radian" in str(ubase.units)
+                ):  # radians are formally a dimensionless quantity. To include 'rad' as specified in FMI standard this dirty trick is used
+                    # udeg = str(ubase.units).replace("radian", "degree")
+                    # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
+                    exponents.update(
+                        {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
                     )
-                )
-            defs.append(unit)
+
+                unit = ET.Element("Unit", {"name": u.u})
+                base = ET.Element("BaseUnit", exponents)
+                base.attrib.update({"factor": str(self.ureg(u.u).to_base_units().magnitude)})
+                unit.append(base)
+                du_done: list[str] = []
+                for _u in self._units:  # list also the displays (if defined)
+                    if _u.u not in u_done and u.u == _u.u and _u.du is not None and _u.du not in du_done:
+                        unit.append(
+                            ET.Element(
+                                "DisplayUnit",
+                                {
+                                    "name": _u.du,
+                                    "factor": str(_u.to_base(1.0) - _u.to_base(0.0)),
+                                    "offset": str(_u.to_base(0.0)),
+                                },
+                            )
+                        )
+                    if isinstance(_u.du, str):
+                        du_done.append(_u.du)
+                u_done.append(u.u)
+            if unit.tag != "NoUnit":
+                defs.append(unit)
         return defs
 
     def _xml_default_experiment(self):
@@ -615,10 +630,10 @@ class Model(Fmi2Slave):
         ders = ET.Element("Derivatives")
 
         for v in filter(
-            lambda v: v is not None and v.antiderivative() is not None,
+            lambda v: v is not None and v.primitive() is not None,
             self.vars.values(),
         ):
-            i_a_der = v.antiderivative().value_reference
+            i_a_der = v.primitive().value_reference
             for i in range(len(v)):  # works for vectors and scalars
                 ders.append(
                     ET.Element(
@@ -712,6 +727,7 @@ class Model(Fmi2Slave):
                     yield v
 
         else:
+            logger.critical(f"Unknown iteration key {key} in 'vars_iter'")
             raise KeyError(f"Unknown iteration key {key} in 'vars_iter'")
 
     def ref_to_var(self, vr: int) -> tuple[Variable, int]:
@@ -739,6 +755,7 @@ class Model(Fmi2Slave):
             try:
                 test = self.vars[vr]
             except KeyError as err:
+                logger.critical(f"valueReference={vr} does not exist in model {self.name}")
                 raise AssertionError(f"valueReference={vr} does not exist in model {self.name}") from err
             if vr != _vr + 1 or test is not None:  # new slice
                 if var is not None:  # only if initialized
@@ -797,6 +814,7 @@ class Model(Fmi2Slave):
                         var.setter((values[_svr],), idx=_sv)
             else:  # simple Variable
                 var.setter(values[svr], idx=0)
+        # print(f"{self.name}. Set {vrs}:{values}")
 
     def set_integer(self, vrs: Sequence[int], values: Sequence[int]):
         self._set(vrs, values, int)

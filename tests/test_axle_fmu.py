@@ -99,7 +99,7 @@ def _axle_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(
-        script=str(Path(__file__).parent.parent / "examples" / "axle_fmu.py"),
+        script=Path(__file__).parent.parent / "examples" / "axle_fmu.py",
         project_files=[Path(__file__).parent.parent / "examples" / "axle.py"],
         dest=build_path,
     )
