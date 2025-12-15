@@ -60,7 +60,7 @@ dependencies = [
     "numpy>=2.0",
     "pint>=0.24.4",
     "jsonpath-ng>=1.7.0",
-    "pythonfmu==0.6.9",
+    "pythonfmu<0.6.9", #?? should be changed when pythonfmu is fixed
     "flexparser>=0.4",
 ]
 

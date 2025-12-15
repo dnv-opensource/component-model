@@ -103,7 +103,6 @@ class Controls(object):
     def limit(self, ident: int | str, order: int, minmax: int, value: float | None = None) -> float:
         """Get/Set the single limit for 'idx', 'order', 'minmax'."""
         idx = ident if isinstance(ident, int) else self.names.index(ident)
-        assert 0 <= idx < 3, f"Only idx = 0,1,2 allowed. Found {idx}"
         assert 0 <= order < 3, f"Only order = 0,1,2 allowed. Found {order}"
         assert 0 <= minmax < 2, f"Only minmax = 0,1 allowed. Found {minmax}"
         if value is not None:
@@ -152,8 +151,6 @@ class Controls(object):
         """
         idx = ident if isinstance(ident, int) else self.names.index(ident)
         # check the index, the order and the value with respect to limits
-        if not 0 <= idx < 3:
-            raise ValueError(f"Only idx = 0,1,2 allowed. Found {idx}") from None
         if not 0 <= order < 3:
             raise ValueError(f"Only order = 0,1,2 allowed. Found {order}") from None
         # assert value is None or self.goals[idx] is None, "Change of goals is currently not implemented."
@@ -236,27 +233,29 @@ class Controls(object):
             for idx in range(self.dim):
                 goals = self.goals[idx]
                 if goals is not None:
+                    _time = time # copies needed in case that there are several goals
+                    _dt = dt
                     _current = self.current[idx]
 
                     _t, _current[2] = goals[self.rows[idx]]
-                    while time > _t:  # move row so that it starts in the right time-acc row
+                    while _time > _t:  # move row so that it starts in the right time-acc row
                         self.rows[idx] += 1
                         _t, _current[2] = goals[self.rows[idx]]
-                    while dt > 0:
-                        if time + dt < _t:  # covers the whole
+                    while _dt > 0:
+                        if _time + _dt < _t:  # covers the whole
                             _current[0] = self.check_limit(
-                                idx, 0, _current[0] + _current[1] * dt + 0.5 * _current[2] * dt * dt
+                                idx, 0, _current[0] + _current[1] * _dt + 0.5 * _current[2] * _dt * _dt
                             )
-                            _current[1] = self.check_limit(idx, 1, _current[1] + _current[2] * dt)
-                            dt = 0
+                            _current[1] = self.check_limit(idx, 1, _current[1] + _current[2] * _dt)
+                            _dt = 0
                         else:  # dt must be split
-                            dt1 = _t - time
+                            dt1 = _t - _time
                             _current[0] = self.check_limit(
                                 idx, 0, _current[0] + _current[1] * dt1 + 0.5 * _current[2] * dt1 * dt1
                             )
                             _current[1] = self.check_limit(idx, 1, _current[1] + _current[2] * dt1)
-                            time = _t
-                            dt -= dt1
+                            _time = _t
+                            _dt -= dt1
                             self.rows[idx] += 1
                             _t, _current[2] = goals[self.rows[idx]]
 
