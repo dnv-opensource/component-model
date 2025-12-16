@@ -113,9 +113,9 @@ class BouncingBall3D(Fmi2Slave):
             p_bounceY = self.posY + self.speedY * dt_bounce
             return (self.time + dt_bounce, np.array((p_bounceX, p_bounceY, 0), float))
 
-    def setup_experiment(self, start_time: float):
+    def setup_experiment(self, start_time: float, stop_time: float | None = None, tolerance: float | None = None):
         """Set initial (non-interface) variables."""
-        super().setup_experiment(start_time)
+        super().setup_experiment(start_time, stop_time, tolerance)
         # print(f"SETUP_EXPERIMENT g={self.g}, e={self.e}")
         self.stopped = False
         self.time = start_time

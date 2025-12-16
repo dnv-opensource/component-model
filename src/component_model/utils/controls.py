@@ -233,7 +233,7 @@ class Controls(object):
             for idx in range(self.dim):
                 goals = self.goals[idx]
                 if goals is not None:
-                    _time = time # copies needed in case that there are several goals
+                    _time = time  # copies needed in case that there are several goals
                     _dt = dt
                     _current = self.current[idx]
 
