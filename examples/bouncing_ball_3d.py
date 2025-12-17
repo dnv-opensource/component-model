@@ -99,9 +99,9 @@ class BouncingBall3D(Model):
             p_bounce[2] = 0
             return (self.time + dt_bounce, p_bounce)
 
-    def setup_experiment(self, start_time: float = 0.0):
+    def setup_experiment(self, start_time: float = 0.0, stop_time: float | None = None, tolerance: float | None = None):
         """Set initial (non-interface) variables."""
-        super().setup_experiment(start_time)
+        super().setup_experiment(start_time, stop_time, tolerance)
         self.stopped = False
         self.time = start_time
 
