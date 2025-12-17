@@ -17,6 +17,10 @@ from pythonfmu import (  # type: ignore
 
 @pytest.fixture(scope="package")
 def build_fmu():
+    return _build_fmu()
+
+
+def _build_fmu():
     build_path = Path.cwd()
     build_path.mkdir(exist_ok=True)
     fmu_path = FmuBuilder.build_FMU(__file__, project_files=[], dest=build_path)
@@ -85,7 +89,7 @@ class PythonSlave(Fmi2Slave):
         # it is also possible to explicitly define getters and setters as lambdas in case the variable is not backed by a Python field.
         # self.register_variable(Real("myReal", causality=Fmi2Causality.output, getter=lambda: self.realOut, setter=lambda v: set_real_out(v))
 
-    def setup_experiment(self, start_time: float):
+    def setup_experiment(self, start_time: float, stop_time=None, tolerance=None):
         """1. After instantiation the expriment is set up. In addition to start and end time also constant input variables are set."""
         assert [self.vars[idx].getter() for idx in range(5)] == [
             1,
@@ -141,3 +145,8 @@ def test_use_fmu(build_fmu):
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    import os
+
+    os.chdir(Path(__file__).parent / "test_working_directory")
+    # test_make_fmu( _build_fmu())
+    # test_use_fmu( _build_fmu())

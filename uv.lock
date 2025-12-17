@@ -118,7 +118,7 @@ wheels = [
 
 [[package]]
 name = "component-model"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "flexparser" },
@@ -166,7 +166,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0" },
     { name = "pint", specifier = ">=0.24.4" },
     { name = "plotly", marker = "extra == 'tests'", specifier = ">=6.0.1" },
-    { name = "pythonfmu", specifier = "==0.6.9" },
+    { name = "pythonfmu", specifier = ">=0.7.0" },
     { name = "scipy", marker = "extra == 'tests'", specifier = ">=1.15.1" },
 ]
 
@@ -1135,11 +1135,11 @@ wheels = [
 
 [[package]]
 name = "pythonfmu"
-version = "0.6.9"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7f/22/08cdfef2fdc9a451ddaa35aaba05643184d3e709f67ded6d142aaf469e8c/pythonfmu-0.6.9.tar.gz", hash = "sha256:13eab981d3c86704ab19b35ebcee9347b2dcc378bbe8d0b43c9ae1fe35bc9fa7", size = 244885 }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/64/d67a4939614c30689f1f70d033a69957a84daa9cc5e29d44ef1a83048c6f/pythonfmu-0.7.0.tar.gz", hash = "sha256:a5f90e293dcccbf030d0ae7a77e4c93fe785933defcbe7a74605eefcbc499ff5", size = 228783 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/11/73c37bfb38f0feaab0e0054de5afd9518da21095f371b7beb58183f5bf2b/pythonfmu-0.6.9-py3-none-any.whl", hash = "sha256:9b196f1e4b76ec67197cbf70e93452f1595b2459ed735fa4488ada913d713949", size = 259448 },
+    { url = "https://files.pythonhosted.org/packages/f6/8b/5f951f902e5ff48a2fbb5505128e29f8b3dfdac349286a73c63a7a4c0291/pythonfmu-0.7.0-py3-none-any.whl", hash = "sha256:45fb6c1719f172e7370fcbef73452568224f175f5f6656beba90e89b0f51208e", size = 235635 },
 ]
 
 [[package]]

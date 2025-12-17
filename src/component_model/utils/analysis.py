@@ -23,7 +23,7 @@ def extremum(x: tuple | list | np.ndarray, y: tuple | list | np.ndarray, aerr: f
             else:
                 return (-1, (x0, z0))
         else:
-            return (0, (0, 0))
+            return (0.0, (0.0, 0.0))
 
 
 def extremum_series(t: tuple | list | np.ndarray, y: tuple | list | np.ndarray, which: str = "max"):

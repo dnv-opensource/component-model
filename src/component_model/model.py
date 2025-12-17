@@ -62,7 +62,7 @@ class Model(Fmi2Slave):
       Make sure that `super().do_step(time, dt)` is always called first in the extended function.
     * Optionally extend any other fmi2 function, i.e.
 
-       - def setup_experiment(self, start)
+       - def setup_experiment(self, start_time)
        - def enter_initialization_mode(self):
        - def exit_initialization_mode(self):
        - def terminate(self):
@@ -152,7 +152,7 @@ class Model(Fmi2Slave):
         self.time = self.default_experiment.start_time  # keeping track of time when dynamic calculations are performed
         self.derivatives: dict = {}  # dict of non-explicit derivatives {dername : basevar, ...}
 
-    def setup_experiment(self, start_time: float = 0.0):
+    def setup_experiment(self, start_time: float = 0.0, stop_time: None | float = None, tolerance: None | float = None):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
         self.time = start_time
 

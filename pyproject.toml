@@ -27,7 +27,7 @@ allow-direct-references = true
 
 [project]
 name = "component-model"
-version = "0.3.0"
+version = "0.3.1"
 description = "Constructs a Functional Mockup Interface component model from a python script (fulfilling some requirements)."
 readme = "README.rst"
 requires-python = ">= 3.11"
@@ -60,7 +60,7 @@ dependencies = [
     "numpy>=2.0",
     "pint>=0.24.4",
     "jsonpath-ng>=1.7.0",
-    "pythonfmu==0.6.9",
+    "pythonfmu>=0.7.0",
     "flexparser>=0.4",
 ]
 
