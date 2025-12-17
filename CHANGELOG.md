@@ -6,6 +6,10 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 ## [Unreleased]
 
 -/-
+## [0.3.1] - 2025-12-17
+
+### Changed
+* Address breaking changes with PythonFMU's latest changes to setup_experiment() function.
 
 ## [0.3.0] - 2025-12-15
 
