@@ -27,13 +27,14 @@ def test_limits():
     _b.append("len", ((1, 20), None, (1, 100)))
     _b.append("polar", ((-2, 2), 1))  # fixed velocity and the acceleration limits are not needed
     _b.append("azimuth", ((-1, 1), (-2, 2), (0, 0)))
+    print(_b.names)
     assert _b.limit(1, 2, 0) == _b.limit(1, 2, 1) == 0.0, "No polar acceleration allowed"
     assert _b.nogoals, "No goals yet set"
     # try to set goal outside limits
     _b.limit_err = logging.CRITICAL
     with pytest.raises(ValueError) as err:  # type: ignore[assignment]  #it is a 'ValueError'
         _b.setgoal(1, 2, 9.9, 0.0)
-    assert err.value.args[0] == "Goal value 9.9 is above the limit 0.0.Stopping execution."
+    assert err.value.args[0] == "Goal 'polar'@ 9.9 is above the limit 0.0.Stopping execution."
     _b.limit_err = logging.WARNING
     _b.setgoal(1, 2, 9.9, 0.0)
     assert _b.nogoals, f"No goals expected, because the adjusted goal is already reached. Found {_b.goals}"

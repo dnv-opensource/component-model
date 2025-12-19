@@ -123,14 +123,14 @@ class Controls(object):
     def check_limit(self, ident: int | str, order: int, value: float) -> float | None:
         idx = ident if isinstance(ident, int) else self.names.index(ident)
         if value < self.limit(idx, order, 0):  # check goal value wrt. limits
-            msg = f"Goal value {value} is below the limit {self.limit(idx, order, 0)}."
+            msg = f"Goal '{self.names[idx]}'@ {value} is below the limit {self.limit(idx, order, 0)}."
             if self.limit_err == logging.CRITICAL:
                 raise ValueError(msg + "Stopping execution.") from None
             else:
                 logger.log(self.limit_err, msg + " Setting value to minimum.")
                 return self.limit(idx, order, 0)  # corrected value
         if value > self.limit(idx, order, 1):
-            msg = f"Goal value {value} is above the limit {self.limit(idx, order, 1)}."
+            msg = f"Goal '{self.names[idx]}'@ {value} is above the limit {self.limit(idx, order, 1)}."
             if self.limit_err == logging.CRITICAL:
                 raise ValueError(msg + "Stopping execution.") from None
             else:
