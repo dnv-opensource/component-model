@@ -30,10 +30,10 @@ def test_limits():
     assert _b.limit(1, 2, 0) == _b.limit(1, 2, 1) == 0.0, "No polar acceleration allowed"
     assert _b.nogoals, "No goals yet set"
     # check values just beyond limits (caused by e.g. numerical issues), which should not lead to messages
-    assert _b.check_limit(0,0,1-1e-14) == 1.0, "Minor correction"
-    assert _b.check_limit(0,0,20+1e-14) == 20.0, "Minor correction"
-    assert _b.check_limit(0,0,10+1e-10) == 10+1e-10, f"No correction: {_b.check_limit(0,0,10+1e-10)}"
-    
+    assert _b.check_limit(0, 0, 1 - 1e-14) == 1.0, "Minor correction"
+    assert _b.check_limit(0, 0, 20 + 1e-14) == 20.0, "Minor correction"
+    assert _b.check_limit(0, 0, 10 + 1e-10) == 10 + 1e-10, f"No correction: {_b.check_limit(0, 0, 10 + 1e-10)}"
+
     # try to set goal outside limits
     _b.limit_err = logging.CRITICAL
     with pytest.raises(ValueError) as err:  # type: ignore[assignment]  #it is a 'ValueError'

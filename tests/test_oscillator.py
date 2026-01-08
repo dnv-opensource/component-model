@@ -1,11 +1,16 @@
+import logging
 from functools import partial
-from math import atan2, cos, exp, pi, sin, sqrt
+from math import atan2, pi, sin, sqrt
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
+
+from component_model.analytic import ForcedOscillator1D
+
+logger = logging.getLogger(__name__)
 
 
 def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps=1e-7):
@@ -42,57 +47,6 @@ def force(t: float, ampl: float = 1.0, omega: float = 0.1, d_omega: float = 0.0)
         return np.array((0, 0, ampl * sin(omega * t)), float)  # fixed frequency
     else:
         return np.array((0, 0, ampl * sin((omega + d_omega * t) * t)), float)  # frequency sweep
-
-
-def forced_oscillator(
-    t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0
-):
-    """Calculates the expected (analytic) position and speed of a harmonic oscillator (in one dimension)
-    with the given parameter setting.
-
-    Args:
-        t (float): time
-        k,c,m (float): harmonic oscillator parameters
-        a,wf (float): sinusoidal force parameters (amplitude and angular frequency)
-        x0, v0 (float): start values for harmonic oscillator (force has fixed start values)
-    """
-    from math import atan2, sin, sqrt
-
-    w0 = sqrt(k / m)  # omega0
-    b = c / (2 * m)  # beta
-    if a != 0:
-        assert x0 == 0 and v0 == 0, "Checking of forced oscillations is only implemented for x0=0 and v0=0"
-        A = a / sqrt(((w0**2 - wf**2) ** 2 + (2 * b * wf) ** 2))
-        d = atan2(2 * b * wf, w0**2 - wf**2)  # phase angle in equilibrium
-        x0 = A * sin(d)
-        v0 = -A * wf * cos(d)
-        x_e = A * sin(wf * t - d)
-        v_e = A * wf * cos(wf * t - d)
-        # return x_e, v_e
-    else:
-        x_e, v_e = (0.0, 0.0)
-
-    if w0 - b > 1e-10:  # damped oscillation
-        w1 = sqrt(w0**2 - b**2)  # angular frequency of oscillation
-        x = exp(-b * t) * (x0 * cos(w1 * t) + (x0 * b + v0) / w1 * sin(w1 * t))
-        v = exp(-b * t) * (v0 * cos(w1 * t) - (w1 * x0 + b**2 / w1 * x0 + b / w1 * v0) * sin(w1 * t))
-    elif abs(w0 - b) < 1e-10:  # critically damped oscillation
-        x = ((v0 + b * x0) * t + x0) * exp(-b * t)
-        v = -b * (v0 + b * x0) * t * exp(-b * t)
-    else:  # over-damped oscillation
-        w1_ = sqrt(b**2 - w0**2)
-        _b1 = 2 * b - w1_
-        _b2 = 2 * b + w1_
-        x = ((b + w1_) * x0 + v0) / 2 / w1_ * exp(-(b - w1_) * t) - ((b - w1_) * x0 + v0) / 2 / w1_ * exp(
-            -(b + w1_) * t
-        )
-        v = -((b + w1_) * x0 + v0) / 2 / w1_ * (b - w1_) * exp(-(b - w1_) * t) + ((b - w1_) * x0 + v0) / 2 / w1_ * (
-            b + w1_
-        ) * exp(-(b + w1_) * t)
-    if a != 0:
-        return (x + x_e, v + v_e)
-    else:
-        return (x, v)
 
 
 def run_oscillation_z(
@@ -172,28 +126,29 @@ def test_oscillator_class(show: bool = False):
     With respect to `wiki <https://en.wikipedia.org/wiki/Oscillation>`_ our parameters are:
     b = c, k=k => beta = c/(2m), w0 = sqrt(k/m) => w1 = sqrt(beta^2 - w0^2) = sqrt( c^2/4/m^2 - k/m)
     """
-    test_cases: list[tuple[float, float, float, float, float, float, str]] = [
+    test_cases: list[tuple[float, float, float, float, float, float | None, str]] = [
         # k    c    m    a    w    x0   description
         (1.0, 0.0, 1.0, 0.0, 0.1, 1.0, "Oscillator without damping and force"),
         (1.0, 0.2, 1.0, 0.0, 0.1, 1.0, "Oscillator include damping"),
         (1.0, 2.0, 1.0, 0.0, 0.1, 1.0, "Oscillator critically damped"),
         (1.0, 5.0, 1.0, 0.0, 0.1, 1.0, "Oscillator over-damped"),
-        (1.0, 0.2, 1.0, 1.0, 0.5, 0.0, "Forced oscillation. Less than resonance freq"),
-        (1.0, 0.2, 1.0, 1.0, 1.0, 0.0, "Forced oscillation. Damped. Resonant"),
-        (1.0, 0.2, 1.0, 1.0, 2.0, 0.0, "Forced oscillation. Damped. Above resonance freq"),
-        (1.0, 2.0, 1.0, 1.0, 1.0, 0.0, "Forced oscillation. Crit. damped. Resonant"),
-        (1.0, 5.0, 1.0, 1.0, 1.0, 0.0, "Forced oscillation. Over-damped. Resonant"),
+        (1.0, 0.2, 1.0, 1.0, 0.5, None, "Forced oscillation. Less than resonance freq"),
+        (1.0, 0.2, 1.0, 1.0, 1.0, None, "Forced oscillation. Damped. Resonant"),
+        (1.0, 0.2, 1.0, 1.0, 2.0, None, "Forced oscillation. Damped. Above resonance freq"),
+        (1.0, 2.0, 1.0, 1.0, 1.0, None, "Forced oscillation. Crit. damped. Resonant"),
+        (1.0, 5.0, 1.0, 1.0, 1.0, None, "Forced oscillation. Over-damped. Resonant"),
     ]
     tol = 1e-3  # tolerance for simulation
     for k, c, m, a, w, x0, msg in test_cases:
-        print(f"{msg}: k={k}, c={c}, m={m}, a={a}, wf={w}", end="")
-        osc, t, z, v = run_oscillation_z(k=k, c=c, m=m, ampl=a, omega=w, x0=x0, tol=tol)
+        logger.info(f"{msg}. k:{k}, c:{c}, a:{a}, w:{w}, x0:{x0}")
+        forced_oscillator = ForcedOscillator1D(k, c, m, a, w, x0=x0)
+        osc, t, z, v = run_oscillation_z(k=k, c=c, m=m, ampl=a, omega=w, x0=0.0 if x0 is None else x0, tol=tol)
         if c < 2.0:  # only if damping is small enough
             cp = 2.0 * pi / sqrt(k / m - (c / 2.0 / m) ** 2)
             assert abs(osc.period[2] - cp) < 1e-12, f"Period: {osc.period} != {2 * pi}"
         x_expect, v_expect = [], []
         for ti in t:
-            _x, _v = forced_oscillator(ti, k, c, m, a, w, x0=x0)
+            _x, _v = forced_oscillator.calc(ti)
             x_expect.append(_x)
             v_expect.append(_v)
         if show:
@@ -352,15 +307,15 @@ def test_ivp(show: bool = False):
     assert sol.status == 0, "No events involved. Successful status should be 0"
     assert len(sol.y) == 2, "y is a double vector of (position, speed), which is also reflected in results"
     if show:
-        do_show(sol.t, sol.y[0], sol.y[1], z_label="pos", v_label="speed")
+        do_show(list(sol.t), sol.y[0], sol.y[1], z_label="pos", v_label="speed")
     # include hit_ground event. Monkey patching function (which mypy, pyright do not like)
     hit_ground.terminal = True  # type: ignore[attr-defined]
     hit_ground.direction = -1  # type: ignore[attr-defined]
     sol = solve_ivp(upward_cannon, [0, 100], [0, 200], t_eval=[t for t in range(100)], events=hit_ground)
-    assert np.allclose(sol.t_events, [2 * 200 / 9.81]), "Time when hitting the ground"
-    assert np.allclose(sol.y_events, [[0.0, -200.0]]), "Position and speed when hitting the ground"
+    assert np.allclose(sol.t_events, [2 * 200 / 9.81]), "Time when hitting the ground"  # type: ignore ## it works
+    assert np.allclose(sol.y_events, [[0.0, -200.0]]), "Position and speed when hitting the ground"  # type: ignore
     if show:
-        do_show(sol.t, sol.y[0], sol.y[1], z_label="pos", v_label="speed")
+        do_show(list(sol.t), sol.y[0], sol.y[1], z_label="pos", v_label="speed")
 
 
 if __name__ == "__main__":

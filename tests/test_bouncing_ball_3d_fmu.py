@@ -9,10 +9,10 @@ from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from fmpy import plot_result, simulate_fmu  # type: ignore
-from fmpy.util import fmu_info  # type: ignore
-from fmpy.validation import validate_fmu  # type: ignore
-from pythonfmu.default_experiment import DefaultExperiment
+from fmpy import plot_result, simulate_fmu  # type: ignore[import-untyped]
+from fmpy.util import fmu_info  # type: ignore[import-untyped]
+from fmpy.validation import validate_fmu  # type: ignore[import-untyped]
+from pythonfmu.default_experiment import DefaultExperiment  # type: ignore[import-untyped]
 
 from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu

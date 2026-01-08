@@ -62,6 +62,7 @@ dependencies = [
     "jsonpath-ng>=1.7.0",
     "pythonfmu>=0.7.0",
     "flexparser>=0.4",
+    "scipy-stubs>=1.17.0.0",
 ]
 
 [project.optional-dependencies]
@@ -108,10 +109,6 @@ required-environments = [
 native-tls = true
 
 
-[tool.mypy]
-plugins = [
-    "numpy.typing.mypy_plugin",
-]
 mypy_path = "stubs"
 files = [
     "src",

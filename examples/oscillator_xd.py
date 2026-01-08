@@ -79,7 +79,7 @@ class OscillatorXD:
         if self.force is None:
             return np.append(y[self.dim :], -2.0 * self.gam * y[self.dim :] - self.w2 * y[: self.dim])
         else:  # explicit force function is defined
-            f = self.force(t=t, x=y[: self.dim], v=y[self.dim :])/ self._m # need to scale with the mass
+            f = self.force(t=t, x=y[: self.dim], v=y[self.dim :]) / self._m  # need to scale with the mass
             d_dt = -2.0 * self.gam * y[self.dim :] - self.w2 * y[: self.dim] + f
             # print(f"ODE({self.dim})@{t}. f:{f[2]}, z:{y[2]}, v:{y[8]} => d_dt:{d_dt[2]}.")
             return np.append(y[self.dim :], d_dt)
