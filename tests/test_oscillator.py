@@ -104,9 +104,10 @@ def sweep_oscillation_z(
 
     f_func = f_func = partial(force, ampl=ampl, omega=0.0, d_omega=d_omega)
     osc = Oscillator(k=(1.0, 1.0, k), c=(0.0, 0.0, c), m=m, tolerance=tol, f_func=f_func)
+    a_osc = ForcedOscillator1D(k=k, c=c, m=m, a=ampl, wf=1, x0=x0, v0=v0)
     osc.x[2] = x0  # set initial z value
     osc.v[2] = v0  # set initial z-speed
-    times, z, v, f = [], [], [], []
+    times, z, v, f, _z, _v = [], [], [], [], [], []
     time = 0.0
     while time < end:
         times.append(time)
@@ -114,9 +115,13 @@ def sweep_oscillation_z(
         v.append(osc.v[2])
         osc.do_step(time, dt)
         f.append(f_func(time)[2])
+        # analytic solution for comparison
+        zz, vv = a_osc.calc(time, wf=d_omega * time)
+        _z.append(zz)
+        _v.append(vv)
         time += dt
 
-    return (osc, times, z, v, f)
+    return (osc, times, z, v, f, _z, _v)
 
 
 def test_oscillator_class(show: bool = False):
@@ -234,7 +239,7 @@ def test_sweep_oscillator(show: bool = False):
     The test demonstrates that a monolithic simulation provides accurate results in all ranges of the force frequency.
     Co-simulating the oscillator and the force, this does not work.
     """
-    osc, times0, z0, v0, f0 = sweep_oscillation_z(
+    osc, times0, z0, v0, f0, _z, _v = sweep_oscillation_z(
         k=1.0,
         c=0.1,
         m=1.0,
@@ -252,14 +257,17 @@ def test_sweep_oscillator(show: bool = False):
 
     if show:
         freq = [0.1 * t / 2 / np.pi for t in times0]
-        fig, ax = plt.subplots()
-        ax.plot(freq, z0, label="z0(t)")
-        ax.plot(freq, v0, label="v0(t)")
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        ax1.plot(freq, z0, label="z0(t)")
+        ax1.plot(freq, v0, label="v0(t)")
+        ax2.plot(freq, _z, label="z(t)")
+        # ax2.plot(freq, _v, label="v(t)")
         # ax.plot(freq, f0, label="F0(t)")
-        ax.legend()
+        ax1.legend()
+        ax2.legend()
         plt.show()
 
-    osc, times, z, v, f = sweep_oscillation_z(
+    osc, times, z, v, f, _z, _v = sweep_oscillation_z(
         k=1.0,
         c=0.1,
         m=1.0,
