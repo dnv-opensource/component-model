@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from component_model.analytic import ForcedOscillator1D
+from component_model.analytic import ForcedOscillator1D #, sine_fit
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,11 @@ def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ..
 
 
 def do_show(
-    time: list,
-    z: list,
-    v: list,
-    compare1: list | None = None,
-    compare2: list | None = None,
+    time: list[float] | np.ndarray,
+    z: list[float] | np.ndarray,
+    v: list[float] | np.ndarray,
+    compare1: list[float] | np.ndarray | None = None,
+    compare2: list[float] | np.ndarray | None = None,
     z_label: str = "z-position",
     v_label: str = "z-speed",
 ):
@@ -55,10 +55,10 @@ def run_oscillation_z(
     m: float,
     ampl: float,
     omega: float,
-    x0: float = 1.0,
-    v0: float = 0.0,
+    x0: float = 0.0,
+    v0: float = 1.0,
     dt: float = 0.01,
-    end: float = 30.0,
+    end: float = 50.0,
     tol: float = 1e-3,
 ):
     """Run the oscillator with the given settings for the given time (only z-direction activated)
@@ -104,7 +104,7 @@ def sweep_oscillation_z(
 
     f_func = f_func = partial(force, ampl=ampl, omega=0.0, d_omega=d_omega)
     osc = Oscillator(k=(1.0, 1.0, k), c=(0.0, 0.0, c), m=m, tolerance=tol, f_func=f_func)
-    a_osc = ForcedOscillator1D(k=k, c=c, m=m, a=ampl, wf=1, x0=x0, v0=v0)
+    a_osc = ForcedOscillator1D(k=k, c=c, m=m, a=ampl, wf=1, x0=x0, dx0=v0)
     osc.x[2] = x0  # set initial z value
     osc.v[2] = v0  # set initial z-speed
     times, z, v, f, _z, _v = [], [], [], [], [], []
@@ -116,7 +116,8 @@ def sweep_oscillation_z(
         osc.do_step(time, dt)
         f.append(f_func(time)[2])
         # analytic solution for comparison
-        zz, vv = a_osc.calc(time, wf=d_omega * time)
+        a_osc.coefficients(wf=d_omega * time)
+        zz, vv = a_osc.calc(time)
         _z.append(zz)
         _v.append(vv)
         time += dt
@@ -131,31 +132,33 @@ def test_oscillator_class(show: bool = False):
     With respect to `wiki <https://en.wikipedia.org/wiki/Oscillation>`_ our parameters are:
     b = c, k=k => beta = c/(2m), w0 = sqrt(k/m) => w1 = sqrt(beta^2 - w0^2) = sqrt( c^2/4/m^2 - k/m)
     """
-    test_cases: list[tuple[float, float, float, float, float, float | None, str]] = [
-        # k    c    m    a    w    x0   description
-        (1.0, 0.0, 1.0, 0.0, 0.1, 1.0, "Oscillator without damping and force"),
-        (1.0, 0.2, 1.0, 0.0, 0.1, 1.0, "Oscillator include damping"),
-        (1.0, 2.0, 1.0, 0.0, 0.1, 1.0, "Oscillator critically damped"),
-        (1.0, 5.0, 1.0, 0.0, 0.1, 1.0, "Oscillator over-damped"),
-        (1.0, 0.2, 1.0, 1.0, 0.5, None, "Forced oscillation. Less than resonance freq"),
-        (1.0, 0.2, 1.0, 1.0, 1.0, None, "Forced oscillation. Damped. Resonant"),
-        (1.0, 0.2, 1.0, 1.0, 2.0, None, "Forced oscillation. Damped. Above resonance freq"),
-        (1.0, 2.0, 1.0, 1.0, 1.0, None, "Forced oscillation. Crit. damped. Resonant"),
-        (1.0, 5.0, 1.0, 1.0, 1.0, None, "Forced oscillation. Over-damped. Resonant"),
+    test_cases: list[tuple[float, float, float, float, float, str]] = [
+        # k    c    m    a    w   description
+        (1.0, 0.0, 1.0, 0.0, 0.1, "Oscillator without damping and force"),
+        (1.0, 0.2, 1.0, 0.0, 0.1, "Oscillator include damping"),
+        (1.0, 2.0, 1.0, 0.0, 0.1, "Oscillator critically damped"),
+        (1.0, 5.0, 1.0, 0.0, 0.1, "Oscillator over-damped"),
+        (1.0, 0.2, 1.0, 1.0, 0.5, "Forced oscillation. Less than resonance freq"),
+        (1.0, 0.2, 1.0, 1.0, 1.0, "Forced oscillation. Damped. Resonant"),
+        (1.0, 0.2, 1.0, 1.0, 2.0, "Forced oscillation. Damped. Above resonance freq"),
+        (1.0, 2.0, 1.0, 1.0, 1.0, "Forced oscillation. Crit. damped. Resonant"),
+        (1.0, 5.0, 1.0, 1.0, 1.0, "Forced oscillation. Over-damped. Resonant"),
     ]
     tol = 1e-3  # tolerance for simulation
-    for k, c, m, a, w, x0, msg in test_cases:
-        logger.info(f"{msg}. k:{k}, c:{c}, a:{a}, w:{w}, x0:{x0}")
-        forced_oscillator = ForcedOscillator1D(k, c, m, a, w, x0=x0)
-        osc, t, z, v = run_oscillation_z(k=k, c=c, m=m, ampl=a, omega=w, x0=0.0 if x0 is None else x0, tol=tol)
+    for k, c, m, a, w, msg in test_cases:
+        a_osc = ForcedOscillator1D(k=k, c=c, m=m, a=a, wf=w, x0=0, dx0=1.0 if a == 0.0 else 0.0)
+        if a != 0.0:
+            a_osc.coefficients(d0=2 * a_osc.d)
+        logger.info(f"{msg}. k:{k}, c:{c}, a:{a}, w:{w}, x0:{a_osc.x0}, v:{a_osc.dx0}")
+        osc, t, z, v = run_oscillation_z(k=k, c=c, m=m, ampl=a, omega=w, v0=1.0 if a == 0 else 0.0, tol=tol)
+        # a, w, phi = sine_fit(t, z)
+        # print(f"{a}* sin({w}* t + {phi})")
+        # print( f"x0:{z[0]} - {a_osc.x0}, v0:{v[0]} - {a_osc.dx0}, force: {a_osc.a}, {a_osc.wf}, {a_osc.phi}")
         if c < 2.0:  # only if damping is small enough
             cp = 2.0 * pi / sqrt(k / m - (c / 2.0 / m) ** 2)
             assert abs(osc.period[2] - cp) < 1e-12, f"Period: {osc.period} != {2 * pi}"
-        x_expect, v_expect = [], []
-        for ti in t:
-            _x, _v = forced_oscillator.calc(ti)
-            x_expect.append(_x)
-            v_expect.append(_v)
+        t = np.array(t, float)
+        x_expect, v_expect = a_osc.calc(t)
         if show:
             do_show(t, z, v, x_expect, v_expect)
         emax = 0.0
