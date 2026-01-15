@@ -108,6 +108,7 @@ required-environments = [
     ]
 native-tls = true
 
+[tool.mypy]
 files = [
     "src",
     "tests",
