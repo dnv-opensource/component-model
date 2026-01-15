@@ -12,11 +12,11 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: 'uv.lock'
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: "pyproject.toml"
+          python-version-file: 'pyproject.toml'
       - name: Install the project
         run: uv sync --upgrade
       - name: Run ruff format
@@ -31,11 +31,11 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: 'uv.lock'
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: "pyproject.toml"
+          python-version-file: 'pyproject.toml'
       - name: Install the project
         run: uv sync --upgrade
       - name: Run ruff check
@@ -56,7 +56,7 @@ jobs:
   #       with:
   #         python-version-file: "pyproject.toml"
   #     - name: Install the project
-  #       run: uv sync --upgrade --extra tests
+  #       run: uv sync --upgrade --extra test
   #     - name: Run pyright
   #       run: uv run pyright
 
@@ -69,12 +69,12 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: 'uv.lock'
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: "pyproject.toml"
+          python-version-file: 'pyproject.toml'
       - name: Install the project
-        run: uv sync --upgrade --extra tests
+        run: uv sync --upgrade --extra test
       - name: Run mypy
         run: uv run mypy
