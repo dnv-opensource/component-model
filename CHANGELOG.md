@@ -19,6 +19,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * Updated code base with latest changes in python_project_template v0.2.6
 * pyproject.toml:
   * Updated supported Python versions to 3.11, 3.12, 3.13, 3.14
+  * Updated required Python version to ">= 3.11"
   * Renamed optional dependency group 'tests' to 'test' to make it uniform with crane-fmu (there also 'test' is used).
 * ruff.toml:
   * Updated target Python version to "py311"
