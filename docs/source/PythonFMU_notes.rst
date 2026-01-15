@@ -1,5 +1,5 @@
-PythonFMU
-=========
+PythonFMU Notes
+===============
 
 The `PythonFMU`package is used heavily in the `component_model` package.
 In this note additional information is collected which is important for the development work here.

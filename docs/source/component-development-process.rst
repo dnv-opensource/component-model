@@ -1,6 +1,5 @@
-*******************************************************
 Guideline on how to develop a FMU using component-model
-*******************************************************
+=======================================================
 
 The development process follows the steps
 
@@ -11,21 +10,21 @@ The development process follows the steps
 #. Test the FMU standalone, e.g. using the `FMPy` package or in conjunction with other FMUs using the `sim-explorer` package.
 
 Develop a basic model
-=====================
+---------------------
 Define a functional model as a Python class. We refer to this model as the *basic model*.
 At this stage the emerging model class does not need to refer to the `component-model` package.
-In fact it is **not recommended** to derive the basic model from `Model`class of component-model.
+In fact it is **not recommended** to derive the basic model from `Model` class of component-model.
 The basic model might import any Python package (e.g. numpy), as needed to satisfy the functionality.
 
 Testing the basic model
-=======================
+-----------------------
 The basic model should be thoroughly tested.
 This cannot be emphasised too much, as test possibilities and feadback is limited in the FMU domain,
 while Python offers proper test and debugging facilities.
 
 
 Defining the FMU interface
-==========================
+--------------------------
 A FMU interface must be added to the model prior to package the model as FMU. This concerns basically
 
 * component model parameters, i.e. settings which can be changed prior to a simulation run, but are typically constant during the run
@@ -76,7 +75,7 @@ Explicitly overwriting the automatic `on_step` function is allowed at one's own 
 
 
 Building the FMU
-================
+----------------
 
 Testing the FMU
-===============
+---------------
