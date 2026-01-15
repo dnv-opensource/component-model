@@ -1,5 +1,5 @@
 title: component-model
-version: 0.3.1
+version: 0.3.2
 abstract: >-
     Constructs a Functional Mockup Interface component model from a python script (fulfilling some requirements).
 type: software
