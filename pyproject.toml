@@ -70,7 +70,7 @@ dependencies = [
         "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
         "scipy>=1.16",
         "matplotlib>=3.10",
-        "plotly>=6.0.1",
+        "plotly>=6.3",
 #        "libcosimpy>=0.0.5",
 #        "libcosimpy @ file:///C:/Users/eis/Downloads/libcosimpy-0.0.4-cp312-cp312-win_amd64.whl",
     ]
