@@ -8,7 +8,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
-## [0.3.1] - 2026-01-16
+## [0.3.2] - 2026-01-16
 
 ### Added
 * Sphinx documentation:
@@ -56,6 +56,12 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * Updated to setup-uv@v7  (from setup-uv@v2)
 * Updated to upload-artifact@v5  (from upload-artifact@v4)
 * Updated to download-artifact@v5  (from download-artifact@v4)
+
+
+## [0.3.1] - 2025-12-17
+
+### Changed
+* Address breaking changes with PythonFMU's latest changes to setup_experiment() function.
 
 
 ## [0.3.0] - 2025-12-15
@@ -128,7 +134,8 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 
 <!-- Markdown link & img dfn's -->
-[unreleased]: https://github.com/dnv-innersource/component-model/compare/v0.3.1...HEAD
+[unreleased]: https://github.com/dnv-innersource/component-model/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/dnv-innersource/component-model/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dnv-innersource/component-model/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/dnv-innersource/component-model/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dnv-innersource/component-model/compare/v0.1.0...v0.2.0
