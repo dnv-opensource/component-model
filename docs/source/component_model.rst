@@ -22,3 +22,7 @@ Modules
 
    component_model.model
    component_model.variable
+   component_model.variable_naming
+   component_model.enums
+   component_model.analytic
+   component_model.plotter
