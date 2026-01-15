@@ -100,8 +100,6 @@ allowed-confusables = [
 [lint.pep8-naming]
 ignore-names = [
     "test_*",
-    "setUp",
-    "tearDown",
 ]
 
 [lint.pylint]
