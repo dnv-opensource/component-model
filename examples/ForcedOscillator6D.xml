@@ -24,8 +24,8 @@
       <MinimumChangeRate>0.2</MinimumChangeRate>
       <MaximumChangeRate>1.5</MaximumChangeRate>
       <ProportionalGain>0.2</ProportionalGain>
-      <IntegralGain>0.15</IntegralGain>   
+      <IntegralGain>0.15</IntegralGain>
       <RelativeTolerance>1e-6</RelativeTolerance>
       <AbsoluteTolerance>1e-6</AbsoluteTolerance>
-   </EccoConfiguration>     
+   </EccoConfiguration>
 </OspSystemStructure>

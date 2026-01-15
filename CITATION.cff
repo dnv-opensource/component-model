@@ -1,0 +1,37 @@
+title: component-model
+version: 0.1.0
+abstract: >-
+  component-model is an example package supporting xyz.
+type: software
+authors:
+  - name: DNV AS
+    address: 'Veritasveien 1'
+    post-code: '1363'
+    city: Høvik
+    country: NO
+    website: 'https://www.dnv.com/'
+  - given-names: Author
+    family-names: One
+    affiliation: DNV
+    email: siegfried.eisinger@dnv.com
+    website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
+  - given-names: Author
+    family-names: Two
+    affiliation: DNV
+    email: jorge.luis.mendez@dnv.com
+    website: 'https://www.linkedin.com/in/jorgelmh'
+  - given-names: Author
+    family-names: Three
+    affiliation: DNV
+    email: 
+    website: ''
+keywords:
+  - simulation
+  - model
+  - FMI
+license: MIT
+license-url: 'https://dnv-opensource.github.io/component-model/LICENSE.html'
+url: 'https://dnv-opensource.github.io/component-model/README.html'
+repository-code: 'https://github.com/dnv-opensource/component-model'
+message: 'Please cite this software using these metadata.'
+cff-version: 1.2.0

@@ -11,6 +11,9 @@ only-include = [
     "examples",
     ".coveragerc",
     ".editorconfig",
+    ".pre-commit-config.yaml",
+    "manage.py",
+    "pyproject.toml",
     "pytest.ini",
     "ruff.toml",
     "uv.lock",
@@ -50,7 +53,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
-    "Operating System :: MacOS",
+    # "Operating System :: MacOS",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
@@ -142,3 +145,38 @@ include = [
 exclude = [
     "tests/test_working_directory",
 ]
+
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportMissingParameterType = "error"
+reportUnknownParameterType = "warning"
+reportUnknownMemberType = "warning"                # consider to set to `false` if you work a lot with matplotlib and pandas, which are both not properly typed and known to trigger this warning
+reportMissingTypeArgument = "error"
+reportPropertyTypeMismatch = "error"
+reportFunctionMemberAccess = "warning"
+reportPrivateUsage = "warning"
+reportTypeCommentUsage = "warning"
+reportIncompatibleMethodOverride = "warning"
+reportIncompatibleVariableOverride = "error"
+reportInconsistentConstructor = "error"
+reportOverlappingOverload = "warning"
+reportUninitializedInstanceVariable = "warning"
+reportCallInDefaultInitializer = "warning"
+reportUnnecessaryIsInstance = "information"
+reportUnnecessaryCast = "warning"
+reportUnnecessaryComparison = "warning"
+reportUnnecessaryContains = "warning"
+reportUnusedCallResult = "warning"
+reportUnusedExpression = "warning"
+reportMatchNotExhaustive = "warning"
+reportUntypedFunctionDecorator = "warning"
+reportUntypedClassDecorator = "warning"
+reportUntypedBaseClass = "error"
+reportUntypedNamedTuple = "warning"
+reportUnnecessaryTypeIgnoreComment = "information"
+# Activate the following rules only locally and temporary, i.e. for a QA session.
+# (For server side CI they are considered too strict.)
+# reportMissingTypeStubs = true
+# reportConstantRedefinition = "warning"
+# reportImportCycles = "warning"
+# reportImplicitStringConcatenation = "warning"
