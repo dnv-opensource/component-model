@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy import integrate
 
 
@@ -67,8 +68,8 @@ def test_oscillator(show):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__, "--show", "True"])
+    retcode = pytest.main(["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    test_simpson()
+    # test_simpson()
     # test_exp_decay()
     # test_oscillator(show=True)
