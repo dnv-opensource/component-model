@@ -10,13 +10,13 @@ authors:
       city: Høvik
       country: NO
       website: 'https://www.dnv.com/'
-    - given-names: Author
-      family-names: One
+    - given-names: Siegfried
+      family-names: Eisinger
       affiliation: DNV
       email: siegfried.eisinger@dnv.com
       website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
-    - given-names: Author
-      family-names: Two
+    - given-names: Jorge Luis
+      family-names: Mendez
       affiliation: DNV
       email: jorge.luis.mendez@dnv.com
       website: 'https://www.linkedin.com/in/jorgelmh'
