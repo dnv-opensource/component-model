@@ -17,7 +17,6 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12.8"
           python-version-file: "pyproject.toml"
       - name: Build source distribution and wheel
         run: uv build
