@@ -70,16 +70,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-    test = [
-        "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
-        "scipy>=1.16",
-        "matplotlib>=3.10",
-        "plotly>=6.3",
-#        "libcosimpy>=0.0.5",
-#        "libcosimpy @ file:///C:/Users/eis/Downloads/libcosimpy-0.0.4-cp312-cp312-win_amd64.whl",
-    ]
-    rest = ["docutils>=0.21"]
-    editor = []
+test = [
+    "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
+    "scipy>=1.16",
+    "matplotlib>=3.10",
+    "plotly>=6.3",
+    "libcosimpy>=0.0.5",
+    # "libcosimpy @ file:///C:/Users/eis/Downloads/libcosimpy-0.0.4-cp312-cp312-win_amd64.whl",
+]
+rest = ["docutils>=0.21"]
+editor = []
 
 [project.urls]
 Homepage = "https://github.com/dnv-opensource/component-model"
