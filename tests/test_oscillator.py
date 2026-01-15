@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from component_model.analytic import ForcedOscillator1D #, sine_fit
+from component_model.analytic import ForcedOscillator1D  # , sine_fit
 
 logger = logging.getLogger(__name__)
 

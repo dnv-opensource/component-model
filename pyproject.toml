@@ -108,8 +108,6 @@ required-environments = [
     ]
 native-tls = true
 
-
-mypy_path = "stubs"
 files = [
     "src",
     "tests",
