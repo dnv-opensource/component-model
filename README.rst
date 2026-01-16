@@ -454,12 +454,9 @@ Meta
 ----
 Copyright (c) 2025 `DNV <https://www.dnv.com/>`_ AS. All rights reserved.
 
-Siegfried Eisinger -
-`@LinkedIn <https://www.linkedin.com/in/siegfried-eisinger-a337638b>`__
-- siegfried.eisinger@dnv.com
+Siegfried Eisinger - `@LinkedIn <https://www.linkedin.com/in/siegfried-eisinger-a337638b>`_ - siegfried.eisinger@dnv.com
 
-Jorge Luis Mendez - `@LinkedIn <https://www.linkedin.com/in/jorgelmh>`__
-- jorge.luis.mendez@dnv.com
+Jorge Luis Mendez - `@LinkedIn <https://www.linkedin.com/in/jorgelmh>`_ - jorge.luis.mendez@dnv.com
 
 Distributed under the MIT license. See `LICENSE <LICENSE.md/>`_ for more information.
 
@@ -483,10 +480,6 @@ To contribute, follow these steps:
 7. Create a new Pull Request in GitHub
 
 For your contribution, please make sure you follow the `STYLEGUIDE <STYLEGUIDE.md/>`_ before creating the Pull Request.
-
-.. raw:: html
-
-   <!-- Markdown link & img dfn's -->
 
 .. |pypi| image:: https://img.shields.io/pypi/v/component-model.svg?color=blue
    :target: https://pypi.python.org/pypi/component-model
