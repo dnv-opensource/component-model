@@ -1,7 +1,7 @@
 from math import sqrt
 
 import numpy as np
-from pythonfmu import Fmi2Causality, Fmi2Slave, Real
+from pythonfmu import Fmi2Causality, Fmi2Slave, Real  # type: ignore[import-untyped]
 
 
 class BouncingBall3D(Fmi2Slave):

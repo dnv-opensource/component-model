@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from examples.axle import Axle
-from fmpy.simulation import simulate_fmu
-from fmpy.util import fmu_info
-from fmpy.validation import validate_fmu
+from fmpy.simulation import simulate_fmu  # type: ignore[import-untyped]
+from fmpy.util import fmu_info  # type: ignore[import-untyped]
+from fmpy.validation import validate_fmu  # type: ignore[import-untyped]
 
 from component_model.model import Model
 

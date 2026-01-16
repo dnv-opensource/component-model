@@ -12,13 +12,13 @@ from pathlib import Path
 from typing import Generator, Sequence, TypeAlias
 
 from pint import UnitRegistry
-from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore
+from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore[import-untyped]
 from pythonfmu import __version__ as pythonfmu_version
-from pythonfmu.default_experiment import DefaultExperiment
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
-from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore
+from pythonfmu.default_experiment import DefaultExperiment  # type: ignore[import-untyped]
+from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore[import-untyped]
+from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore[import-untyped]
+from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore[import-untyped]
+from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore[import-untyped]
 
 from component_model.enums import ensure_enum
 from component_model.variable import Unit, Variable

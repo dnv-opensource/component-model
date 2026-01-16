@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy import integrate
 
 
@@ -54,7 +55,7 @@ def test_oscillator(show):
     print(sol.t, sol.y[0], sol.y[1])
     # stepwise integration, re-starting at previous end.
     y = [0.0, 1.0]
-    time = []
+    time: list[float] = []
     res: list[list] = [[], []]
     for te in np.linspace(0, 10, 100):
         sol = integrate.solve_ivp(osc, t_span=[te, te + 0.1], y0=y, method="DOP853")  # RK45 100x less accurate
@@ -67,8 +68,8 @@ def test_oscillator(show):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__, "--show", "True"])
+    retcode = pytest.main(["-rA", "-v", __file__, "--show", "True"])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    test_simpson()
+    # test_simpson()
     # test_exp_decay()
     # test_oscillator(show=True)

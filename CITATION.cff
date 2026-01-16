@@ -1,0 +1,33 @@
+title: component-model
+version: 0.3.2
+abstract: >-
+    Constructs a Functional Mockup Interface component model from a python script (fulfilling some requirements).
+type: software
+authors:
+    - name: DNV AS
+      address: 'Veritasveien 1'
+      post-code: '1363'
+      city: Høvik
+      country: NO
+      website: 'https://www.dnv.com/'
+    - given-names: Siegfried
+      family-names: Eisinger
+      affiliation: DNV
+      email: siegfried.eisinger@dnv.com
+      website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
+    - given-names: Jorge Luis
+      family-names: Mendez
+      affiliation: DNV
+      email: jorge.luis.mendez@dnv.com
+      website: 'https://www.linkedin.com/in/jorgelmh'
+keywords:
+    - simulation
+    - model
+    - FMI
+    - OSP
+license: MIT
+license-url: 'https://dnv-opensource.github.io/component-model/LICENSE.html'
+url: 'https://dnv-opensource.github.io/component-model/README.html'
+repository-code: 'https://github.com/dnv-opensource/component-model'
+message: 'Please cite this software using these metadata.'
+cff-version: 1.2.0
