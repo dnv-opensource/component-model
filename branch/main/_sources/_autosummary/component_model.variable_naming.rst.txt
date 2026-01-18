@@ -1,0 +1,18 @@
+﻿component\_model.variable\_naming
+=================================
+
+.. automodule:: component_model.variable_naming
+   :members:
+   :exclude-members: ParsedVariable,VariableNamingConvention,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      ParsedVariable
+      VariableNamingConvention
+   

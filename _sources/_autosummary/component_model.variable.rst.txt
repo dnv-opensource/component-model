@@ -1,0 +1,26 @@
+﻿component\_model.variable
+=========================
+
+.. automodule:: component_model.variable
+   :members:
+   :exclude-members: Check,Unit,Variable,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Check
+      Unit
+      Variable
+   
+   .. rubric:: Exceptions
+   .. autosummary::
+   
+      VariableInitError
+      VariableRangeError
+      VariableUseError
+   

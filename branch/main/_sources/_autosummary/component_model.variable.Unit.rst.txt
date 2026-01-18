@@ -1,0 +1,32 @@
+Unit
+====
+
+.. currentmodule:: component_model.variable
+
+.. autoclass:: Unit
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Unit.__init__
+      ~Unit.compatible
+      ~Unit.derivative
+      ~Unit.identity
+      ~Unit.linear
+      ~Unit.make
+      ~Unit.make_tuple
+      ~Unit.parse_quantity
+      ~Unit.val_unit_display
+   
+   
+
+
+   
+   
+   
