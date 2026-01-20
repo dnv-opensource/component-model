@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fmpy import simulate_fmu  # type: ignore
@@ -31,7 +32,7 @@ class PythonSlave(Fmi2Slave):
     author = "John Doe"
     description = "A simple description"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
         self.intOut = 1
@@ -89,7 +90,7 @@ class PythonSlave(Fmi2Slave):
         # it is also possible to explicitly define getters and setters as lambdas in case the variable is not backed by a Python field.
         # self.register_variable(Real("myReal", causality=Fmi2Causality.output, getter=lambda: self.realOut, setter=lambda v: set_real_out(v))
 
-    def setup_experiment(self, start_time: float, stop_time=None, tolerance=None):
+    def setup_experiment(self, start_time: float, stop_time: float | None = None, tolerance: float | None = None):
         """1. After instantiation the expriment is set up. In addition to start and end time also constant input variables are set."""
         assert [self.vars[idx].getter() for idx in range(5)] == [
             1,
@@ -112,7 +113,7 @@ class PythonSlave(Fmi2Slave):
     def exit_initialization_mode(self):
         pass
 
-    def do_step(self, current_time, step_size):
+    def do_step(self, current_time: float, step_size: float):
         """N. Happens at every communication point.
         a. Inputs (signals) are set
         b. Perform calculations
@@ -125,11 +126,11 @@ class PythonSlave(Fmi2Slave):
         return True
 
 
-def test_make_fmu(build_fmu):
+def test_make_fmu(build_fmu: Path):
     assert build_fmu.name == "PythonSlave.fmu"
 
 
-def test_use_fmu(build_fmu):
+def test_use_fmu(build_fmu: Path):
     _ = simulate_fmu(  # type: ignore #fmpy does not comply to pyright expectations
         build_fmu,
         stop_time=1,

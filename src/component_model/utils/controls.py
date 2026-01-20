@@ -9,7 +9,8 @@ class Controls(object):
     """Keep track of float variable changes.
 
     * Store and check possible float variable changes, including first and second derivatives
-    * Set control goals. A goal is either None or a sequence of (time, acceleration) tuples.
+    * Set control goals as list of goals, one goal per control variable.
+    * A single goal is either None (currently inactive) or a tuple of (time, acceleration)-tuples.
       In this way an acceleration can be set or the velocity or position can be changed through the step function.
 
     Args:
@@ -32,8 +33,9 @@ class Controls(object):
     ):
         self.names = list(names)
         self.dim = len(names)
-        self.goals: list[tuple | None] = [] if self.dim == 0 else [None] * self.dim  # Initially no goals set
-        self.rows = [] if self.dim == 0 else [-1] * self.dim  # current row in goal sequence
+        # one goal slot per dimension
+        self.goals: list[tuple[tuple[float, float], ...] | None] = [] if self.dim == 0 else [None] * self.dim
+        self.rows = [] if self.dim == 0 else [-1] * self.dim  # current row in goal list
         self.current: list[np.ndarray] = (
             [] if self.dim == 0 else [np.array((0.0, 0.0, 0.0), float) * self.dim]
         )  # current positions, speeds, accelerations
@@ -89,6 +91,7 @@ class Controls(object):
         return _limits
 
     def append(self, name: str, limits: tuple[tuple[float | None, float | None] | float | None, ...]):
+        """Append a control variable."""
         self.names.append(name)
         self.dim += 1
         self.goals.append(None)
@@ -110,7 +113,7 @@ class Controls(object):
             self.limits(idx, order, (value if minmax == 0 else lim[0], value if minmax == 1 else lim[1]))
         return self._limits[idx][order][minmax]
 
-    def limits(self, ident: int | str, order: int, value: tuple | None = None) -> tuple[float, float]:
+    def limits(self, ident: int | str, order: int, value: tuple[float, float] | None = None) -> tuple[float, float]:
         """Get/Set the min/max limit for 'idx', 'order'."""
         idx = ident if isinstance(ident, int) else self.names.index(ident)
         assert 0 <= idx < 3, f"Only idx = 0,1,2 allowed. Found {idx}"
@@ -156,11 +159,10 @@ class Controls(object):
             self.goals[idx] = None
         else:
             value = self.check_limit(idx, order, value)
+            assert value is not None, "float value expected here"
             # print(f"SET {idx}, {order}: {value}. Current:{current}. Limits:{self.limits(idx, order)}")
             if (
-                (
-                    order == 0 and abs(self.current[idx][0] - value) < 1e-13
-                )  # (adjusted) position goal is already reached
+                (order == 0 and abs(self.current[idx][0] - value) < 1e-13)  # (adjusted) position goal already reached
                 or (order == 2 and value == 0.0)
             ):  # zero acceleration requested
                 self.goals[idx] = None
@@ -220,10 +222,10 @@ class Controls(object):
         self.nogoals = all(x is None for x in self.goals)
         self.rows[idx] = -1 if self.goals[idx] is None else 0  # set start row
 
-    def getgoal(self, ident: int | str) -> tuple:
+    def getgoal(self, ident: int | str) -> tuple[float, tuple[tuple[float, float], ...] | None]:
         idx = ident if isinstance(ident, int) else self.names.index(ident)
         assert 0 <= idx < 3, f"Only idx = 0,1,2 allowed. Found {idx}"
-        return (self.current[idx], self.goals[idx])
+        return (float(self.current[idx]), self.goals[idx])
 
     def step(self, time: float, dt: float):
         """Step towards the goals (if goals are set)."""

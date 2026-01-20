@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -23,7 +24,7 @@ def _bouncing_ball_fmu():
     return fmu_path
 
 
-def dicts_equal(d1: dict, d2: dict):
+def dicts_equal(d1: dict[Any, Any], d2: dict[Any, Any]):
     assert isinstance(d1, dict), f"Dict expected. Found {d1}"
     assert isinstance(d2, dict), f"Dict expected. Found {d2}"
     for key in d1:
@@ -59,7 +60,7 @@ def test_xml_to_python_val():
     assert xml_to_python_val("Hello World") == "Hello World", "Detect a literal string"
 
 
-def test_model_description(bouncing_ball_fmu):
+def test_model_description(bouncing_ball_fmu: Path):
     et = read_xml(bouncing_ball_fmu)
     assert et is not None, "No Model Description"
     for a in (
@@ -123,7 +124,7 @@ def test_model_description(bouncing_ball_fmu):
     # ''.join(x.get('index') + ', ' for x in e.findall('./Unknown'))
 
 
-def test_model_from_fmu(bouncing_ball_fmu):
+def test_model_from_fmu(bouncing_ball_fmu: Path):
     kwargs = model_from_fmu(bouncing_ball_fmu)
     kwargs.pop("guid")
     expected = {
@@ -151,7 +152,7 @@ def test_model_from_fmu(bouncing_ball_fmu):
     dicts_equal(kwargs, expected)
 
 
-def test_variables_from_fmu(bouncing_ball_fmu):
+def test_variables_from_fmu(bouncing_ball_fmu: Path):
     et = read_xml(bouncing_ball_fmu)
     mv = et.find(".//ModelVariables")
     collect = []

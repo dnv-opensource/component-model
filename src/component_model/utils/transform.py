@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 # Utility functions for handling special variable types
-def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def spherical_to_cartesian(vec: np.ndarray | tuple[float, ...], deg: bool = False) -> np.ndarray:
     """Turn spherical vector 'vec' (defined according to ISO 80000-2 (r,polar,azimuth)) into cartesian coordinates."""
     if deg:
         theta = np.radians(vec[1])
@@ -24,7 +24,7 @@ def spherical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.nda
     return np.array((r * sinTheta * cosPhi, r * sinTheta * sinPhi, r * cosTheta))
 
 
-def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def cartesian_to_spherical(vec: np.ndarray | tuple[float, ...], deg: bool = False) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into spherical coordinates.
     (defined according to ISO 80000-2, (r, polar, azimuth)).
     """
@@ -40,7 +40,7 @@ def cartesian_to_spherical(vec: np.ndarray | tuple, deg: bool = False) -> np.nda
         return np.array((r, np.arccos(vec[2] / r), np.arctan2(vec[1], vec[0])), float)
 
 
-def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def cartesian_to_cylindrical(vec: np.ndarray | tuple[float, ...], deg: bool = False) -> np.ndarray:
     """Turn the vector 'vec' given in cartesian coordinates into cylindrical coordinates.
     (defined according to ISO, (r, phi, z), with phi right-handed wrt. x-axis).
     """
@@ -50,7 +50,7 @@ def cartesian_to_cylindrical(vec: np.ndarray | tuple, deg: bool = False) -> np.n
     return np.array((np.sqrt(vec[0] * vec[0] + vec[1] * vec[1]), phi, vec[2]), float)
 
 
-def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.ndarray:
+def cylindrical_to_cartesian(vec: np.ndarray | tuple[float, ...], deg: bool = False) -> np.ndarray:
     """Turn cylinder coordinate vector 'vec' (defined according to ISO (r,phi,z)) into cartesian coordinates.
     The angle phi is measured with respect to x-axis, right hand.
     """
@@ -59,11 +59,11 @@ def cylindrical_to_cartesian(vec: np.ndarray | tuple, deg: bool = False) -> np.n
 
 
 def euler_rot_spherical(
-    rpy: tuple | list | Rot,
-    vec: tuple | list | None = None,
+    rpy: tuple[float, ...] | list[float] | Rot,
+    vec: tuple[float, ...] | list[float] | None = None,
     seq: str = "XYZ",  # sequence of axis of rotation as defined in scipy Rotation object
     degrees: bool = False,
-) -> tuple | list | np.ndarray:
+) -> np.ndarray:
     """Rotate the spherical vector vec using the Euler angles (yaw,pitch,roll).
 
     Args:
@@ -113,12 +113,12 @@ def euler_rot_spherical(
     else:
         phi = np.arctan2(x[1], x[0])
     if vec is not None and len(vec) == 3:
-        return (radius, np.arccos(x2), phi)  # return the spherical vector
+        return np.array((radius, np.arccos(x2), phi), float)  # return the spherical vector
     else:
-        return (np.arccos(x2), phi)  # return only the direction
+        return np.array((np.arccos(x2), phi), float)  # return only the direction
 
 
-def rot_from_spherical(vec: tuple | list | np.ndarray, degrees: bool = False):
+def rot_from_spherical(vec: tuple[float, ...] | list[float] | np.ndarray, degrees: bool = False) -> Rot:
     """Return a scipy Rotation object from the spherical coordinates vec,
     i.e. the rotation which turns a vector along the z-axis into vec.
 
@@ -130,7 +130,7 @@ def rot_from_spherical(vec: tuple | list | np.ndarray, degrees: bool = False):
     return Rot.from_rotvec((0.0, 0.0, angle[1]), degrees) * Rot.from_rotvec((0.0, angle[0], 0.0), degrees)
 
 
-def rot_from_vectors(vec1: np.ndarray, vec2: np.ndarray):
+def rot_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> Rot:
     """Find the rotation object which rotates vec1 into vec2. Lengths of vec1 and vec2 shall be equal."""
     n = np.linalg.norm(vec1)
     assert abs(n - np.linalg.norm(vec2)) < 1e-10, f"Vectors len({vec1}={n} != len{vec2}. Cannot rotate into each other"
@@ -188,7 +188,7 @@ def spherical_unique(vec: np.ndarray, eps: float = 1e-10) -> np.ndarray:
         return np.array((theta, phi), float)
 
 
-def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: bool = False) -> np.ndarray:
+def quantity_direction(quantity_direction: tuple[float, ...], spherical: bool = False, deg: bool = False) -> np.ndarray:
     """Turn a 4-tuple, consisting of quantity (float) and a direction 3-vector to a direction 3-vector,
     where the norm denotes the direction and the length denotes the quantity.
     The return vector is always a cartesian vector.
@@ -209,7 +209,7 @@ def quantity_direction(quantity_direction: tuple, spherical: bool = False, deg: 
     return quantity_direction[0] / n * direction
 
 
-def normalized(vec: np.ndarray):
+def normalized(vec: np.ndarray) -> np.ndarray:
     """Return the normalized vector. Helper function."""
     assert len(vec) == 3, f"{vec} should be a 3-dim vector"
     norm = np.linalg.norm(vec)

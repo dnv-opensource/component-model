@@ -14,7 +14,7 @@ from typing import Any
 from component_model.utils.xml import read_xml, xml_to_python_val
 
 
-def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep=".") -> dict:
+def model_from_fmu(fmu: str | Path, provideMsg: bool = False, sep: str = ".") -> dict[str, Any]:
     """Generate a Model from an FMU (excluding the inner working functions like `do_step()`),
     i.e. partially reverse-engineering a FMU.
     This can be useful for convenient access to model information like variables
@@ -101,13 +101,13 @@ def variables_from_fmu(el: ET.Element | None, sep: str = "["):
         else:
             return (txt, None)
 
-    def get_start(v, _typ):
+    def get_start(v: ET.Element, _typ: type):
         start = v.attrib.get("start", None)
         if start is None:  # set an 'example' value of the correct type
-            start = {float: 1.0, int: 1, bool: False, str: "", Enum: 1}[_typ]
+            return {float: 1.0, int: 1, bool: False, str: "", Enum: 1}[_typ]
         return start
 
-    def get_basic_kwargs(sv):
+    def get_basic_kwargs(sv: ET.Element):
         """Get the basic kwargs of this ScalarVariable,
         i.e. the kwargs which are the same for all elements of compound variables.
         """

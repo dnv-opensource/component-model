@@ -2,234 +2,25 @@ from __future__ import annotations
 
 import logging
 import xml.etree.ElementTree as ET  # noqa: N817
-from enum import Enum, IntFlag
-from functools import partial
+from enum import Enum
 from typing import Any, Callable, Sequence, TypeAlias
 
 import numpy as np
-from pint import Quantity, UnitRegistry  # management of units
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
 from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
 from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
 from pythonfmu.variables import ScalarVariable  # type: ignore
 
-from component_model.enums import check_causality_variability_initial, use_start
+from component_model.enums import Check, check_causality_variability_initial, use_start
+from component_model.range import Range
+from component_model.unit import Unit
 from component_model.variable_naming import ParsedVariable
 
 logger = logging.getLogger(__name__)
 PyType: TypeAlias = str | int | float | bool | Enum
+RngSingle: TypeAlias = tuple[int | float | None, int | float | None] | None | tuple[()]
 Numeric: TypeAlias = int | float
 Compound: TypeAlias = tuple[PyType, ...] | list[PyType] | np.ndarray
-
-
-class Check(IntFlag):
-    """Flags to denote how variables should be checked with respect to units and range.
-    The aspects are indepent, but can be combined in the Enum through | or &.
-
-    * none:     neither units nor ranges are expected or checked.
-    * unitNone: only numbers without units expected when new values are provided.
-      If units are provided during initialization, these should be base units (SE), i.e. unit and display are the same.
-    * u_all:    expect always quantity and number and convert internally to base units (SE). Provide output as display
-    * units:    flag to filter only on units, e.g ck & Check.units
-    * r_none:   no range is provided or checked
-    * r_check:  range is provided and checked
-    * ranges:  flag to filter on range, e.g. ck & Check.ranges
-    * all:     short for u_all | r_check
-    """
-
-    none = 0
-    u_none = 0
-    u_all = 1
-    units = 1
-    r_none = 0
-    r_check = 2
-    ranges = 2
-    all = 3
-
-
-class Unit:
-    """Helper class to store and manage units and display units,
-    i.e. base unit of variable and unit differences 'outside' and 'inside' the model.
-
-    One Unit object represents one scalar variable.
-    """
-
-    def __init__(self):
-        self.u = ""  # unit as string (placeholder)
-        self.du = None  # display unit (default: same as u, no transformation)
-        self.to_base = partial(Unit.identity)  # ensure a definition
-        self.from_base = partial(Unit.identity)  # ensure a definition
-
-    def __str__(self):
-        txt = f"Unit {self.u}, display:{self.du}"
-        if self.du is not None:
-            txt += f". Offset:{self.to_base(0)}, factor:{self.to_base(1.0) - self.to_base(0.0)}"
-        return txt
-
-    def parse_quantity(self, quantity: PyType, ureg: UnitRegistry, typ: type | None = None) -> PyType:
-        """Parse the provided quantity in terms of magnitude and unit, if provided as string.
-        If another type is provided, dimensionless units are assumed.
-
-        Args:
-            quantity (PyType): the quantity to disect. Should be provided as string, but also the trivial cases (int,float,Enum) are allowed.
-            A free string should not be used and leads to a warning
-        Returns:
-            the magnitude in base units, the base unit and the unit as given (display units),
-            together with the conversion functions between the units.
-        """
-        if typ is str:
-            self.u = "dimensionless"
-            self.du = None
-            val = quantity
-        elif isinstance(quantity, str):  # only string variable make sense to disect
-            assert ureg is not None, f"UnitRegistry not found, while providing units: {quantity}"
-            try:
-                q = ureg(quantity)  # parse the quantity-unit and return a Pint Quantity object
-                if isinstance(q, (int, float)):
-                    self.u = ""
-                    self.du = None
-                    return q  # integer or float variable with no units provided
-                elif isinstance(q, Quantity):  # pint.Quantity object
-                    # transform to base units ('SI' units). All internal calculations will be performed with these
-                    val = self.val_unit_display(q, ureg)
-                else:
-                    logger.critical(f"Unknown quantity {quantity} to disect")
-                    raise VariableInitError(f"Unknown quantity {quantity} to disect") from None
-            # no recognized units. Assume a free string. ??Maybe we should be more selective about the exact error type:
-            except Exception as warn:
-                logger.warning(f"Unhandled quantity {quantity}: {warn}. A str? Set explicit 'typ=str'.")
-                self.u = ""
-                self.du = None
-                val = str(quantity)
-        else:
-            self.u = "dimensionless"
-            self.du = None
-            val = quantity
-        if typ is not None and type(val) is not typ:  # check variable type
-            try:  # try to convert the magnitude to the correct type.
-                val = typ(val)
-            except Exception as err:
-                logger.critical(f"Value {val} is not of the correct type {typ}")
-                raise VariableInitError(f"Value {val} is not of the correct type {typ}") from err
-        return val
-
-    @classmethod
-    def linear(cls, x: float, b: float, a: float = 0.0):
-        return a + b * x
-
-    @classmethod
-    def identity(cls, x: float):
-        return x
-
-    def val_unit_display(self, q: Quantity, ureg: UnitRegistry) -> float:
-        """Identify base units and calculate the transformations between display and base units.
-
-        Returns
-        -------
-            The numerical value of q. As side effect
-
-            * the unit `u` is set. Might be `dimensionless`
-            * the display unit `du` is set to None if same as unit, else
-
-               - it is set to the display unit name and
-               - the transformations `to_base` and `from_base` are set.
-        """
-        qb = q.to_base_units()
-        self.u = str(qb.units)
-        val = qb.magnitude  # Note: numeric types are not converted, e.g. int to float
-        if qb.units == q.units:  # no conversion
-            self.du = None
-        else:  # calculate the conversion functions
-            # we generate a second value and calculate the straight line conversion function
-            # did not find a better way in pint
-            self.du = str(q.units)
-            q2 = ureg.Quantity(10.0 * (q.magnitude + 10.0), q.units)
-            qb2 = q2.to_base_units()
-            a = (qb.magnitude * q2.magnitude - qb2.magnitude * q.magnitude) / (q2.magnitude - q.magnitude)
-            b = (qb2.magnitude - qb.magnitude) / (q2.magnitude - q.magnitude)
-            if abs(a) < 1e-9:  # multiplicative conversion
-                if abs(b - 1.0) < 1e-9:  # unit and display unit are compatible. No transformation
-                    self.du = None
-                self.to_base = partial(Unit.linear, b=b)
-                self.from_base = partial(Unit.linear, b=1.0 / b)
-            else:  # there is a constant (e.g. Celsius to Fahrenheit)
-                self.to_base = partial(Unit.linear, b=b, a=a)
-                self.from_base = partial(Unit.linear, b=1.0 / b, a=-a / b)
-        return val
-
-    @classmethod
-    def make(cls, quantity: PyType, ureg: UnitRegistry, typ: type | None = None) -> tuple[tuple[PyType], tuple[Unit]]:
-        u = Unit()
-        val = u.parse_quantity(quantity, ureg, typ)
-        return ((val,), (u,))
-
-    @classmethod
-    def make_tuple(
-        cls, quantities: tuple | list | np.ndarray, ureg: UnitRegistry, typ: type | None = None
-    ) -> tuple[tuple[PyType, ...], tuple[Unit, ...]]:
-        """Make a tuple of Unit objects from the tuple of quantities."""
-        values: list[PyType] = []
-        units: list[Unit] = []
-        for q in quantities:
-            val, u = cls.make(q, ureg, typ)
-            values.extend(val)
-            units.extend(u)
-        return (tuple(values), tuple(units))
-
-    @classmethod
-    def derivative(cls, baseunits: tuple[Unit, ...], tu: str = "s") -> tuple[tuple[float, ...], tuple[Unit, ...]]:
-        """Construct units for a derivative variable of basevars. tu is the time unit."""
-        units: list[Unit] = []
-        for bu in baseunits:
-            u = Unit()
-            u.u = f"{bu.u}/{tu}"
-            u.du = None if bu.du is None else f"{bu.du}/{tu}"
-            if bu.du is not None:
-                u.to_base = bu.to_base
-                u.from_base = bu.from_base
-            units.append(u)
-        values = [0.0] * len(baseunits)
-        return (tuple(values), tuple(units))
-
-    def compatible(
-        self, quantity: PyType, ureg: UnitRegistry, typ: type | None = None, strict: bool = True
-    ) -> tuple[bool, PyType]:
-        """Check whether the supplied quantity 'q' is compatible with this unit.
-        If strict==True, the supplied quantity shall be in display units.
-        """
-        _q, _unit = Unit.make(quantity, ureg, typ)
-        q = _q[0]
-        unit = _unit[0]
-        # no explicit unit needed when the quantity is 0 or inf (anything compatible)
-        if (
-            (
-                (q == 0 or q == float("inf") or q == float("-inf")) and unit.u == "dimensionless"
-            )  # 0, +/-inf without unit
-            or (strict and self.u == unit.u and self.du == unit.du)
-            or (not strict and self.u == unit.u)
-        ):
-            return (True, q)
-        else:
-            return (False, q)
-
-
-# Some special error classes
-class VariableInitError(Exception):
-    """Special error indicating that something is wrong with the variable definition."""
-
-    pass
-
-
-class VariableRangeError(Exception):
-    """Special Exception class signalling that a value is not within the range."""
-
-    pass
-
-
-class VariableUseError(Exception):
-    """Special Exception class signalling that variable use was not in accordance with settings."""
-
-    pass
 
 
 class Variable(ScalarVariable):
@@ -282,8 +73,8 @@ class Variable(ScalarVariable):
            evaluating to quantity of type typ a display unit and base unit.
            Note that the quantities are always converted to standard units of the same type, while the display unit may be different,
            i.e. the preferred user communication.
-        rng (tuple) = (): Optional range of the variable in terms of a tuple of the same type as initial value.
-           Should be specified with units (as string).
+        rng ((tuple of) range spec) = (): Optional range of the variable in terms of a (tuple of) range spec(s).
+           Should be specified with units (as string). See Range class for details.
 
            * If an empty tuple is specified, the range is automatically determined.
              That is only possible for float or enum type variables, where the former evaluates to (-inf, inf).
@@ -319,7 +110,7 @@ class Variable(ScalarVariable):
 
     def __init__(
         self,
-        model,
+        model: Any,
         name: str,
         description: str = "",
         causality: str | None = "parameter",
@@ -327,14 +118,17 @@ class Variable(ScalarVariable):
         initial: str | None = None,
         typ: type | None = None,
         start: PyType | Compound | None = None,
-        rng: tuple | None = tuple(),
-        annotations: dict | None = None,
+        rng: RngSingle | tuple[RngSingle, ...] = tuple(),
+        annotations: dict[str, Any] | None = None,
         value_check: Check = Check.all,
         on_step: Callable | None = None,
         on_set: Callable | None = None,
         owner: Any | None = None,
         local_name: str | None = None,
     ):
+        from component_model.model import Model
+
+        assert isinstance(model, Model)
         self.model = model
         self._causality, self._variability, self._initial = check_causality_variability_initial(
             causality, variability, initial
@@ -383,32 +177,32 @@ class Variable(ScalarVariable):
         else:
             self.local_name = local_name  # use explicitly provided local name
 
-        if self._typ is str:  # explicit free string
+        if self._typ is str:  # explicit free string. String arrays are so far not implemented
             assert isinstance(start, str)
             self._len = 1
-            self._start, self._unit = Unit.make(start, self.model.ureg, typ=str)
-            self.range = ("", "")  # just a placeholder. Strings are not range checked
+            self._start, self._unit = Unit.make(start, typ=str)
+            self._range = (Range(self._start[0], unit=self._unit[0]),)  # Strings have fixed range
         else:
             # if type is provided and no (initial) value. We set a default value of the correct type as 'example' value
             if not len(self._start):  # not yet set
-                assert start is not None, (
-                    f"{self.name}: start value is mandatory, at least for type and unit determination"
-                )
-                if isinstance(start, (tuple | list | np.ndarray)):
-                    self._start, self._unit = Unit.make_tuple(start, self.model.ureg, self._typ)
+                assert start is not None, f"{self.name}: Provide start value, at least for type and unit determination"
+                if isinstance(start, (tuple, list, np.ndarray)):
+                    self._start, self._unit = Unit.make_tuple(start, self._typ)
                 else:
-                    self._start, self._unit = Unit.make(start, self.model.ureg, self._typ)
+                    self._start, self._unit = Unit.make(start, self._typ)
             self._len = len(self._start)
             if self._typ is None:  # try to adapt using start
                 self._typ = self.auto_type(self._start)
             assert isinstance(self._typ, type)
-            if self._len > 1:  # make sure that all _start elements have the same type
-                self._start = tuple(self._typ(self._start[i]) for i in range(self._len))
-            self.range = self._init_range(rng)
+            self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
+            if self._len == 1:
+                self._range = (Range(self._start[0], rng, self._unit[0]),)
+            else:
+                self._range = tuple([Range(self._start[i], rng[i], self._unit[i]) for i in range(self._len)])
 
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             logger.critical(f"The provided value {self._start} is not in the valid range {self._range}")
-            raise VariableInitError(f"The provided value {self._start} is not in the valid range {self._range}")
+            raise ValueError(f"The provided value {self._start} is not in the valid range {self._range}")
         self.model.register_variable(self)
         assert len(self._start) > 0, "Empty tuples are not handled here:"
         try:
@@ -466,13 +260,6 @@ class Variable(ScalarVariable):
     @property
     def range(self):
         return self._range
-
-    @range.setter
-    def range(self, val):
-        if isinstance(val, tuple) and isinstance(val[0], tuple):  # compound variable
-            self._range = val
-        elif isinstance(val, tuple) and all(isinstance(val[i], (int, float, bool, Enum, str)) for i in range(2)):
-            self._range = (val,)
 
     @property
     def typ(self):
@@ -606,90 +393,63 @@ class Variable(ScalarVariable):
             logger.error(f"getter(): Value of {self.name}: {values} outside range {self.range}!")
         return values
 
-    def _init_range(self, rng: tuple | None) -> tuple:
-        """Initialize the variable range(s) of the variable
-        The _start and _unit shall exist when calling this.
-
-        Args:
-            rng (tuple): The tuple of range tuples.
-              Always for the whole variable with scalar variables packed in a singleton
-        """
-
-        assert hasattr(self, "_start") and hasattr(self, "_unit"), "Missing self._start / self._unit"
-        assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
-        # Configure input. Could be None, () or (min,max) of scalar
-        if rng is None or rng == tuple() or (self._len == 1 and len(rng) == 2):
-            rng = (rng,) * self._len
-
-        _range = []
-        for idx in range(self._len):  # go through all elements
-            _rng = rng[idx]
-            if _rng is None:  # => no range. Used for compound variables if not all elements have a range
-                s0 = self._start[idx]
-                assert isinstance(s0, float)
-                v = self._unit[idx].from_base(s0) if self._unit[idx].du is not None else s0
-                _range.append((v, v))
-            elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
-                _range.append(self._auto_extreme(self._start[idx]))
-            elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
-                i_range: list = []  # collect range as list
-                for r in _rng:
-                    if r is None:  # no range => fixed to initial value
-                        q = self._start[idx]
-                    else:
-                        check, q = self._unit[idx].compatible(r, self.model.ureg, self._typ, strict=True)
-                        if not check:
-                            check, q = self._unit[idx].compatible(r, self.model.ureg, self._typ, strict=False)
-                            if check:
-                                logger.warn(f"{self.name}[{idx}] range {r}: Use display units {self._unit[idx].du}!")
-                            else:
-                                msg = f"{self.name}[{idx}]: range {r} not conformant to the unit type {self._unit[idx]}"
-                                logger.critical(msg)
-                                raise VariableInitError(msg)
-                    assert isinstance(q, float) or (self._typ is int and isinstance(q, int))
-                    if self._unit[idx].du is not None:
-                        q = self._unit[idx].from_base(q)
-                    i_range.append(q)
-
-                try:  # check variable type
-                    i_range = [self._typ(x) for x in i_range]
-                except Exception as err:
-                    logger.critical(f"Incompatible types range {rng} - {self._start}")
-                    raise VariableRangeError(f"Incompatible types range {rng} - {self._start}") from err
-                assert all(isinstance(x, self._typ) for x in i_range)
-                _range.append(tuple(i_range))  # type: ignore
-            else:
-                logger.critical(f"init_range(): Unhandled range argument {rng}")
-                raise AssertionError(f"init_range(): Unhandled range argument {rng}")
-        return tuple(_range)
-
-    def check_range_single(self, value: PyType | None, idx: int = 0, disp: bool = True) -> bool:
-        """Check a single value."""
-        assert idx >= 0, f"Need a proper idx here. Found {idx}"
-        assert self._typ is not None
-        if value is None:  # denotes unchanged values (of compound variables)
-            return True
-        if self._typ is not type(value):
-            try:
-                value = self._typ(value)  # try to cast the values
-            except Exception:  # give up
-                return False
-        # special types
-        if self._typ is str:  # no range checking on str
-            return True
-        elif self._typ is bool:
-            return isinstance(value, bool)
-        elif isinstance(value, Enum):
-            assert self._typ is not None
-            return isinstance(value, self._typ)
-
-        elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self._range[idx]):
-            if not disp and self._unit[idx].du is not None:  # check an internal unit values
-                value = self._unit[idx].from_base(value)
-            return self._range[idx] is None or self._range[idx][0] <= value <= self._range[idx][1]
-        else:
-            logger.error(f"check_range(): value={value}, type={self.typ}, range={self.range}")
-            return False
+    #     def _init_range(self, rng: RngSpec) -> tuple[tuple[Any,Any],None]:
+    #         """Initialize the variable range(s) of the variable
+    #         The _start and _unit shall exist when calling this.
+    #
+    #         Args:
+    #             rng (tuple): The tuple of range tuples.
+    #               Always for the whole variable with scalar variables packed in a singleton
+    #         """
+    #
+    #         assert hasattr(self, "_start") and hasattr(self, "_unit"), "Missing self._start / self._unit"
+    #         assert isinstance(self._typ, type), "init_range(): Need a defined _typ at this stage"
+    #         # Configure input. Could be None, () or (min,max) of scalar
+    #         if rng is None or rng == tuple() or (self._len == 1 and len(rng) == 2):
+    #             rng = (rng,) * self._len
+    #
+    #         _range = []
+    #         for idx in range(self._len):  # go through all elements
+    #             assert rng is not None, "rng None detected"
+    #             _rng = rng[idx]
+    #             if _rng is None:  # => no range. Used for compound variables if not all elements have a range
+    #                 s0 = self._start[idx]
+    #                 assert isinstance(s0, float)
+    #                 v = self._unit[idx].from_base(s0) if self._unit[idx].du is not None else s0
+    #                 _range.append((v, v))
+    #             elif isinstance(_rng, tuple) and not len(_rng):  # empty tuple => try automatic range
+    #                 _range.append(self._auto_extreme(self._start[idx]))
+    #             elif isinstance(_rng, tuple) and len(_rng) == 2:  # normal range as 2-tuple
+    #                 i_range: list[float] = []  # collect range as list
+    #                 for r in _rng:
+    #                     if r is None:  # no range => fixed to initial value
+    #                         q = self._start[idx]
+    #                     else:
+    #                         check, q = self._unit[idx].compatible(r, self.model.ureg, self._typ, strict=True)
+    #                         if not check:
+    #                             check, q = self._unit[idx].compatible(r, self.model.ureg, self._typ, strict=False)
+    #                             if check:
+    #                                 logger.warn(f"{self.name}[{idx}] range {r}: Use display units {self._unit[idx].du}!")
+    #                             else:
+    #                                 msg = f"{self.name}[{idx}]: range {r} not conformant to the unit type {self._unit[idx]}"
+    #                                 logger.critical(msg)
+    #                                 raise VariableInitError(msg)
+    #                     assert isinstance(q, float) or (self._typ is int and isinstance(q, int))
+    #                     if self._unit[idx].du is not None:
+    #                         q = self._unit[idx].from_base(q)
+    #                     i_range.append(q)
+    #
+    #                 try:  # check variable type
+    #                     i_range = [self._typ(x) for x in i_range]
+    #                 except Exception as err:
+    #                     logger.critical(f"Incompatible types range {rng} - {self._start}")
+    #                     raise VariableRangeError(f"Incompatible types range {rng} - {self._start}") from err
+    #                 assert all(isinstance(x, self._typ) for x in i_range)
+    #                 _range.append(tuple(i_range))  # type: ignore
+    #             else:
+    #                 logger.critical(f"init_range(): Unhandled range argument {rng}")
+    #                 raise AssertionError(f"init_range(): Unhandled range argument {rng}")
+    #         return tuple(_range)
 
     def check_range(self, values: Sequence[PyType | None] | np.ndarray, idx: int = 0, disp: bool = True) -> bool:
         """Check the provided 'values' with respect to the range.
@@ -707,14 +467,15 @@ class Variable(ScalarVariable):
         if self._len == 1 and idx == -1:
             idx = 0
         if isinstance(values[0], str):  # no range checking on strings
-            return self._typ is str
+            ck = self._typ is str
         elif self._len > 1 and idx < 0:  # check all components
             assert isinstance(values, (Sequence, np.ndarray)) and len(values) == self._len, (
                 f"Values {values} not sufficient. Need {self._len}"
             )
-            return all(self.check_range_single(values[i], i, disp) for i in range(self._len))
+            ck = all(r.check(v, self._typ, u, disp) for v, r, u in zip(values, self._range, self._unit, strict=True))
         else:
-            return self.check_range_single(values[0], idx, disp)
+            ck = self._range[idx].check(values[0], self._typ, self._unit[idx], disp)
+        return ck
 
     def fmi_type_str(self, val: PyType) -> str:
         """Translate the provided type to a proper fmi type and return it as string.
@@ -754,7 +515,7 @@ class Variable(ScalarVariable):
                             typ = float
                     else:
                         logger.critical(f"Incompatible variable types {typ}, {t} in {val}")
-                        raise VariableInitError(f"Incompatible variable types {typ}, {t} in {val}") from None
+                        raise TypeError(f"Incompatible variable types {typ}, {t} in {val}") from None
                 else:
                     logger.critical(f"auto_type(). Unhandled {t}, {typ}")
                     raise ValueError(f"auto_type(). Unhandled {t}, {typ}")
@@ -770,7 +531,7 @@ class Variable(ScalarVariable):
                 return type(val)
 
     @classmethod
-    def _auto_extreme(cls, var: PyType) -> tuple:
+    def _auto_extreme(cls, var: PyType) -> tuple[float | bool, ...]:
         """Return the extreme values of the variable.
 
         Args:
@@ -838,12 +599,12 @@ class Variable(ScalarVariable):
             if do_use_start:  # a start value is to be used
                 info.attrib.update({"start": self.fmi_type_str(self._start[i])})
             if _type in ("Real", "Integer", "Enumeration"):  # range to be specified
-                xMin = self.range[i][0]
+                xMin = self.range[i].rng[0]
                 if _type != "Real" or xMin > float("-inf"):
                     info.attrib.update({"min": str(xMin)})
                 else:
                     info.attrib.update({"unbounded": "true"})
-                xMax = self.range[i][1]
+                xMax = self.range[i].rng[1]
                 if _type != "Real" or xMax < float("inf"):
                     info.attrib.update({"max": str(xMax)})
                 else:

@@ -9,9 +9,8 @@ from enum import Enum
 from math import log
 from numbers import Real
 from pathlib import Path
-from typing import Generator, Sequence, TypeAlias
+from typing import Any, Generator, TypeAlias
 
-from pint import UnitRegistry
 from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore[import-untyped]
 from pythonfmu import __version__ as pythonfmu_version
 from pythonfmu.default_experiment import DefaultExperiment  # type: ignore[import-untyped]
@@ -97,17 +96,17 @@ class Model(Fmi2Slave):
 
     def __init__(
         self,
-        name,
+        name: str,
         description: str = "A component model",
         author: str = "anonymous",
         version: str = "0.1",
-        unit_system="SI",
+        unit_system: str = "SI",
         license: str | None = None,
         copyright: str | None = None,
         default_experiment: dict[str, float] | None = None,
-        flags: dict | None = None,
+        flags: dict[str, Any] | None = None,
         guid: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         kwargs.update(
             {
@@ -140,7 +139,7 @@ class Model(Fmi2Slave):
         if guid is not None:
             self.guid = guid
         # use a common UnitRegistry for all variables:
-        self.ureg: UnitRegistry = UnitRegistry(system=unit_system)
+        self.ureg = Unit.ensure_unit_registry(system=unit_system)  # ensure that common registry is initialized
         self.copyright, self.license = self.make_copyright_license(copyright, license)
         self.guid = guid if guid is not None else uuid.uuid4().hex
         #        print("FLAGS", flags)
@@ -148,9 +147,9 @@ class Model(Fmi2Slave):
         self.variable_naming = ensure_enum(variable_naming, VariableNamingConvention.flat)
         self._units: list[Unit] = []  # list of all Unit objects defined in the model => UnitDefinitions
         self.flags = self.check_flags(flags)
-        self._dirty: list = []  # dirty compound variables. Used by (set) during do_step()
+        self._dirty: list[Variable] = []  # dirty compound variables. Used by (set) during do_step()
         self.time = self.default_experiment.start_time  # keeping track of time when dynamic calculations are performed
-        self.derivatives: dict = {}  # dict of non-explicit derivatives {dername : basevar, ...}
+        self.derivatives: dict[str, Variable] = {}  # dict of non-explicit derivatives {dername : basevar, ...}
 
     def setup_experiment(self, start_time: float = 0.0, stop_time: None | float = None, tolerance: None | float = None):
         """Minimum version of setup_experiment, just setting the start_time. Derived models may need to extend this."""
@@ -188,7 +187,7 @@ class Model(Fmi2Slave):
                     break
             self._units.append(cu)
 
-    def owner_hierarchy(self, parent: str | None) -> list:
+    def owner_hierarchy(self, parent: str | None) -> list[Variable]:
         """Analyse the parent of a variable down to the Model and return the owners as list."""
         ownernames: list[tuple[str, int | None]] = []
         assert isinstance(self.variable_naming, VariableNamingConvention), (
@@ -280,7 +279,7 @@ class Model(Fmi2Slave):
     def units(self):
         return self._units
 
-    def add_variable(self, *args, **kwargs):
+    def add_variable(self, *args: Any, **kwargs: Any):
         """Add a variable, automatically including the owner model in the instantiation call.
         The function represents an alternative method for defining interface variables
         automatically adding the mandatory first `model` argument.
@@ -391,7 +390,7 @@ class Model(Fmi2Slave):
         project_files: list[str | Path] | None = None,
         dest: str | os.PathLike[str] = ".",
         documentation_folder: Path | None = None,
-        newargs: dict | None = None,
+        newargs: dict[str, Any] | None = None,
     ):
         """Build the FMU, resulting in the model-name.fmu file.
 
@@ -448,7 +447,7 @@ class Model(Fmi2Slave):
             )
             return asBuilt
 
-    def to_xml(self, model_options: dict | None = None) -> ET.Element:
+    def to_xml(self, model_options: dict[str, Any] | None = None) -> ET.Element:
         """Build the XML FMI2 modelDescription.xml tree. (adapted from PythonFMU).
 
         Args:
@@ -463,7 +462,7 @@ class Model(Fmi2Slave):
         t = datetime.datetime.now(datetime.timezone.utc)
         date_str = t.isoformat(timespec="seconds")
 
-        attrib: dict = {
+        attrib: dict[str, str] = {
             "fmiVersion": "2.0",
             "modelName": self.modelName or "myDummyModel",
             "guid": f"{self.guid!s}",
@@ -553,7 +552,14 @@ class Model(Fmi2Slave):
                     # udeg = str(ubase.units).replace("radian", "degree")
                     # print("EXPONENT", ubase.units, udeg, log(ubase.magnitude), log(self.ureg('degree').to_base_units().magnitude))
                     exponents.update(
-                        {"rad": str(int(log(ubase.magnitude) / log(self.ureg("degree").to_base_units().magnitude)))}
+                        {
+                            "rad": str(
+                                int(
+                                    log(float(ubase.magnitude))
+                                    / log(float(self.ureg("degree").to_base_units().magnitude))
+                                )
+                            )
+                        }
                     )
 
                 unit = ET.Element("Unit", {"name": u.u})
@@ -581,7 +587,7 @@ class Model(Fmi2Slave):
         return defs
 
     def _xml_default_experiment(self):
-        attrib: dict = {}
+        attrib: dict[str, str] = {}
         if self.default_experiment is not None:
             if self.default_experiment.start_time is not None:
                 attrib["startTime"] = str(self.default_experiment.start_time)
@@ -668,7 +674,7 @@ class Model(Fmi2Slave):
         return init
 
     @staticmethod
-    def check_flags(flags: dict | None):
+    def check_flags(flags: dict[str, Any] | None):
         """Check and collect provided flags dictionary and return the non-default flags.
         Any of the defined FMI flags with a non-default value (see FMI 2.0.4, Section 4.3.1).
         .. todo:: Check also whether the model actually provides these features.
@@ -691,7 +697,7 @@ class Model(Fmi2Slave):
                     _flags.update({flag: flags[flag]})
         return _flags
 
-    def vars_iter(self, key=None):
+    def vars_iter(self, key: Any = None):
         """Iterate over model variables ('vars'). The returned variables depend on 'key' (see below).
 
         Args:
@@ -739,7 +745,7 @@ class Model(Fmi2Slave):
             var = self.vars[_vr]
         return (var, vr - _vr)
 
-    def _vrs_slices(self, vrs: Sequence[int]) -> Generator[tuple[Variable, slice, slice], None, None]:
+    def _vrs_slices(self, vrs: tuple[int, ...] | list[int]) -> Generator[tuple[Variable, slice, slice], None, None]:
         """Decode the sequence of valueReferences into a tuple of (Variable, vslice, vrs_slice),
         where vslice refers to the variable and vrs_slice to the vrs sequence.
 
@@ -770,11 +776,11 @@ class Model(Fmi2Slave):
             _vr = vr
         yield (var, slice(start, start + len(vrs) - i0), slice(i0, len(vrs)))  # type: ignore # vrs is not empty!
 
-    def _get(self, vrs: Sequence[int], typ: type) -> list:
+    def _get(self, vrs: tuple[int, ...] | list[int], typ: type) -> list[Any]:
         """Get variables of all types based on references.
         This method is called by get_xxx and translates to fmi2GetXxx.
         """
-        values: list = []
+        values: list[Any] = []
         for var, sv, _svr in self._vrs_slices(vrs):  # iterates over variable, slices in var and slices in vrs
             assert isinstance(var, Variable)
             assert isinstance(var.typ, type)
@@ -784,19 +790,24 @@ class Model(Fmi2Slave):
             values.extend(val[sv])
         return values
 
-    def get_integer(self, vrs: Sequence[int]):
+    def get_integer(self, vrs: tuple[int, ...] | list[int]) -> list[int]:
         return self._get(vrs, int)
 
-    def get_real(self, vrs: Sequence[int]):
+    def get_real(self, vrs: tuple[int, ...] | list[int]) -> list[float]:
         return self._get(vrs, float)
 
-    def get_boolean(self, vrs: Sequence[int]):
+    def get_boolean(self, vrs: tuple[int, ...] | list[int]) -> list[bool]:
         return self._get(vrs, bool)
 
-    def get_string(self, vrs: Sequence[int]):
+    def get_string(self, vrs: tuple[int, ...] | list[int]) -> list[int]:
         return self._get(vrs, str)
 
-    def _set(self, vrs: Sequence[int], values: Sequence[int | float | bool | str], typ: type):
+    def _set(
+        self,
+        vrs: tuple[int, ...] | list[int],
+        values: tuple[int | float | bool | str, ...] | list[int | float | bool | str],
+        typ: type,
+    ):
         """Set variables of all types. This method is called by set_xxx and translates to fmi2SetXxx.
         Variable range check, unit check and type check are performed by setter() function.
         on_set (if defined) is only run if the whole variable (all elements) are set.
@@ -816,19 +827,35 @@ class Model(Fmi2Slave):
                 var.setter(values[svr], idx=0)
         # print(f"{self.name}. Set {vrs}:{values}")
 
-    def set_integer(self, vrs: Sequence[int], values: Sequence[int]):
+    def set_integer(
+        self,
+        vrs: tuple[int, ...] | list[int],
+        values: tuple[int | float | bool | str, ...] | list[int | float | bool | str],
+    ):
         self._set(vrs, values, int)
 
-    def set_real(self, vrs: Sequence[int], values: Sequence[float]):
+    def set_real(
+        self,
+        vrs: tuple[int, ...] | list[int],
+        values: tuple[int | float | bool | str, ...] | list[int | float | bool | str],
+    ):
         self._set(vrs, values, float)
 
-    def set_boolean(self, vrs: Sequence[int], values: Sequence[bool]):
+    def set_boolean(
+        self,
+        vrs: tuple[int, ...] | list[int],
+        values: tuple[int | float | bool | str, ...] | list[int | float | bool | str],
+    ):
         self._set(vrs, values, bool)
 
-    def set_string(self, vrs: Sequence[int], values: Sequence[str]):
+    def set_string(
+        self,
+        vrs: tuple[int, ...] | list[int],
+        values: tuple[int | float | bool | str, ...] | list[int | float | bool | str],
+    ):
         self._set(vrs, values, str)
 
-    def _get_fmu_state(self) -> dict:
+    def _get_fmu_state(self) -> dict[str, Any]:
         """Get the value of all referenced variables of the model.
         Note that also compound variables are saved in a single slot.
         """
@@ -838,7 +865,7 @@ class Model(Fmi2Slave):
                 state[var.local_name] = getattr(self, var.local_name)
         return state
 
-    def _set_fmu_state(self, state: dict):
+    def _set_fmu_state(self, state: dict[str, Any]):
         """Set all variables as saved in state.
         Note: Compound variables are expected in a single slot.
         """

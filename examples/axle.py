@@ -23,7 +23,7 @@ class Axle:
         self.wheels = [Wheel(d1, rpm1, pos=np.array([0.0, 0.0], float)), Wheel(d2, rpm2, pos=np.array([a, 0.0], float))]
         self.a = a
         self.time = 0.0
-        self.times: list
+        self.times: list[float]
 
     def init_drive(self):
         self.wheels[0].pos = np.array([0.0, 0.0], float)
@@ -79,14 +79,14 @@ class Wheel:
     def __init__(self, diameter: float = 1.0, rpm: float = -1.0, pos: np.ndarray | None = None):
         self.diameter = diameter
         self.motor = Motor(rpm)
-        self._pos = np.array([0, 0], float) if pos is None else pos
-        self._track: list[list[float]] = [[], []]
+        self._pos = np.array([0, 0], float) if pos is None else pos  # x-y position as 2D ndarray
+        self._track: list[list[float]] = [[], []]  # track of wheel as list of lists: [[x_i], [y_i]]
 
     def length(self, dt: float):
         return pi * self.diameter * self.motor.angle(dt)
 
     @property
-    def pos(self):
+    def pos(self) -> np.ndarray:
         return self._pos
 
     @pos.setter
@@ -95,11 +95,12 @@ class Wheel:
         self._pos = np.array(newpos, float)
 
     @property
-    def track(self):
+    def track(self) -> list[list[float]]:
         return self._track
 
     @track.setter
     def track(self, newpos: list[float] | np.ndarray | None):
+        """Remember the track. None: start new track."""
         if newpos is None:  # reset
             self._track = [[], []]
         else:

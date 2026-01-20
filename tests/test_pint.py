@@ -7,8 +7,6 @@ from pint import UnitRegistry
 
 logger = logging.getLogger(__name__)
 
-_reg: UnitRegistry = UnitRegistry(system="SI", autoconvert_offset_to_baseunit=True)  # , auto_reduce_dimensions=True)
-
 
 def test_needed_functions():
     _reg: UnitRegistry = UnitRegistry(

@@ -8,11 +8,11 @@ import pytest
 
 
 def do_show(
-    time: list,
-    z: list,
-    v: list,
-    compare1: list | None = None,
-    compare2: list | None = None,
+    time: list[float],
+    z: list[float],
+    v: list[float],
+    compare1: list[float] | None = None,
+    compare2: list[float] | None = None,
     z_label: str = "z-position",
     v_label: str = "z-speed",
 ):
@@ -178,7 +178,7 @@ def sweep_oscillation_z(
     return (osc, times, z, v, f)
 
 
-def test_oscillator_class(show):
+def test_oscillator_class(show: bool = False):
     """Test the Oscillator class in isolation.
     Such tests are strongly recommended before compiling the model into an FMU.
 
@@ -219,7 +219,7 @@ def test_oscillator_class(show):
         print(f". Max absolute error: {emax}")
 
 
-def test_2d(show):
+def test_2d(show: bool = False):
     from examples.oscillator_xd import OscillatorXD
 
     def run_2d(
@@ -357,7 +357,7 @@ def test_forced_xv(show: bool = False):
         av: float = 0.0,
         const: float | None = None,
         v0: float = 1.0,
-        show=show,
+        show: bool = show,
         title: str = "Scenario",
     ):
         _f = partial(force_xv, dim=6, ampl_x=ax, ampl_v=av, const=const)

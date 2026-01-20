@@ -59,7 +59,7 @@ def test_goal(show: bool = False):
         else:
             _b.setgoal("len", order, value, time)
         dt = 0.1
-        res: list[tuple] = []
+        res: list[tuple[float, ...]] = []
         assert _b.goals[0] is not None
         res.append((time, _b.current[0][0], _b.current[0][1], _b.goals[0][0][1]))
         while time + dt < t_end:
@@ -120,7 +120,7 @@ def test_goal(show: bool = False):
     res = do_goal(0, 0.0)
 
 
-def do_show(results: list[tuple]):
+def do_show(results: list[tuple[float, ...]]):
     """Plot selected traces."""
     times = [row[0] for row in results]
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3)

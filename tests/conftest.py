@@ -3,20 +3,21 @@ import os
 import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
 from shutil import rmtree
+from typing import Any
 
 import pytest
 
 from component_model.utils.xml import read_xml
 
 
-def system_structure_change(structure_file: Path, change: dict, newname: str | None = None):
+def system_structure_change(structure_file: Path, change: dict[str, tuple[str, str]], newname: str | None = None):
     """Do changes to an existing 'structure_file' and save as newname.
     Changes are provided as dict: { tag : (what, newval),...}
     where 'what'='text' marks the text part else, an attribute is assumed.
     """
 
     def register_all_namespaces(filename: Path):
-        namespaces: dict = {}
+        namespaces: dict[Any, Any] = {}
         for _, (ns, uri) in ET.iterparse(filename, events=["start-ns"]):
             # print("TYPES", ns, type(ns), uri, type(uri))
             namespaces.update({ns: uri})
@@ -121,10 +122,10 @@ def logger() -> logging.Logger:
     return logging.getLogger()
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--show", action="store", default=False)
 
 
 @pytest.fixture(scope="session")
-def show(request):
+def show(request: pytest.FixtureRequest):
     return request.config.getoption("--show") == "False"
