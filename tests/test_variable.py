@@ -521,7 +521,7 @@ def test_init():
         )
     assert err2.value.args[0] == "Variable int1 already used as index 0 in model MyModel"
 
-    with pytest.raises(ValueError) as err3:
+    with pytest.raises(AssertionError) as err3:
         int1 = Variable(
             mod,
             "bool1",
@@ -533,7 +533,7 @@ def test_init():
             annotations=None,
             typ=int,
         )
-    assert err3.value.args[0] == "Auto-extremes for type <class 'int'> cannot be determined"
+    assert err3.value.args[0].startswith("bool1 invalid range spec")
     assert float1.range[0].rng[1] == 99.0
     assert enum1.range[0].rng == (0, 4)
     assert enum1.check_range([Causality.parameter])
@@ -760,9 +760,9 @@ def test_extremum():
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
+    retcode = 0#pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
-    # test_init()
+    test_init()
     # test_range()
     # test_var_check()
     # test_spherical_cartesian()

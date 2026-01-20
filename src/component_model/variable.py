@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
-from typing import Any, Callable, Sequence, TypeAlias
+from typing import Any, Callable, Sequence, TypeAlias, Never
 
 import numpy as np
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -18,7 +18,8 @@ from component_model.variable_naming import ParsedVariable
 
 logger = logging.getLogger(__name__)
 PyType: TypeAlias = str | int | float | bool | Enum
-RngSingle: TypeAlias = tuple[int | float | None, int | float | None] | None | tuple[()]
+#RngSingle: TypeAlias = tuple[int | float | None, int | float | None] | None | tuple[()]
+RngSingle: TypeAlias = tuple[Any,Any]|None|Sequence[Never]
 Numeric: TypeAlias = int | float
 Compound: TypeAlias = tuple[PyType, ...] | list[PyType] | np.ndarray
 
@@ -67,7 +68,7 @@ class Variable(ScalarVariable):
         typ (type)=None: Optional explicit type of variable to expect as start and value.
            Since initial values are often set with strings (with units, see below), this is set explicitly.
            If None, _typ is set to Enum/str if derived from these after disection or float if a number. 'int' is not automatically detected.
-        start (PyType): The initial value of the variable.
+        start (PyType): The initial value(s) of the variable.
 
            Optionally, the unit can be included, providing the initial value as string,
            evaluating to quantity of type typ a display unit and base unit.
@@ -168,8 +169,6 @@ class Variable(ScalarVariable):
                     assert isinstance(basevar, Variable), f"The primitive of {self.name} must be a Variable object"
                     assert basevar.typ is float, f"The primitive of {self.name} shall be float. Found {basevar.typ}"
                     self._typ = float
-                    if start is None:
-                        self._start, self._unit = Unit.derivative(basevar.unit)
                     if self.on_step is None:
                         self.on_step = self.der1
             else:
@@ -177,24 +176,26 @@ class Variable(ScalarVariable):
         else:
             self.local_name = local_name  # use explicitly provided local name
 
+        if start is None:
+            assert local_name is None, f"{self.name} Default start value only defined for derivatives"
+            self._start, self._unit = Unit.derivative(basevar.unit)
+        elif self._typ is str or not isinstance(start, (tuple, list, np.ndarray)):
+            self._start, self._unit = Unit.make(start, self._typ)
+        else:
+            self._start, self._unit = Unit.make_tuple(start, self._typ)
+        self._len = 1 if self._typ is str else len(self._start)
+        if self._typ is None:  # try to adapt using start
+            self._typ = self.auto_type(self._start)
+        assert isinstance(self._typ, type)
+        self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
+
+        ck = Range.is_valid_spec( rng, self._len, self._typ)      
+        assert 0==ck, f"{self.name} invalid range spec {rng}. Error {ck}"
         if self._typ is str:  # explicit free string. String arrays are so far not implemented
             assert isinstance(start, str)
-            self._len = 1
-            self._start, self._unit = Unit.make(start, typ=str)
             self._range = (Range(self._start[0], unit=self._unit[0]),)  # Strings have fixed range
         else:
-            # if type is provided and no (initial) value. We set a default value of the correct type as 'example' value
-            if not len(self._start):  # not yet set
-                assert start is not None, f"{self.name}: Provide start value, at least for type and unit determination"
-                if isinstance(start, (tuple, list, np.ndarray)):
-                    self._start, self._unit = Unit.make_tuple(start, self._typ)
-                else:
-                    self._start, self._unit = Unit.make(start, self._typ)
-            self._len = len(self._start)
-            if self._typ is None:  # try to adapt using start
-                self._typ = self.auto_type(self._start)
-            assert isinstance(self._typ, type)
-            self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
+            self._range : tuple(Range,...)
             if self._len == 1:
                 self._range = (Range(self._start[0], rng, self._unit[0]),)
             else:
@@ -630,3 +631,5 @@ class Variable(ScalarVariable):
         else:
             name = parsed.as_string(("parent", "var", "der"), simplified=True, primitive=True)
             return self.model.variable_by_name(name)
+        
+            

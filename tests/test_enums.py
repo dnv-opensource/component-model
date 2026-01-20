@@ -1,5 +1,5 @@
 import logging
-from enum import Enum
+from enum import Enum, EnumType, EnumCheck, EnumMeta
 
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -14,10 +14,14 @@ logging.basicConfig(level=logging.INFO)
 
 
 def test_enum():
+    def enum_func( e:Enum):
+        return e._member_names_
+    
     f = VariableNamingConvention.flat
     assert isinstance(f, Enum)
     assert type(f) is VariableNamingConvention
     assert type(f)["structured"] == VariableNamingConvention.structured
+    print("Members: ", enum_func( VariableNamingConvention.flat))
 
 
 def test_combinations():
@@ -64,9 +68,9 @@ def test_check():
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0#pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    # test_enum()
+    test_enum()
     # test_combinations()
     # test_ensure_enum()
     # test_check()
