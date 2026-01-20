@@ -1,0 +1,32 @@
+Controls
+========
+
+.. currentmodule:: component_model.utils.controls
+
+.. autoclass:: Controls
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Controls.__init__
+      ~Controls.append
+      ~Controls.check_limit
+      ~Controls.getgoal
+      ~Controls.idx
+      ~Controls.limit
+      ~Controls.limits
+      ~Controls.setgoal
+      ~Controls.step
+   
+   
+
+
+   
+   
+   

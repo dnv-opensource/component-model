@@ -1,0 +1,27 @@
+ForcedOscillator1D
+==================
+
+.. currentmodule:: component_model.analytic
+
+.. autoclass:: ForcedOscillator1D
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~ForcedOscillator1D.__init__
+      ~ForcedOscillator1D.calc
+      ~ForcedOscillator1D.coefficients
+      ~ForcedOscillator1D.period
+   
+   
+
+
+   
+   
+   

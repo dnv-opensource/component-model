@@ -1,0 +1,14 @@
+component\_model.utils.analysis
+===============================
+
+.. automodule:: component_model.utils.analysis
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      extremum
+      extremum_series
+   

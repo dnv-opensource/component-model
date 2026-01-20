@@ -1,0 +1,22 @@
+﻿component\_model.analytic
+=========================
+
+.. automodule:: component_model.analytic
+   :members:
+   :exclude-members: ForcedOscillator1D,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      sine_fit
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      ForcedOscillator1D
+   
