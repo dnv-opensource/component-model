@@ -27,19 +27,21 @@ class ParsedVariable:
         * der: unsigned integer, defining the derivation order. 0 for no derivation
     """
 
-    def __init__(self, varname: str, convention: VariableNamingConvention = VariableNamingConvention.structured):
+    def __init__(self, varname: str, convention: Enum | None = VariableNamingConvention.structured):
         self.parent: str | None  # None indicates no parent
         self.var: str
         self.indices: list[int] = []  # empty list indicates no indices
         self.der: int = 0  # 0 indicates 'no derivative'
 
-        if convention == VariableNamingConvention.flat:  # expect python-conformant name (with indexing)
+        if (
+            convention is None or convention == VariableNamingConvention.flat
+        ):  # expect (indexed) python-conformant names
             var, indices = ParsedVariable.disect_indices(varname)
             self.parent = None
             self.var = var
             self.indices = indices
             self.der = 0
-        else:  # structured variable naming (only these two are defined)
+        elif convention == VariableNamingConvention.structured:  # structured variable naming
             self.der = 0  # default and count start
             var = varname
             while True:
@@ -62,7 +64,8 @@ class ParsedVariable:
                 self.parent = None
 
             self.var, self.indices = ParsedVariable.disect_indices(var)
-        # assert self.var.isidentifier(), f"The variable name {self.var} is not a valid identifier"
+        else:
+            raise ValueError("VariableNamingConvention Enum expected. Got {convention}")
 
     def as_tuple(self):
         """Return all fields as tuple."""

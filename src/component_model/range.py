@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Any, Sequence, Never
+from typing import Any, Never, Sequence
 
 from component_model.unit import Unit
 
@@ -28,12 +28,12 @@ class Range(object):
 
     def __init__(
         self,
-        val: bool|int|float|str|Enum,
-#        rng: tuple[int|float|Enum|str|None,int|float|Enum|str|None]|None|tuple[()] = tuple(), # type: ignore[assignment]
-        rng: tuple[Any,Any]|None|Sequence[Never] = tuple(),
-        unit: Unit|None = None,
+        val: bool | int | float | str | Enum,
+        #        rng: tuple[int|float|Enum|str|None,int|float|Enum|str|None]|None|tuple[()] = tuple(), # type: ignore[assignment]
+        rng: tuple[Any, Any] | None | Sequence[Never] = tuple(),
+        unit: Unit | None = None,
     ):
-        self.rng : tuple[int|bool|float|str, int|bool|float|str]
+        self.rng: tuple[int | bool | float | str, int | bool | float | str]
         typ = type(val)
         if unit is None:
             unit = Unit()
@@ -45,28 +45,30 @@ class Range(object):
             self.rng = (unit.from_base(val), unit.from_base(val))
         elif isinstance(rng, tuple) and not len(rng):  # empty tuple => try automatic range
             self.rng = Range.auto_extreme(val)  # fails if val is an int variable
-        elif ( isinstance(rng, tuple) and len(rng) == 2 and
-               all( x is None or isinstance(x, (str,int,bool,float,Enum)) for x in rng)):
+        elif (
+            isinstance(rng, tuple)
+            and len(rng) == 2
+            and all(x is None or isinstance(x, (str, int, bool, float, Enum)) for x in rng)
+        ):
             l_rng = list(rng)  # work on a mutable object
             for i, r in enumerate(rng):
                 if r is None:
                     l_rng[i] = unit.from_base(val)  # replace with fixed value 'val' as display value
                 else:
-                    assert isinstance(r, (str,int,bool,float,Enum)), f"Found type {type(r)}"
+                    assert isinstance(r, (str, int, bool, float, Enum)), f"Found type {type(r)}"
                     check, q = unit.compatible(r, typ, strict=True)
                     if not check:
                         raise ValueError(f"Provided range {rng} is not conformant with unit {unit}") from None
                     q = unit.from_base(q)  # ensure display units
-                    assert isinstance(q, (int,bool,float)), "Unexpected type {type(q)} in {rng}[{i}]"
+                    assert isinstance(q, (int, bool, float)), "Unexpected type {type(q)} in {rng}[{i}]"
                     try:
                         q = type(val)(q)  # ensure correct Python type
                     except Exception as err:
                         raise TypeError(f"Incompatible types range {rng} - {val}") from err
                     l_rng[i] = q
-            self.rng = tuple(l_rng) # type: ignore  ## cannot see how tuple contains str or None here!
+            self.rng = tuple(l_rng)  # type: ignore  ## cannot see how tuple contains str or None here!
         else:
             raise TypeError(f"Unhandled range specification {rng}) from None")
-
 
     @classmethod
     def auto_extreme(cls, var: bool | int | float | str | Enum | type) -> tuple[int | float | bool, int | float | bool]:
@@ -132,45 +134,43 @@ class Range(object):
             assert typ is int or typ is float, f"Inconsistent type {typ}. Expect int or float"
             if not disp and unit.du is not None:  # check an internal unit values
                 value = unit.from_base(value)
-            return self.rng[0] <= value <= self.rng[1] # type: ignore[operator] ## There is no str involved!
+            return self.rng[0] <= value <= self.rng[1]  # type: ignore[operator] ## There is no str involved!
         else:
             logger.error(f"range check(): value={value}, type={typ}, range={self.rng}")
             return False
 
     @classmethod
-    def is_valid_spec(cls,
-                      rng : tuple[Any,...] | tuple[Any,Any] | None | Sequence[Never],
-                      var_len : int,
-                      typ: type,
-                      level: int=0) -> int:
+    def is_valid_spec(
+        cls, rng: tuple[Any, ...] | tuple[Any, Any] | None | Sequence[Never], var_len: int, typ: type, level: int = 0
+    ) -> int:
         """Check whether the supplied rng is a valid range specification for a variable.
         Applies to scalar and compound variable specs.
         Return 0 (ok) or error code >0 if not ok.
         """
         if rng is None:
-            ck = 0 # fixed value(s)
-        elif isinstance(rng, tuple) and not len(rng): # all automatic
-            ck = int(typ == int) # 1/0 (not possible for int)
-        elif isinstance(rng, tuple): # need a tuple now
+            ck = 0  # fixed value(s)
+        elif isinstance(rng, tuple) and not len(rng):  # all automatic
+            ck = int(typ is int)  # 1/0 (not possible for int)
+        elif isinstance(rng, tuple):  # need a tuple now
             if var_len == 1:
-                if len(rng) != 2: # scalar specified by a 2-tuple
+                if len(rng) != 2:  # scalar specified by a 2-tuple
                     ck = 2
-                else: # final check of scalar spec 2-tuple
+                else:  # final check of scalar spec 2-tuple
                     ck = 0
-                    for i,r in enumerate(rng):
+                    for i, r in enumerate(rng):
                         if r is not None and not isinstance(r, (int, bool, float, Enum, str)):
                             ck += 10 + i
                     if not any(isinstance(rng[i], str) for i in range(2)):
-                        if rng[0] > rng[1]: # wrong order
-                            ck += 10+9
+                        if rng[0] > rng[1]:  # wrong order
+                            ck += 10 + 9
 
             elif var_len > 1:
-                if len(rng) != var_len: # one range for each variable
+                if len(rng) != var_len:  # one range for each variable
                     ck = 3
                 else:
                     ck = 0
-                    for i,r in enumerate(rng): 
-                        ck += Range.is_valid_spec( r, 1, typ, level=(i+1)*100)
+                    for i, r in enumerate(rng):
+                        ck += Range.is_valid_spec(r, 1, typ, level=(i + 1) * 100)
         else:
-            ck = 4 # would need a tuple here
-        return ck if ck==0 else level+ck            
+            ck = 4  # would need a tuple here
+        return ck if ck == 0 else level + ck

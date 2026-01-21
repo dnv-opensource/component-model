@@ -102,8 +102,8 @@ def test_ivp(show: bool = False):
         (0, 100),
         np.array((0, 200), float),
         t_eval=np.array([t for t in range(100)]),
-        events=hit_ground # type: ignore
-    )  
+        events=hit_ground,  # type: ignore
+    )
     assert np.allclose(sol.t_events, [2 * 200 / 9.81]), "Time when hitting the ground"  # type: ignore ## it works
     assert np.allclose(sol.y_events, [[0.0, -200.0]]), "Position and speed when hitting the ground"  # type: ignore
     if show:

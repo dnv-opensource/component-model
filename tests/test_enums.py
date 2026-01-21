@@ -1,5 +1,5 @@
 import logging
-from enum import Enum, EnumType, EnumCheck, EnumMeta
+from enum import Enum, EnumType
 
 import pytest
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -14,14 +14,22 @@ logging.basicConfig(level=logging.INFO)
 
 
 def test_enum():
-    def enum_func( e:Enum):
-        return e._member_names_
-    
+    def enum_func(e: Enum) -> None:
+        assert isinstance(e, Enum), f"Argument {e} should be an enum member"
+        logger.info(f"Name:{e.name}, value:{e.value}")
+
+    def enumtype_func(e: EnumType):
+        assert isinstance(e, EnumType), f"Argument {e} should be an EnumType, i.e. the Enum Class itself"
+        logger.info(f"Members:{e._member_names_}")
+
     f = VariableNamingConvention.flat
     assert isinstance(f, Enum)
     assert type(f) is VariableNamingConvention
     assert type(f)["structured"] == VariableNamingConvention.structured
-    print("Members: ", enum_func( VariableNamingConvention.flat))
+    logger.info(f"Type of Enum class itself:{type(VariableNamingConvention)}")
+    logger.info(f"Type of member:{type(VariableNamingConvention.flat)}")
+    enum_func(VariableNamingConvention.flat)
+    enumtype_func(VariableNamingConvention)
 
 
 def test_combinations():
@@ -37,7 +45,7 @@ def test_ensure_enum():
     assert str(err.value).startswith("The value input is not compatible with ")
     assert ensure_enum("discrete", Variability.continuous) == Variability.discrete
     assert ensure_enum("input", Causality.local) == Causality.input
-    assert ensure_enum(None, Causality.input) == Causality.input
+    assert ensure_enum(None, Causality.input) == Causality.input, f"Found {ensure_enum(None, Causality.input)}"
 
 
 def test_check():
@@ -68,9 +76,9 @@ def test_check():
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    test_enum()
+    # test_enum()
     # test_combinations()
     # test_ensure_enum()
     # test_check()

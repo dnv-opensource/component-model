@@ -760,7 +760,7 @@ def test_extremum():
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rP -s -v", __file__])
+    retcode = 0  # pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
     test_init()
     # test_range()

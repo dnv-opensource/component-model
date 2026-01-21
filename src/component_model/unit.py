@@ -136,6 +136,7 @@ class Unit:
     def make(
         cls, quantity: bool | int | float | str | Enum, typ: type | None = None
     ) -> tuple[tuple[bool | int | float | str | Enum], tuple["Unit"]]:
+        """Parse quantity and return the resulting value and its unit object."""
         u = Unit()
         val = u.parse_quantity(quantity, typ)
         return ((val,), (u,))
@@ -143,10 +144,10 @@ class Unit:
     @classmethod
     def make_tuple(
         cls,
-        quantities: tuple[bool|int|float|str|Enum, ...] |list[bool|int|float|str|Enum] | np.ndarray,
-        typ: type | None = None
-    ) -> tuple[tuple[bool|int|float|str|Enum, ...], tuple["Unit", ...]]:
-        """Make a tuple of Unit objects from the tuple of quantities."""
+        quantities: tuple[bool | int | float | str | Enum, ...] | list[bool | int | float | str | Enum] | np.ndarray,
+        typ: type | None = None,
+    ) -> tuple[tuple[bool | int | float | str | Enum, ...], tuple["Unit", ...]]:
+        """Make a tuple of values and Unit objects from the tuple of quantities, using make()."""
         values: list[bool | int | float | str | Enum] = []
         units: list[Unit] = []
         for q in quantities:

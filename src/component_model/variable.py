@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import xml.etree.ElementTree as ET  # noqa: N817
 from enum import Enum
-from typing import Any, Callable, Sequence, TypeAlias, Never
+from typing import Any, Callable, Never, Sequence, TypeAlias
 
 import numpy as np
 from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
@@ -18,8 +18,8 @@ from component_model.variable_naming import ParsedVariable
 
 logger = logging.getLogger(__name__)
 PyType: TypeAlias = str | int | float | bool | Enum
-#RngSingle: TypeAlias = tuple[int | float | None, int | float | None] | None | tuple[()]
-RngSingle: TypeAlias = tuple[Any,Any]|None|Sequence[Never]
+# RngSingle: TypeAlias = tuple[int | float | None, int | float | None] | None | tuple[()]
+RngSingle: TypeAlias = tuple[Any, Any] | None | Sequence[Never]
 Numeric: TypeAlias = int | float
 Compound: TypeAlias = tuple[PyType, ...] | list[PyType] | np.ndarray
 
@@ -178,9 +178,10 @@ class Variable(ScalarVariable):
 
         if start is None:
             assert local_name is None, f"{self.name} Default start value only defined for derivatives"
+            assert basevar is not None, f"{self.name} basevar needed at this point"
             self._start, self._unit = Unit.derivative(basevar.unit)
         elif self._typ is str or not isinstance(start, (tuple, list, np.ndarray)):
-            self._start, self._unit = Unit.make(start, self._typ)
+            self._start, self._unit = Unit.make(start, self._typ)  # type: ignore  ## type of start should be ok
         else:
             self._start, self._unit = Unit.make_tuple(start, self._typ)
         self._len = 1 if self._typ is str else len(self._start)
@@ -189,17 +190,26 @@ class Variable(ScalarVariable):
         assert isinstance(self._typ, type)
         self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
 
-        ck = Range.is_valid_spec( rng, self._len, self._typ)      
-        assert 0==ck, f"{self.name} invalid range spec {rng}. Error {ck}"
+        ck = Range.is_valid_spec(rng, self._len, self._typ)
+        assert 0 == ck, f"{self.name} invalid range spec {rng}. Error {ck}"
+        self._range: tuple[Range, ...]
         if self._typ is str:  # explicit free string. String arrays are so far not implemented
             assert isinstance(start, str)
             self._range = (Range(self._start[0], unit=self._unit[0]),)  # Strings have fixed range
         else:
-            self._range : tuple(Range,...)
             if self._len == 1:
-                self._range = (Range(self._start[0], rng, self._unit[0]),)
+                self._range = (Range(self._start[0], rng, self._unit[0]),)  # type: ignore[arg-type]  ## is_valid_spec
             else:
-                self._range = tuple([Range(self._start[i], rng[i], self._unit[i]) for i in range(self._len)])
+                self._range = tuple(
+                    [
+                        Range(
+                            self._start[i],
+                            rng[i],  # type: ignore[index] ## is_valid_spec
+                            self._unit[i],
+                        )
+                        for i in range(self._len)
+                    ]
+                )
 
         if not self.check_range(self._start, disp=False):  # range checks of initial value
             logger.critical(f"The provided value {self._start} is not in the valid range {self._range}")
@@ -631,5 +641,3 @@ class Variable(ScalarVariable):
         else:
             name = parsed.as_string(("parent", "var", "der"), simplified=True, primitive=True)
             return self.model.variable_by_name(name)
-        
-            
