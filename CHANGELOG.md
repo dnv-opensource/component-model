@@ -8,12 +8,17 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
-## [0.3.2] - 2026-01-16
+## [0.3.2] - 2026-01-23
 
 ### Added
+* Added new module unit.py, containing class `Unit`, a helper class to store and manage units and display units. One `Unit` object represents one scalar variable.
+* Added new module range.py, containing class `Range`, a utility class to store and handle the variable range of a single-valued variable.
 * Sphinx documentation:
-  * Added docs for modules variable_naming.py, enums.py, analytic.py and plotter.py
+  * Added docs for modules variable_naming.py, unit.py, range.py, enums.py and analytic.py
 * Added Visual Studio Code settings
+
+### Removed
+* Removed module plotter.py
 
 ### Changed
 * Updated code base with latest changes in python_project_template v0.2.6
