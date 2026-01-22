@@ -6,9 +6,9 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from fmpy.simulation import simulate_fmu  # type: ignore
-from fmpy.util import fmu_info, plot_result  # type: ignore
-from fmpy.validation import validate_fmu  # type: ignore
+from fmpy.simulation import simulate_fmu
+from fmpy.util import fmu_info, plot_result
+from fmpy.validation import validate_fmu
 from pythonfmu.enums import Fmi2Causality as Causality
 from pythonfmu.enums import Fmi2Variability as Variability
 
@@ -112,7 +112,7 @@ def test_use_fmu(time_table_fmu: Path, show: bool = False):
     print(fmu_info(str(time_table_fmu)))
     _t = np.linspace(0, 10, 101)
     for ipol in range(4):
-        result = simulate_fmu(  # type: ignore[reportArgumentType]
+        result = simulate_fmu(
             time_table_fmu,
             stop_time=10.0,
             step_size=0.1,
@@ -158,7 +158,7 @@ def test_make_with_new_data():
 # @pytest.mark.skip(reason="Does so far not work within pytest, only stand-alone")
 def test_use_with_new_data(show: bool):
     fmu_path = Path(__file__).parent / "test_working_directory" / "TimeTableFMU.fmu"
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         fmu_path,
         stop_time=2 * np.pi,
         step_size=0.1,
@@ -180,13 +180,13 @@ def test_use_with_new_data(show: bool):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_time_table_fmu()
-    # test_make_time_table(_time_table_fmu())
+    test_make_time_table(_time_table_fmu())
     # test_use_fmu(_time_table_fmu(), show=True)
     # test_make_with_new_data()
     # test_use_with_new_data(show=True)

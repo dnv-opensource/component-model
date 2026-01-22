@@ -2,9 +2,9 @@ import logging
 from enum import Enum, EnumType
 
 import pytest
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Initial as Initial
+from pythonfmu.enums import Fmi2Variability as Variability
 
 from component_model.enums import check_causality_variability_initial, combination, combinations, ensure_enum
 from component_model.variable_naming import VariableNamingConvention
@@ -21,6 +21,9 @@ def test_enum():
     def enumtype_func(e: EnumType):
         assert isinstance(e, EnumType), f"Argument {e} should be an EnumType, i.e. the Enum Class itself"
         logger.info(f"Members:{e._member_names_}")
+        if "flat" in e.__members__:
+            m: Enum = e["flat"]  # type: ignore[reportAssignmentType]
+            logger.info(f"Member flat: {m}")
 
     f = VariableNamingConvention.flat
     assert isinstance(f, Enum)

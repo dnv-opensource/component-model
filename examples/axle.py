@@ -29,7 +29,7 @@ class Axle:
         self.wheels[0].pos = np.array([0.0, 0.0], float)
         self.wheels[1].pos = np.array([self.a, 0.0], float)
         for i in range(2):
-            self.wheels[i].track = None
+            self.wheels[i].track_reset()
         self.times = []
 
     def drive(self, time: float, dt: float):
@@ -90,22 +90,21 @@ class Wheel:
         return self._pos
 
     @pos.setter
-    def pos(self, newpos: list[float] | np.ndarray):
-        self.track = newpos
+    def pos(self, newpos: np.ndarray):
+        self.track_add(newpos)
         self._pos = np.array(newpos, float)
 
     @property
     def track(self) -> list[list[float]]:
         return self._track
 
-    @track.setter
-    def track(self, newpos: list[float] | np.ndarray | None):
-        """Remember the track. None: start new track."""
-        if newpos is None:  # reset
-            self._track = [[], []]
-        else:
-            for i in range(2):
-                self._track[i].append(newpos[i])
+    def track_reset(self):
+        self._track = [[], []]
+
+    def track_add(self, newpos: np.ndarray):
+        """Remember the track."""
+        for i in range(2):
+            self._track[i].append(newpos[i])
 
 
 class Motor:

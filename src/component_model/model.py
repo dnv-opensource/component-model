@@ -9,15 +9,15 @@ from enum import Enum
 from math import log
 from numbers import Real
 from pathlib import Path
-from typing import Any, Generator, TypeAlias
+from typing import Any, Generator, Sequence, TypeAlias
 
-from pythonfmu import Fmi2Slave, FmuBuilder  # type: ignore[import-untyped]
+from pythonfmu import Fmi2Slave, FmuBuilder
 from pythonfmu import __version__ as pythonfmu_version
-from pythonfmu.default_experiment import DefaultExperiment  # type: ignore[import-untyped]
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore[import-untyped]
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore[import-untyped]
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore[import-untyped]
-from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS  # type: ignore[import-untyped]
+from pythonfmu.default_experiment import DefaultExperiment
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Initial as Initial
+from pythonfmu.enums import Fmi2Variability as Variability
+from pythonfmu.fmi2slave import FMI2_MODEL_OPTIONS
 
 from component_model.enums import ensure_enum
 from component_model.variable import Unit, Variable
@@ -187,7 +187,7 @@ class Model(Fmi2Slave):
                     break
             self._units.append(cu)
 
-    def owner_hierarchy(self, parent: str | None) -> list[Variable]:
+    def owner_hierarchy(self, parent: str | None) -> Sequence["Model"]:
         """Analyse the parent of a variable down to the Model and return the owners as list."""
         ownernames: list[tuple[str, int | None]] = []
         assert isinstance(self.variable_naming, VariableNamingConvention), (
@@ -569,16 +569,9 @@ class Model(Fmi2Slave):
                 du_done: list[str] = []
                 for _u in self._units:  # list also the displays (if defined)
                     if _u.u not in u_done and u.u == _u.u and _u.du is not None and _u.du not in du_done:
-                        unit.append(
-                            ET.Element(
-                                "DisplayUnit",
-                                {
-                                    "name": _u.du,
-                                    "factor": str(_u.to_base(1.0) - _u.to_base(0.0)),
-                                    "offset": str(_u.to_base(0.0)),
-                                },
-                            )
-                        )
+                        fac = 1.0 if _u.to_base is None else _u.to_base(1.0) - _u.to_base(0.0)
+                        offs = 0.0 if _u.to_base is None else _u.to_base(0.0)
+                        unit.append(ET.Element("DisplayUnit", {"name": _u.du, "factor": str(fac), "offset": str(offs)}))
                     if isinstance(_u.du, str):
                         du_done.append(_u.du)
                 u_done.append(u.u)
@@ -589,14 +582,10 @@ class Model(Fmi2Slave):
     def _xml_default_experiment(self):
         attrib: dict[str, str] = {}
         if self.default_experiment is not None:
-            if self.default_experiment.start_time is not None:
-                attrib["startTime"] = str(self.default_experiment.start_time)
-            if self.default_experiment.stop_time is not None:
-                attrib["stopTime"] = str(self.default_experiment.stop_time)
-            if self.default_experiment.step_size is not None:
-                attrib["stepSize"] = str(self.default_experiment.step_size)
-            if self.default_experiment.tolerance is not None:
-                attrib["tolerance"] = str(self.default_experiment.tolerance)
+            attrib["startTime"] = str(self.default_experiment.start_time)
+            attrib["stopTime"] = str(self.default_experiment.stop_time)
+            attrib["stepSize"] = str(self.default_experiment.step_size)
+            attrib["tolerance"] = str(self.default_experiment.tolerance)
         de = ET.Element("DefaultExperiment", attrib)
         return de
 
@@ -765,7 +754,7 @@ class Model(Fmi2Slave):
                 raise AssertionError(f"valueReference={vr} does not exist in model {self.name}") from err
             if vr != _vr + 1 or test is not None:  # new slice
                 if var is not None:  # only if initialized
-                    yield (var, slice(start, start + i - i0), slice(i0, i))  # type: ignore
+                    yield (var, slice(start, start + i - i0), slice(i0, i))
 
                 vr0 = vr
                 i0 = i

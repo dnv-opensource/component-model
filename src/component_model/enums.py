@@ -3,10 +3,9 @@
 import logging
 from enum import Enum, EnumType, IntFlag
 
-# import pythonfmu.enums # type: ignore
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Initial as Initial
+from pythonfmu.enums import Fmi2Variability as Variability
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,9 @@ def ensure_enum(org: str | Enum | None, default: Enum | EnumType | None) -> Enum
     elif isinstance(org, str):  # both provided and org is a string
         _default = default if isinstance(default, EnumType) else type(default)  # need the Enum itself
         if org in _default.__members__:
-            return _default[org]
+            e: Enum = _default[org]  # type: ignore[reportAssignmentType]
+            assert isinstance(e, Enum)
+            return e
         else:
             raise Exception(f"The value {org} is not compatible with the Enum {_default}") from None
     else:  # expect already an EnumType
@@ -92,8 +93,8 @@ def check_causality_variability_initial(
     variability: str | Enum | None,  # EnumType | None,
     initial: str | Enum | None,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:
-    _causality = ensure_enum(causality, Causality.parameter)  # type: ignore
-    _variability = ensure_enum(variability, Variability.constant)  # type: ignore
+    _causality = ensure_enum(causality, Causality.parameter)
+    _variability = ensure_enum(variability, Variability.constant)
     res = combination(_variability, _causality)  # type: ignore
     if res in ("a", "b", "c", "d", "e"):  # combination is not allowed
         logger.info(f"(causality {_causality}, variability {variability}) is not allowed: {explanations[res]}")

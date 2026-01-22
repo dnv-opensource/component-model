@@ -37,7 +37,7 @@ def test_init(unt: Unit):
     float3 = Range(1.0, ("0m", "10m"), unit=Unit("1 m"))
     assert float3.rng == (0.0, 10.0), f"Found {float3.rng}"
     float4 = Range(0.55, ("0 %", None), unit=Unit("55%"))
-    assert np.allclose(float4.rng, (0.0, 55.0)), f"Found {float4.rng} != {(0.0, 55.0)}"
+    assert np.allclose(float4.rng, (0.0, 0.55)), f"Found {float4.rng} != {(0.0, 0.55)} (base units)"
 
 
 def test_auto_extreme():
@@ -90,9 +90,9 @@ def test_range_spec():
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rP -s -v", __file__])
+    retcode = pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
     # _unt() # initialize UnitRegistry (otherwise Unit cannot be used)
     # test_init(_unt())
     # test_auto_extreme()
-    test_range_spec()
+    # test_range_spec()

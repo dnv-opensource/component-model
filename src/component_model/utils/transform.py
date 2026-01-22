@@ -97,7 +97,7 @@ def euler_rot_spherical(
             tp = [np.radians(x) for x in tp]
     st = np.sin(tp[0])
     # rotate the cartesian vector (r is definitely not a list, even if pyright might think so)
-    x = r.apply((st * np.cos(tp[1]), st * np.sin(tp[1]), np.cos(tp[0])))  # type: ignore[reportAttributeAccessIssue]
+    x = r.apply((st * np.cos(tp[1]), st * np.sin(tp[1]), np.cos(tp[0])))
     x2 = x[2]
     if abs(x2) < 1.0:
         pass
@@ -137,7 +137,7 @@ def rot_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> Rot:
     if abs(n - 1.0) > 1e-10:
         vec1 /= n
         vec2 /= n
-    _c = vec1.dot(vec2)  # type: ignore
+    _c = vec1.dot(vec2)
     if abs(_c + 1.0) < 1e-10:  # vectors are exactly opposite to each other
         imax, vmax, _sum = (-1, float("-inf"), 0.0)
         for k, v in enumerate(vec1):

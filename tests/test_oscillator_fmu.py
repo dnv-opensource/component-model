@@ -3,9 +3,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
-from fmpy.simulation import simulate_fmu  # type: ignore[import-untyped]
-from fmpy.util import fmu_info, plot_result  # type: ignore[import-untyped]
-from fmpy.validation import validate_fmu  # type: ignore[import-untyped]
+from fmpy.simulation import simulate_fmu
+from fmpy.util import fmu_info, plot_result
+from fmpy.validation import validate_fmu
 
 from component_model.model import Model
 

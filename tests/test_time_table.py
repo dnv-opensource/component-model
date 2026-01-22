@@ -31,8 +31,8 @@ def test_time_table(show: bool = False):
     from examples.time_table import TimeTable
 
     tbl = TimeTable(
-        data=((0.0, 1, 0, 0), (1.0, 1, 1, 1), (3.0, 1, 3, 9), (7.0, 1, 7, 49)),
-        header=("x", "y", "z"),
+        data=[[0.0, 1, 0, 0], [1.0, 1, 1, 1], [3.0, 1, 3, 9], [7.0, 1, 7, 49]],
+        header=["x", "y", "z"],
         interpolate=0,
     )
     assert not tbl.interpolate, f"Interpolation=0 expected. Found {tbl.interpolate}"

@@ -11,9 +11,10 @@ class Range(object):
     """Utility class to store and handle the variable range of a single-valued variable.
 
     Args:
-        val: value for which the range is defined. At least an example value of the same type shall be provided.
+        val: value for which the range is defined.
+             At least an example value of the same type in base units shall be provided.
         rng (tuple) = (): Optional range of the variable in terms of a tuple of the same type as initial value.
-           Should be specified with units (as string).
+           Should be specified with units (as string) and is expected in display units.
 
            * If an empty tuple is specified, the range is automatically determined.
              That is only possible for float or enum type variables, where the former evaluates to (-inf, inf).
@@ -23,13 +24,15 @@ class Range(object):
              `None` can be applied to the whole tuple or to single elements of the tuple.
              E.g. (1,None) sets the range to (1, start)
            * For some variable types (e.g. str) no range is expected.
+           * Internally, the range is stored in base units.
+             For range checking of a new value, the new value must be converted to base units before check.
+
         unit (Unit): expected Unit (should be determined for start value before range is determined)
     """
 
     def __init__(
         self,
         val: bool | int | float | str | Enum,
-        #        rng: tuple[int|float|Enum|str|None,int|float|Enum|str|None]|None|tuple[()] = tuple(), # type: ignore[assignment]
         rng: tuple[Any, Any] | None | Sequence[Never] = tuple(),
         unit: Unit | None = None,
     ):
@@ -39,10 +42,10 @@ class Range(object):
             unit = Unit()
         assert isinstance(val, (bool, int, float, str, Enum)), f"Only primitive types allowed for Range. Found {typ}"
         if isinstance(val, str):
-            assert unit.u == "dimensionless", "A free string cannot have units."
+            assert unit.u == "dimensionless", f"A free string cannot have units. Found {unit.u}"
             self.rng = (val, val)  # no range for free strings
-        elif rng is None:  # fixed value in any case
-            self.rng = (unit.from_base(val), unit.from_base(val))
+        elif rng is None:  # fixed value in any case. val provided in base units. No conversion
+            self.rng = (val, val)  # type: ignore[assignment]  ## see def above
         elif isinstance(rng, tuple) and not len(rng):  # empty tuple => try automatic range
             self.rng = Range.auto_extreme(val)  # fails if val is an int variable
         elif (
@@ -52,20 +55,19 @@ class Range(object):
         ):
             l_rng = list(rng)  # work on a mutable object
             for i, r in enumerate(rng):
-                if r is None:
-                    l_rng[i] = unit.from_base(val)  # replace with fixed value 'val' as display value
+                if r is None:  # fixed value on this side. val provided in base units.
+                    l_rng[i] = val  # type: ignore[reportArgumentType] ## l_rng is not empty # fixed display value
                 else:
                     assert isinstance(r, (str, int, bool, float, Enum)), f"Found type {type(r)}"
-                    check, q = unit.compatible(r, typ, strict=True)
+                    check, q = unit.compatible(r, typ, strict=True)  # q in base units
                     if not check:
                         raise ValueError(f"Provided range {rng} is not conformant with unit {unit}") from None
-                    q = unit.from_base(q)  # ensure display units
                     assert isinstance(q, (int, bool, float)), "Unexpected type {type(q)} in {rng}[{i}]"
                     try:
                         q = type(val)(q)  # ensure correct Python type
                     except Exception as err:
                         raise TypeError(f"Incompatible types range {rng} - {val}") from err
-                    l_rng[i] = q
+                    l_rng[i] = q  # type: ignore[reportArgumentType] ## l_rng is not empty
             self.rng = tuple(l_rng)  # type: ignore  ## cannot see how tuple contains str or None here!
         else:
             raise TypeError(f"Unhandled range specification {rng}) from None")
@@ -111,7 +113,7 @@ class Range(object):
             value: the Python value to check with respect to the internally defined Range
             typ (type): the expected Python type of the value
             unit (Unit): the Unit object related to the variable
-            disp (bool): check value as display units (True) or base units (False)
+            disp (bool): denotes whether 'value' is in display units (True) or base units (False)
         """
         if unit is None:
             unit = Unit()
@@ -132,8 +134,8 @@ class Range(object):
 
         elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self.rng):
             assert typ is int or typ is float, f"Inconsistent type {typ}. Expect int or float"
-            if not disp and unit.du is not None:  # check an internal unit values
-                value = unit.from_base(value)
+            if disp and unit.to_base is not None:  # check a display unit values
+                value = unit.to_base(value)
             return self.rng[0] <= value <= self.rng[1]  # type: ignore[operator] ## There is no str involved!
         else:
             logger.error(f"range check(): value={value}, type={typ}, range={self.rng}")
@@ -160,7 +162,7 @@ class Range(object):
                     for i, r in enumerate(rng):
                         if r is not None and not isinstance(r, (int, bool, float, Enum, str)):
                             ck += 10 + i
-                    if not any(isinstance(rng[i], str) for i in range(2)):
+                    if rng[i] is not None and not any(isinstance(rng[i], str) for i in range(2)):
                         if rng[0] > rng[1]:  # wrong order
                             ck += 10 + 9
 
@@ -174,3 +176,23 @@ class Range(object):
         else:
             ck = 4  # would need a tuple here
         return ck if ck == 0 else level + ck
+
+    @classmethod
+    def err_code_msg(cls, code: int) -> str:
+        if code == 0:
+            return "Ok"
+        elif code == 1:
+            return "Automatic range for int variables is not defined."
+        elif code == 2:
+            return "Full range specification of scalar expects a 2-tuple"
+        elif code == 3:
+            return "Range specification of compound variable expects one spec per sub-variable."
+        elif 10 <= code < 19:
+            return "Wrong entry in full range specification of scalar."
+        elif code == 19:
+            return "Wrong order of entries in full range specification of scalar"
+        elif code > 100:
+            sub = Range.err_code_msg(code % 100)
+            return f"Error in compound variable: {sub}"
+        else:
+            return f"Unknown error code {code}"

@@ -1,7 +1,7 @@
 import logging
 from enum import Enum
 from functools import partial
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 from pint import Quantity, UnitRegistry  # management of units
@@ -16,15 +16,16 @@ class Unit:
     One Unit object represents one scalar variable.
     """
 
-    _ureg: UnitRegistry | None = None
+    _ureg: UnitRegistry[Any] | None = None
 
     def __init__(self, quantity: bool | int | float | str | Enum | None = None, typ: type | None = None):
         assert Unit._ureg is not None, "Before units can be instantiated, Unit.ensure_unit_registry() must be called."
         # properties with default values. Initialized through parse_quantity
         self.u: str = "dimensionless"  # default: dimensionless unit (placeholder)
         self.du: str | None = None  # display unit (default: same as u, no transformation)
-        self.to_base: Callable[float] = partial(Unit.identity)  # f(display-value) -> base-value
-        self.from_base: Callable[float] = partial(Unit.identity)  # f(base-value) -> display-value
+        # Transformations f(display-value) -> base-value and f(base-value) -> display-value
+        self.to_base: Callable[[int | float], int | float] | None = None
+        self.from_base: Callable[[int | float], int | float] | None = None
         if quantity is not None:  # if parse-value is called on class it also returns the (parsed,converted) base-value
             _val = self.parse_quantity(quantity, typ)
 
@@ -35,7 +36,7 @@ class Unit:
 
     def __str__(self):
         txt = f"Unit {self.u}, display:{self.du}"
-        if self.du is not None:
+        if self.du is not None and not (self.to_base is None or self.from_base is None):
             txt += f". Offset:{self.to_base(0)}, factor:{self.to_base(1.0) - self.to_base(0.0)}"
         return txt
 
@@ -52,11 +53,12 @@ class Unit:
             the magnitude in base units, the base unit and the unit as given (display units),
             together with the conversion functions between the units.
         """
-        if typ is str:
+        if typ is str or typ is Enum:
             self.u = "dimensionless"
             self.du = None
             val = quantity
         elif isinstance(quantity, str):  # only string variable make sense to disect
+            assert Unit._ureg is not None, "UnitRegistry not yet instantiated!"
             try:
                 q = Unit._ureg(quantity)  # parse the quantity-unit and return a Pint Quantity object
                 if isinstance(q, (int, float)):
@@ -88,14 +90,10 @@ class Unit:
         return val
 
     @classmethod
-    def linear(cls, x: float, b: float, a: float = 0.0):
+    def linear(cls, x: int | float, b: int | float, a: int | float = 0) -> int | float:
         return a + b * x
 
-    @classmethod
-    def identity(cls, x: float):
-        return x
-
-    def val_unit_display(self, q: Quantity[float]) -> float:
+    def val_unit_display(self, q: Quantity[int | float]) -> int | float:
         """Identify base units and calculate the transformations between display and base units.
 
         Returns
@@ -125,8 +123,9 @@ class Unit:
             if abs(a) < 1e-9:  # multiplicative conversion
                 if abs(b - 1.0) < 1e-9:  # unit and display unit are compatible. No transformation
                     self.du = None
-                self.to_base = partial(Unit.linear, b=b)
-                self.from_base = partial(Unit.linear, b=1.0 / b)
+                else:
+                    self.to_base = partial(Unit.linear, b=b, a=0.0)
+                    self.from_base = partial(Unit.linear, b=1.0 / b, a=0.0)
             else:  # there is a constant (e.g. Celsius to Fahrenheit)
                 self.to_base = partial(Unit.linear, b=b, a=a)
                 self.from_base = partial(Unit.linear, b=1.0 / b, a=-a / b)

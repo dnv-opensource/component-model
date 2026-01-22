@@ -66,7 +66,7 @@ class DrivingForce(Model):
         self.freq = np.array((1.0,) * self.dim, float)
         self.d_freq = np.array((0.0,) * self.dim, float)
         self.function = func
-        self.func: Callable
+        self.func: Callable  # type: ignore[reportMissingTypeArgument]  ## kwargs
         self.f = np.array((0.0,) * self.dim, float)
         self.v_osc = (0.0,) * self.dim
         self._ampl = Variable(self, "ampl", "The amplitude of the force in N", start=_ampl)
@@ -102,7 +102,7 @@ class DrivingForce(Model):
         self.func = partial(
             self.function,
             ampl=np.array(self.ampl, float),
-            omega=np.array(2 * np.pi * self.freq, float),  # type: ignore # it is an ndarray!
-            d_omega=np.array(2 * np.pi * self.d_freq, float),  # type: ignore # it is an ndarray!
+            omega=np.array(2 * np.pi * self.freq, float),
+            d_omega=np.array(2 * np.pi * self.d_freq, float),
         )
         logger.info(f"Initial settings: ampl={self.ampl}, freq={self.freq}, d_freq={self.d_freq}")

@@ -1,4 +1,5 @@
 from math import sqrt
+from typing import Any
 
 import numpy as np
 from pythonfmu import Fmi2Causality, Fmi2Slave, Real  # type: ignore[import-untyped]
@@ -16,7 +17,7 @@ class BouncingBall3D(Fmi2Slave):
     * Internal units are assumed as SI (m,s,rad)
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super().__init__(
             name="BouncingBall3D",
             description="Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
@@ -63,7 +64,7 @@ class BouncingBall3D(Fmi2Slave):
         self.accelerationY = 0.0
         self.accelerationZ = -self.g
 
-    def do_step(self, current_time, step_size) -> bool:
+    def do_step(self, current_time: float, step_size: float) -> bool:
         """Perform a simulation step from `self.time` to `self.time + step_size`.
 
         With respect to bouncing (self.t_bounce should be initialized to a negative value)

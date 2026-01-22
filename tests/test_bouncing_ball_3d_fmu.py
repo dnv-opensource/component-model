@@ -9,10 +9,10 @@ from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from fmpy import plot_result, simulate_fmu  # type: ignore[import-untyped]
-from fmpy.util import fmu_info  # type: ignore[import-untyped]
-from fmpy.validation import validate_fmu  # type: ignore[import-untyped]
-from pythonfmu.default_experiment import DefaultExperiment  # type: ignore[import-untyped]
+from fmpy import plot_result, simulate_fmu
+from fmpy.util import fmu_info
+from fmpy.validation import validate_fmu
+from pythonfmu.default_experiment import DefaultExperiment
 
 from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
@@ -101,9 +101,9 @@ def test_bouncing_ball_class(show: bool = False):
     if len(bb._pos) > 1 and bb._pos.unit[2].du is not None:
         bb._pos.setter((0, 0, 10))
     t_b, p_b = bb.next_bounce()
-    assert t_bounce == t_b
+    assert t_bounce == t_b, f"Bounce time {t_bounce} != {t_b}"
     # print("Bounce", t_bounce, x_bounce, p_b)
-    assert np.allclose((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"  # type: ignore ##??
+    assert np.allclose((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"
     get_result()
     # after one step
     bb.do_step(time, dt)
@@ -224,7 +224,7 @@ def test_use_fmu(bouncing_ball_fmu: Path, show: bool = False):
 
     assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
     dt = 0.01
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         bouncing_ball_fmu,
         start_time=0.0,
         stop_time=3.0,
@@ -363,12 +363,12 @@ def test_from_fmu(bouncing_ball_fmu: Path):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent / "test_working_directory")
-    # test_bouncing_ball_class(show=False)
+    test_bouncing_ball_class(show=False)
     # test_make_bouncing_ball(_bouncing_ball_fmu())
     # test_use_fmu(_bouncing_ball_fmu(), True)
     # test_from_fmu( _bouncing_ball_fmu())

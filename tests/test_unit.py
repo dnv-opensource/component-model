@@ -1,4 +1,5 @@
 from math import degrees, radians
+from typing import Any
 
 import pytest
 from pint import UnitRegistry
@@ -17,7 +18,7 @@ def _ureg():
     return _registry
 
 
-def test_parsing(ureg: UnitRegistry):
+def test_parsing(ureg: UnitRegistry[Any]):
     u1 = Unit()
     # default values:
     assert u1.u == "dimensionless"
@@ -27,6 +28,7 @@ def test_parsing(ureg: UnitRegistry):
     assert u1.u == "meter"
     assert u1.du is None
     val = u1.parse_quantity("9.9inch")
+    assert u1.to_base is not None and u1.from_base is not None
     assert val == u1.to_base(9.9), f"Found val={val}"
     assert u1.u == "meter"
     assert u1.du == "inch"
@@ -41,10 +43,10 @@ def test_parsing(ureg: UnitRegistry):
     assert uf.u == "kelvin"
     assert uf.du == "degree_Fahrenheit"
     assert uf.parse_quantity("0.0 degF") == 255.37222222222223
-    assert uf.to_base(0.0) == 255.37222222222223
+    assert uf.to_base is not None and uf.to_base(0.0) == 255.37222222222223
 
 
-def test_make(ureg: UnitRegistry):
+def test_make(ureg: UnitRegistry[Any]):
     val, unit = Unit.make("2m")
     assert val[0] == 2
     assert unit[0].u == "meter", f"Found {unit[0].u}"
@@ -59,7 +61,7 @@ def test_make(ureg: UnitRegistry):
     assert unit[0].du == "percent"
 
 
-def test_make_tuple(ureg: UnitRegistry):
+def test_make_tuple(ureg: UnitRegistry[Any]):
     vals, units = Unit.make_tuple(("2m", "3deg", "0.0 degF"))
     k2degc = 273.15
     assert units[0].u == "meter"
@@ -67,18 +69,22 @@ def test_make_tuple(ureg: UnitRegistry):
     assert vals[0] == 2
     assert units[1].u == "radian", f"Found {units[1].u}"
     assert units[1].du == "degree"
+    assert units[1].to_base is not None
     assert units[1].to_base(1.0) == radians(1.0)
+    assert units[1].from_base is not None
     assert units[1].from_base(1.0) == degrees(1.0)
     assert vals[1] == radians(3)
     assert units[2].u == "kelvin", f"Found {units[2].u}"
     assert units[2].du == "degree_Fahrenheit", f"Found {units[2].du}"
+    assert units[2].from_base is not None
     assert abs(units[2].from_base(k2degc) - (k2degc * 9 / 5 - 459.67)) < 1e-10
+    assert units[2].to_base is not None
     assert abs(units[2].to_base(0.0) - (0.0 + 459.67) * 5 / 9) < 1e-10, (
         f"Found {units[2].to_base(0.0)}, {(0.0 + 459.67) * 5 / 9}"
     )
 
 
-def test_derivative(ureg: UnitRegistry):
+def test_derivative(ureg: UnitRegistry[Any]):
     bv, bu = Unit.make_tuple(("2m", "3deg"))
     vals, units = Unit.derivative(bu)
     assert vals == (0.0, 0.0)
@@ -90,7 +96,7 @@ def test_derivative(ureg: UnitRegistry):
     assert units[1].from_base == bu[1].from_base
 
 
-def test_compatible(ureg: UnitRegistry):
+def test_compatible(ureg: UnitRegistry[Any]):
     v, u = Unit.make_tuple(("2m", "3deg"))
     ck, q = u[0].compatible("4m", strict=True)
     assert ck
