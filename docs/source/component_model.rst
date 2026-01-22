@@ -23,5 +23,7 @@ Modules
    component_model.model
    component_model.variable
    component_model.variable_naming
+   component_model.unit
+   component_model.range
    component_model.enums
    component_model.analytic
