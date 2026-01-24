@@ -1,6 +1,7 @@
 from math import degrees, radians
 from typing import Any
 
+import numpy as np
 import pytest
 from pint import UnitRegistry
 
@@ -21,14 +22,13 @@ def _ureg():
 def test_parsing(ureg: UnitRegistry[Any]):
     u1 = Unit()
     # default values:
-    assert u1.u == "dimensionless"
+    assert u1.u == ""
     assert u1.du is None
     val = u1.parse_quantity("9.9m")
     assert val == 9.9
     assert u1.u == "meter"
     assert u1.du is None
     val = u1.parse_quantity("9.9inch")
-    assert u1.to_base is not None and u1.from_base is not None
     assert val == u1.to_base(9.9), f"Found val={val}"
     assert u1.u == "meter"
     assert u1.du == "inch"
@@ -51,9 +51,9 @@ def test_make(ureg: UnitRegistry[Any]):
     assert val[0] == 2
     assert unit[0].u == "meter", f"Found {unit[0].u}"
     assert unit[0].du is None
-    val, unit = Unit.make("Hello World", typ=str)
+    val, unit = Unit.make("Hello World", no_unit=True)
     assert val[0] == "Hello World"
-    assert unit[0].u == "dimensionless"
+    assert unit[0].u == ""
     assert unit[0].du is None
     val, unit = Unit.make("99.0%")
     assert val[0] == 0.99
@@ -91,9 +91,10 @@ def test_derivative(ureg: UnitRegistry[Any]):
     assert units[0].u == "meter/s"
     assert units[0].du is None
     assert units[1].u == "radian/s", f"Found {units[1].u}"
-    assert units[1].du == "degree/s"
-    assert units[1].to_base == bu[1].to_base
+    assert units[1].du == "degree/s", f"{units[1].du} != 'degree/s'"
+    assert units[1].to_base == bu[1].to_base, f"{units[1].to_base} != {bu[1].to_base}"
     assert units[1].from_base == bu[1].from_base
+    assert units[1].to_base(360) == 2 * np.pi
 
 
 def test_compatible(ureg: UnitRegistry[Any]):

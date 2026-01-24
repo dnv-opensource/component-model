@@ -180,15 +180,19 @@ class Variable(ScalarVariable):
             assert local_name is None, f"{self.name} Default start value only defined for derivatives"
             assert basevar is not None, f"{self.name} basevar needed at this point"
             self._start, self._unit = Unit.derivative(basevar.unit)
-        elif self._typ is str or not isinstance(start, (tuple, list, np.ndarray)):
-            self._start, self._unit = Unit.make(start, self._typ)  # type: ignore  ## type of start should be ok
+        elif self._typ is str:
+            assert isinstance(start, str), f"Scalar str expected. Found {start}"
+            self._start, self._unit = (start,), (Unit(None),)  # explicit free string variable
+        elif not isinstance(start, (tuple, list, np.ndarray)):
+            self._start, self._unit = Unit.make(start, no_unit=False)
         else:
-            self._start, self._unit = Unit.make_tuple(start, self._typ)
+            self._start, self._unit = Unit.make_tuple(start, no_unit=False)
         self._len = 1 if self._typ is str else len(self._start)
-        if self._typ is None:  # try to adapt using start
-            self._typ = self.auto_type(self._start)
+        if self._typ is None:  # try to adapt using _start and _unit
+            self._typ = self.auto_type(self._start, self._unit)
         assert isinstance(self._typ, type)
-        self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
+        if self._typ is not Enum:  # Enums are already checked and casting does not work
+            self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
 
         ck = Range.is_valid_spec(rng, self._len, self._typ)
         if ck != 0:
@@ -228,6 +232,24 @@ class Variable(ScalarVariable):
             val = np.array(getattr(self.owner, basevar.local_name))  # previous value of base variable
             newval = val + step_size * der
             basevar.setter_internal(newval, -1)  # , True)
+
+    #     def _parse_start( start:None|PyType|tuple[PyType])-> tuple[PyType|np.ndarray,):
+    #         """Read start value(s), extract unit(s) and return everything needed for the simulation."""
+    #         if start is None:
+    #             assert local_name is None, f"{self.name} Default start value only defined for derivatives"
+    #             assert basevar is not None, f"{self.name} basevar needed at this point"
+    #             self._start, self._unit = Unit.derivative(basevar.unit)
+    #         elif self._typ is str or self._typ is Enum:
+    #
+    #         not isinstance(start, tuple)):
+    #             self._start, self._unit = Unit.make(start, no_unit=True)  # type: ignore  ## type of start should be ok
+    #         else:
+    #             self._start, self._unit = Unit.make_tuple(start, no_unit=False)
+    #         self._len = 1 if self._typ is str else len(self._start)
+    #         if self._typ is None:  # try to adapt using start
+    #             self._typ = self.auto_type(self._start)
+    #         assert isinstance(self._typ, type)
+    #         self._start = tuple([self._typ(s) for s in self._start])  # make sure that python type is correct
 
     # disable super() functions and properties which are not in use here
     def to_xml(self) -> ET.Element:
@@ -285,9 +307,10 @@ class Variable(ScalarVariable):
         if idx == -1 and self._len == 0:  # the whole scalar
             idx = 0
 
-        if issubclass(self._typ, Enum):  # Enum types are supplied as int. Convert
+        if issubclass(self._typ, Enum):  # Enum types may be supplied as int. Convert
             for i in range(self._len):
-                values[i] = self._typ(values[i])  # type: ignore
+                if isinstance(values[i], int):
+                    values[i] = self._typ(values[i])  # type: ignore
 
         if self._check & Check.ranges:  # do that before unit conversion, since range is stored in display units!
             if not self.check_range(values, idx):
@@ -295,23 +318,14 @@ class Variable(ScalarVariable):
 
         if self._check & Check.units:  #'values' expected as displayUnit. Convert to unit
             if idx >= 0:  # explicit index of single values
-                if self._unit[idx].to_base is None:
-                    dvals = list(values)
-                else:
-                    dvals = [self._unit[idx].to_base(values[0])]  # type: ignore
+                dvals = [self._unit[idx].to_base(values[0])]  # type: ignore
             else:  # the whole array
                 dvals = []
                 for i in range(self._len):
                     if values[i] is None:  # keep the value
                         dvals.append(getattr(self.owner, self.local_name)[i])
-                    elif self._unit[i].du is None:
-                        dvals.append(values[i])
                     else:
-                        # assert isinstance(values[i], float) or (self._typ is int and isinstance(values[i], int))
-                        val_i = values[i]
-                        if self._unit[i].to_base is not None:
-                            val_i = self._unit[i].to_base(values[i])  # type: ignore
-                        dvals.append(val_i)
+                        dvals.append(self._unit[i].to_base(values[i]))
         else:  # no unit issues
             if self._len == 1:
                 dvals = [values[0] if values[0] is not None else getattr(self.owner, self.local_name)]
@@ -361,10 +375,9 @@ class Variable(ScalarVariable):
                 if not isinstance(value, self._typ):  # other type conversion
                     value = self._typ(value)  # type: ignore[call-arg] ## only mypy
                 if self._check & Check.units:  # Convert 'value' base unit -> display.u
-                    if self._unit[0].from_base is not None:
-                        assert isinstance(value, float)
-                        value = self._unit[0].from_base(value)
-                values = [value]
+                    values = [self._unit[0].from_base(value)]
+                else:
+                    values = [value]
 
         else:  # compound variable
             values = list(getattr(self.owner, self.local_name))  # make value available as copy
@@ -377,8 +390,7 @@ class Variable(ScalarVariable):
                         values[i] = self._typ(values[i])  # type: ignore[call-arg]  ## only mypy
             if self._check & Check.units:  # Convert 'value' base unit -> display.u
                 for i in range(self._len):
-                    if self._unit[i].from_base is not None:
-                        values[i] = self._unit[i].from_base(values[i])  # type: ignore[reportOptionalCall] ##checked!
+                    values[i] = self._unit[i].from_base(values[i])
 
         if self._check & Check.ranges and not self.check_range(values, -1):  # check the range if so instructed
             logger.error(f"getter(): Value of {self.name}: {values} outside range {self.range}!")
@@ -420,48 +432,33 @@ class Variable(ScalarVariable):
             return str(val)
 
     @classmethod
-    def auto_type(cls, val: PyType | Compound, allow_int: bool = False):
-        """Determine the Variable type from a provided example value.
+    def auto_type(cls, vals: tuple[PyType, ...], units: tuple[Unit, ...]) -> type:
+        """Determine the Variable type from a set of example values and related Unit objects.
+
+        Variable type must be unique for the whole set of vals/units.
         Since variables can be initialized using strings with units,
-        the type can only be determined when the value is disected.
+        the type can only be determined when the value is disected and the units defined.
         Moreover, the value may indicate an integer, while the variable is designed a float.
-        Therefore int Variables must be explicitly specified.
+        int type is therefore only decided if all vals are int and if no unit is disected.
         """
-        assert val is not None, "'val is None'!"
-        if isinstance(val, (tuple, list, np.ndarray)):
-            types = [cls.auto_type(x, allow_int) for x in val]
-            typ = None
-            for t in types:
-                if t is not None and typ is None:
-                    typ = t
-                elif t is not None and typ is not None:
-                    if t == typ:
-                        pass
-                    elif t != typ:  # identify the super-type
-                        if issubclass(t, typ):  # is a sub-class. Ok
-                            pass
-                        elif issubclass(typ, t):
-                            typ = t
-                        elif typ is float and t is int:  # we allow that, even if no subclass
-                            pass
-                        elif typ is int and t is float:  # we allow that, even if no subclass
-                            typ = float
-                    else:
-                        logger.critical(f"Incompatible variable types {typ}, {t} in {val}")
-                        raise TypeError(f"Incompatible variable types {typ}, {t} in {val}") from None
-                else:
-                    logger.critical(f"auto_type(). Unhandled {t}, {typ}")
-                    raise ValueError(f"auto_type(). Unhandled {t}, {typ}")
-            return typ
-        else:  # single value
-            if isinstance(val, bool):
-                return bool
-            elif allow_int:
-                return type(val)
-            elif not allow_int and isinstance(val, (int, float)):
+        types: list[type] = []
+        for v, u in zip(vals, units, strict=True):
+            types.append(type(v))
+            if isinstance(v, (bool, Enum, str)) and u.u != "":
+                raise ValueError(f"{type(v).__name__} value {v} with unit '{u.u}' is not allowed.")
+            elif isinstance(v, int):
+                if u.u != "":  # must be a 'hidden float'
+                    types[-1] = float
+        if len(types) == 1 or all(types[0] is t for t in types[1:]):  # all element types equal
+            if issubclass(types[0], float):  # e.g. numpy.float64 is tracked as float
                 return float
             else:
-                return type(val)
+                return types[0]
+        if any(t is float for t in types) and all(t is float or t is int for t in types):  # int&float -> float
+            return float
+        else:
+            _units = tuple([u.u for u in units])
+            raise ValueError(f"Auto-type cannot be determined for values {vals} with units {_units}")
 
     @classmethod
     def _auto_extreme(cls, var: PyType) -> tuple[float | bool, ...]:
@@ -498,7 +495,6 @@ class Variable(ScalarVariable):
         -------
             List of ScalarVariable xml elements
         """
-
         _type = {"int": "Integer", "bool": "Boolean", "float": "Real", "str": "String", "Enum": "Enumeration"}[
             self.typ.__qualname__
         ]  # translation of python to FMI primitives. Same for all components
@@ -530,23 +526,18 @@ class Variable(ScalarVariable):
             # detailed variable definition
             info = ET.Element(_type)
             if do_use_start:  # a start value is to be used
-                _start = self._start[i]
-                if self._unit[i].from_base is not None:
-                    _start = self._unit[i].from_base(_start)  # type: ignore
-                info.attrib.update({"start": self.fmi_type_str(_start)})
+                info.attrib.update({"start": self.fmi_type_str(self._unit[i].from_base(self._start[i]))})
             if _type in ("Real", "Integer", "Enumeration"):  # range to be specified
                 xmin = self.range[i].rng[0]
                 if _type == "Real" and isinstance(xmin, float) and xmin == float("-inf"):
                     info.attrib.update({"unbounded": "true"})
                 else:
-                    xmin = xmin if self._unit[i].from_base is None else self._unit[i].from_base(xmin)  # type: ignore
-                    info.attrib.update({"min": str(xmin)})
+                    info.attrib.update({"min": str(self._unit[i].from_base(xmin))})
                 xmax = self.range[i].rng[1]
                 if _type == "Real" and isinstance(xmax, float) and xmax == float("inf"):
                     info.attrib.update({"unbounded": "true"})
                 else:
-                    xmax = xmax if self._unit[i].from_base is None else self._unit[i].from_base(xmax)  # type: ignore
-                    info.attrib.update({"max": str(xmax)})
+                    info.attrib.update({"max": str(self._unit[i].from_base(xmax))})
             if _type == "Real":  # other attributes apply only to Real variables
                 info.attrib.update({"unit": self.unit[i].u})
                 if isinstance(self._unit[i].du, str) and self.unit[i].du != self._unit[i].u:

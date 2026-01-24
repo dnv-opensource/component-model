@@ -180,13 +180,13 @@ def test_use_with_new_data(show: bool):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", __file__])
+    retcode = pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent.absolute() / "test_working_directory")
     # test_time_table_fmu()
-    test_make_time_table(_time_table_fmu())
+    # test_make_time_table(_time_table_fmu())
     # test_use_fmu(_time_table_fmu(), show=True)
     # test_make_with_new_data()
     # test_use_with_new_data(show=True)

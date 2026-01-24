@@ -42,7 +42,7 @@ class Range(object):
             unit = Unit()
         assert isinstance(val, (bool, int, float, str, Enum)), f"Only primitive types allowed for Range. Found {typ}"
         if isinstance(val, str):
-            assert unit.u == "dimensionless", f"A free string cannot have units. Found {unit.u}"
+            assert unit.u == "", f"A free string cannot have units. Found {unit.u}"
             self.rng = (val, val)  # no range for free strings
         elif rng is None:  # fixed value in any case. val provided in base units. No conversion
             self.rng = (val, val)  # type: ignore[assignment]  ## see def above
@@ -59,9 +59,9 @@ class Range(object):
                     l_rng[i] = val  # type: ignore[reportArgumentType] ## l_rng is not empty # fixed display value
                 else:
                     assert isinstance(r, (str, int, bool, float, Enum)), f"Found type {type(r)}"
-                    check, q = unit.compatible(r, typ, strict=True)  # q in base units
+                    check, q = unit.compatible(r, no_unit=False, strict=True)  # q in base units
                     if not check:
-                        raise ValueError(f"Provided range {rng} is not conformant with unit {unit}") from None
+                        raise ValueError(f"Provided range {rng}[{i}] is not conformant with unit {unit}") from None
                     assert isinstance(q, (int, bool, float)), "Unexpected type {type(q)} in {rng}[{i}]"
                     try:
                         q = type(val)(q)  # ensure correct Python type
@@ -120,20 +120,28 @@ class Range(object):
         if value is None:  # denotes unchanged values (of compound variables)
             return True
         if not isinstance(value, typ):
-            try:
-                value = typ(value)  # try to cast the values
-            except Exception:  # give up
-                return False
+            if issubclass(typ, Enum):
+                if isinstance(value, Enum):
+                    value = value.value
+                assert isinstance(value, int) and isinstance(self.rng[0], int) and isinstance(self.rng[0], int), (
+                    f"Enum range is managed as int. Found {self.rng}, {value}"
+                )
+                return self.rng[0] <= value <= self.rng[1]  # type: ignore[operator]  ## all arguments int!
+            else:
+                try:
+                    assert typ is not None, "Need a proper typ argument here"
+                    value = typ(value)  # type: ignore  ## try to cast the values
+                except Exception:  # give up
+                    return False
         # special types
         if typ is str:  # no range checking on str
             return True
         elif typ is bool:
             return isinstance(value, bool)
         elif isinstance(value, Enum):
-            return isinstance(value, typ)
-
+            return self.rng[0] <= value.value <= self.rng[1]  # type: ignore[operator] ## There is no str involved!
         elif isinstance(value, (int, float)) and all(isinstance(x, (int, float)) for x in self.rng):
-            assert typ is int or typ is float, f"Inconsistent type {typ}. Expect int or float"
+            # assert typ is int or typ is float, f"Inconsistent type {typ} for value {value}. Expected int or float"
             if disp and unit.to_base is not None:  # check a display unit values
                 value = unit.to_base(value)
             return self.rng[0] <= value <= self.rng[1]  # type: ignore[operator] ## There is no str involved!
