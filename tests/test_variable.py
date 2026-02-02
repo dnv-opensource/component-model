@@ -1,4 +1,3 @@
-# pyright: ignore[reportAttributeAccessIssue] # PythonFMU generates variable value objects using setattr()
 import logging
 import math
 import xml.etree.ElementTree as ET  # noqa: N817
@@ -7,12 +6,14 @@ from typing import Any, Sequence
 
 import numpy as np
 import pytest
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pint import UnitRegistry
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Initial as Initial
+from pythonfmu.enums import Fmi2Variability as Variability
 from scipy.spatial.transform import Rotation as Rot
 
 from component_model.model import Model
+from component_model.unit import Unit
 from component_model.utils.analysis import extremum, extremum_series
 from component_model.utils.transform import (
     cartesian_to_spherical,
@@ -27,6 +28,17 @@ from component_model.variable import Check, Variable
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+@pytest.fixture
+def ureg(scope: str = "module", autouse: bool = True):
+    return _ureg()
+
+
+def _ureg():
+    _registry = Unit.ensure_unit_registry("SI")
+    assert isinstance(_registry, UnitRegistry)
+    return _registry
 
 
 class DummyModel(Model):
@@ -94,7 +106,7 @@ def test_range():
     mod = DummyModel("MyModel2", instance_name="MyModel2")
     with pytest.raises(ValueError) as err:
         _int1 = Variable(mod, "int1", typ=int, start=1)
-    assert err.value.args[0] == "Auto-extremes for type <class 'int'> cannot be determined"
+    assert err.value.args[0] == "int1 invalid range spec '()'. Error: Automatic range for int variables is not defined."
     int2 = Variable(mod, "int2", start=1, rng=(0, 5))
     assert int2.range[0].rng == (0, 5), "That works"
     mod.int2 = 6
@@ -111,21 +123,29 @@ def test_range():
         assert r.rng == exp, f"{r.rng} != {exp}"
 
 
-def test_auto_type():
-    assert Variable.auto_type(1) is float, "int not allowed (default)"
-    assert Variable.auto_type(1, allow_int=True) is int, "int allowed"
-    assert Variable.auto_type(0.99, allow_int=True) is float
-    assert Variable.auto_type(0.99, allow_int=False) is float
-    assert Variable.auto_type((1, 2, 0.99), allow_int=False) is float
-    assert Variable.auto_type((1, 2, 0.99), allow_int=True) is float, "Ok by our rules"
-    assert Variable.auto_type((1, 2, 3), allow_int=True) is int
-    assert Variable.auto_type((True, False, 3), allow_int=True) is int
-    assert Variable.auto_type((True, False), allow_int=True) is bool
-    assert Variable.auto_type((True, False), allow_int=False) is bool
-    assert Variable.auto_type((True, 1, 9.9), allow_int=False) is bool
-    #     with pytest.raises(VariableInitError) as err: # that goes too far
-    #         assert Variable.auto_type( (True,1, 9.9), allow_int=False) == float
-    #     assert str(err.value).startswith("Incompatible variable types")
+def test_auto_type(ureg: UnitRegistry[Any]):
+    no_unit = (Unit(),)
+    no_units = (Unit(), Unit(), Unit())
+    lengths = (Unit("1 m"), Unit("1 inch"), Unit("100 m"))
+    assert Variable.auto_type((1,), no_unit) is int
+    assert Variable.auto_type((1, 2, 3), lengths) is float, "int with units become float"
+    assert Variable.auto_type((0.99,), no_unit) is float
+    assert Variable.auto_type((1, 2, 0.99), no_units) is float, "float overrides int"
+    assert Variable.auto_type((1, 2, 3), no_units) is int
+    with pytest.raises(ValueError) as err:
+        assert Variable.auto_type((True, False, 3), no_units) is int
+    assert str(err.value).startswith("Auto-type cannot be determined for values")
+    assert Variable.auto_type((True, False, True), no_units) is bool
+    with pytest.raises(ValueError) as err:
+        assert Variable.auto_type((True, False, True), lengths) is bool
+    assert str(err.value) == "bool value True with unit 'meter' is not allowed."
+    with pytest.raises(ValueError) as err:
+        assert Variable.auto_type((True, 1, 9.9), no_units) is bool
+    assert str(err.value).startswith("Auto-type cannot be determined for values")
+    assert Variable.auto_type((Causality.input, Causality.output, Causality.parameter), no_units) is Causality
+    with pytest.raises(ValueError) as err:
+        assert Variable.auto_type((Causality.input, Variability.continuous, Causality.parameter), no_units) is Enum
+    assert str(err.value).startswith("Auto-type cannot be determined for values")
 
 
 def test_spherical_cartesian():
@@ -364,7 +384,7 @@ def test_init():
     # internally packed into tuple:
     assert int1.start == (99,)
     assert int1.range[0].rng == (0, 100), f"Found {int1.range[0].rng}"
-    assert int1.unit[0].u == "dimensionless"
+    assert int1.unit[0].u == ""
     assert int1.unit[0].du is None
     assert int1.check_range([50])
     assert not int1.check_range([110])
@@ -378,19 +398,20 @@ def test_init():
     mod.set_integer([mod.variable_by_name("int1").value_reference], [99])  # simulate setting from outside
     assert mod.get_integer([mod.variable_by_name("int1").value_reference]) == [99]
 
-    assert float1.typ is float
+    assert float1.typ is float, f"Found {float1.typ}"
     assert float1.causality == Causality.input
     assert float1.variability == Variability.continuous
     assert float1.initial is None, f"initial: {float1.initial}"
     assert float1.check == Check.all
     # internally packed into tuple:
     assert float1.start == (0.99,)
-    assert float1.range[0].rng == (0.0, 99.0), f"Range: {float1.range[0].rng} in display units."
     assert float1.unit[0].u == "dimensionless"
     assert float1.unit[0].du == "percent", f"Display: {float1.unit[0].du}"
-    assert float1.unit[0].to_base(99) == 0.99, "Transform to dimensionless"
-    assert float1.unit[0].from_base(0.99) == 99, "... and back."
-    assert float1.check_range([0.5])
+    assert float1.range[0].rng == (0.0, 0.99), f"Stored range: {float1.range[0].rng}!=(0.0,0.99) in base units."
+    assert float1.unit[0].to_base is not None and float1.unit[0].from_base is not None, "Transformations needed"
+    assert float1.unit[0].to_base(99) == 0.99, f"Transform % to dimensionless: {float1.unit[0].to_base(99)}"
+    assert float1.unit[0].from_base(0.99) == 99.0, f"... and back:: {float1.unit[0].from_base(0.99)}"
+    assert float1.check_range([50])
     assert not float1.check_range([1.0], disp=False), "Check as internal units"
     assert not float1.check_range([100.0]), "Check as display units"
     assert mod.float1 == 0.99, "Value directly accessible as model variable"
@@ -412,7 +433,7 @@ def test_init():
     # internally packed into tuple:
     assert enum1.start == (Causality.parameter,)
     assert enum1.range[0].rng == (0, 4), f"Range: {enum1.range[0].rng}"
-    assert enum1.unit[0].u == "dimensionless"
+    assert enum1.unit[0].u == ""
     assert enum1.unit[0].du is None, f"Display: {enum1.unit[0].du}"
     assert enum1.check_range([1])
     assert not enum1.check_range([7])
@@ -423,7 +444,6 @@ def test_init():
     assert enum1.getter() == [4], f"Value {enum1.getter()}. Translated to int!"
     mod.set_integer([mod.variable_by_name("enum1").value_reference], [2])  # simulate setting from outside
     assert mod.get_integer([mod.variable_by_name("enum1").value_reference]) == [2]
-
     assert bool1.typ is bool
     assert bool1.causality == Causality.parameter
     assert bool1.variability == Variability.fixed
@@ -432,7 +452,7 @@ def test_init():
     # internally packed into tuple:
     assert bool1.start == (True,)
     assert bool1.range[0].rng == (False, True)
-    assert bool1.unit[0].u == "dimensionless"
+    assert bool1.unit[0].u == ""
     assert bool1.unit[0].du is None
     assert bool1.check_range([True])
     assert bool1.check_range([100.5]), "Any number will work"
@@ -454,7 +474,7 @@ def test_init():
     # internally packed into tuple:
     assert str1.start == ("Hello World!",)
     assert str1.range[0].rng == ("Hello World!", "Hello World!"), f"Range: {str1.range[0].rng}. Basically irrelevant"
-    assert str1.unit[0].u == "dimensionless", f"Unit {str1.unit}"
+    assert str1.unit[0].u == "", f"Unit {str1.unit}"
     assert str1.unit[0].du is None, f"Display: {str1.unit[0].du}"
     assert str1.check_range([0.5]), "Everything is ok"
     assert mod.str1 == "Hello World!", f"Value {mod.str1} directly accessible as model variable"
@@ -466,7 +486,7 @@ def test_init():
     mod.set_string([mod.variable_by_name("str1").value_reference], ["Hello"])  # simulate setting from outside
     assert mod.get_string([mod.variable_by_name("str1").value_reference]) == ["Hello"]
 
-    assert np1.typ is float
+    assert np1.typ is float  # np1: start=("1.0m","2deg","3rad"), rng=((0,"3m"),("1deg","5deg"),(float("-inf"), "5rad"))
     assert np1 == mod.variable_by_name("np1")
     assert np1.description == "A NP variable"
     assert mod.variable_by_name("np1[1]") == mod.variable_by_name("np1"), "Returns always the parent"
@@ -476,7 +496,9 @@ def test_init():
     assert np1.check == Check.all
     # internally packed into tuple:
     assert np1.start == (1, math.radians(2), 3)
-    for r, expect in zip(np1.range, ((0.0, 3.0), (1.0, 5.0), (float("-inf"), 5.0)), strict=True):
+    for r, expect in zip(
+        np1.range, ((0.0, 3.0), (np.radians(1.0), np.radians(5.0)), (float("-inf"), 5.0)), strict=True
+    ):
         assert np.allclose(r.rng, expect), f"{r.rng} != {expect}"
     assert not np1.check_range([5.1], idx=1), "Checks performed on display units!"
     assert not np1.check_range([0.9], idx=1), "Checks performed on display units!"
@@ -533,8 +555,10 @@ def test_init():
             annotations=None,
             typ=int,
         )
-    assert err3.value.args[0] == "Auto-extremes for type <class 'int'> cannot be determined"
-    assert float1.range[0].rng[1] == 99.0
+    assert err3.value.args[0].startswith(
+        "bool1 invalid range spec '()'. Error: Automatic range for int variables is not defined."
+    )
+    assert float1.range[0].rng[1] == 0.99
     assert enum1.range[0].rng == (0, 4)
     assert enum1.check_range([Causality.parameter])
     assert str1.range[0].rng == ("Hello World!", "Hello World!"), "Just a placeholder. Range of str is not checked"
@@ -670,7 +694,7 @@ def test_set():
     assert mod.int1 == 60
     assert mod.vars[1].getter() == [61], f"Found {mod.vars[99].getter()}"
     with pytest.raises(AssertionError) as err:
-        mod.set_integer([6, 7], [2.0, "30 deg"])  # type: ignore # we want to produce an error!
+        mod.set_integer([6, 7], [2.0, "30 deg"])
     assert str(err.value) == "Invalid type in 'set_<class 'int'>'. Found variable np1 with type <class 'float'>"
     mod.set_real([6, 7], [2.0, 3.0])  # "3 deg"])
 
@@ -691,11 +715,17 @@ def test_xml():
     lst = np2.xml_scalarvariables()
     assert len(lst) == 3
     expected = '<ScalarVariable name="Test9[0]" valueReference="0" description="A NP variable ..." causality="input" variability="continuous"><Real start="1.0" min="0.0" max="3.0" unit="meter" /></ScalarVariable>'
-    assert ET.tostring(lst[0], encoding="unicode") == expected, ET.tostring(lst[0], encoding="unicode")
-    expected = '<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.03490658503988659" min="2.0000000000000004" max="2.0000000000000004" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[1], encoding="unicode") == expected, ET.tostring(lst[1], encoding="unicode")
-    expected = '<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="0.05235987755982989" min="3.0000000000000004" max="3.0000000000000004" unit="radian" displayUnit="degree" /></ScalarVariable>'
-    assert ET.tostring(lst[2], encoding="unicode") == expected, ET.tostring(lst[2], encoding="unicode")
+    assert ET.tostring(lst[0], encoding="unicode") == expected, (
+        f"Found:\n{ET.tostring(lst[0], encoding='unicode')} != \n{expected}"
+    )
+    expected = '<ScalarVariable name="Test9[1]" valueReference="1" description="A NP variable ..." causality="input" variability="continuous"><Real start="2.0000000000000004" min="2.0000000000000004" max="2.0000000000000004" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    assert ET.tostring(lst[1], encoding="unicode") == expected, (
+        f"Found:\n{ET.tostring(lst[1], encoding='unicode')} != \n{expected}"
+    )
+    expected = '<ScalarVariable name="Test9[2]" valueReference="2" description="A NP variable ..." causality="input" variability="continuous"><Real start="3.0000000000000004" min="3.0000000000000004" max="3.0000000000000004" unit="radian" displayUnit="degree" /></ScalarVariable>'
+    assert ET.tostring(lst[2], encoding="unicode") == expected, (
+        f"Found:\n{ET.tostring(lst[2], encoding='unicode')} != \n{expected}"
+    )
 
     int1 = Variable(
         mod,
@@ -709,7 +739,7 @@ def test_xml():
         value_check=Check.all,
     )
     lst = int1.xml_scalarvariables()
-    expected = '<ScalarVariable name="int1" valueReference="3" description="A integer variable" causality="parameter" variability="fixed" initial="exact"><Real start="0.99" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
+    expected = '<ScalarVariable name="int1" valueReference="3" description="A integer variable" causality="parameter" variability="fixed" initial="exact"><Real start="99.0" min="0.0" max="100.0" unit="dimensionless" displayUnit="percent" /></ScalarVariable>'
     found = ET.tostring(lst[0], encoding="unicode")
     assert found == expected, f"\nFound   :{found}\nExpected:{expected}"
 
@@ -760,13 +790,14 @@ def test_extremum():
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rP -s -v", __file__])
+    retcode = 0  # pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
-    # test_init()
+    # ureg = _ureg()
+    test_init()
     # test_range()
     # test_var_check()
     # test_spherical_cartesian()
-    # test_auto_type()
+    # test_auto_type(ureg)
     # test_dirty()
     # test_var_ref()
     # test_vars_iter()

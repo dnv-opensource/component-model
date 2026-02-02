@@ -36,7 +36,7 @@ def test_limits():
 
     # try to set goal outside limits
     _b.limit_err = logging.CRITICAL
-    with pytest.raises(ValueError) as err:  # type: ignore[assignment]  #it is a 'ValueError'
+    with pytest.raises(ValueError) as err:  # type: ignore[assignment] ## mypy believes that it is an AssertionError??
         _b.setgoal(1, 2, 9.9, 0.0)
     assert err.value.args[0] == "Goal 'polar'@ 9.9 is above the limit 0.0. Stopping execution."
     _b.limit_err = logging.WARNING

@@ -1,5 +1,5 @@
 import logging
-from typing import Sequence
+from typing import Any
 
 import numpy as np  # noqa
 
@@ -29,12 +29,14 @@ class TimeTableFMU(Model, TimeTable):  # refer to Model first!
 
     def __init__(
         self,
-        data: Sequence = ((0.0, 1, 0, 0), (1.0, 1, 1, 1), (3.0, 1, 3, 9), (7.0, 1, 7, 49)),  # data useful for testing
-        header: Sequence[str] | None = None,
+        data: list[list[int | float]] | None = None,
+        header: list[str] | None = None,
         interpolate: int = 1,
         default_experiment: dict[str, float] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
+        if data is None:
+            data = [[0.0, 1, 0, 0], [1.0, 1, 1, 1], [3.0, 1, 3, 9], [7.0, 1, 7, 49]]  # ex.data
         TimeTable.__init__(self, data, header, interpolate)
         if default_experiment is None:
             default_experiment = {"startTime": 0, "stopTime": 10.0, "stepSize": 0.1, "tolerance": 1e-5}
@@ -58,7 +60,7 @@ class TimeTableFMU(Model, TimeTable):  # refer to Model first!
             initial="exact",
             start=interpolate,
             rng=(0, 4),
-            on_set=self.set_interpolate,
+            on_set=self.set_interpolate,  # type: ignore
         )  # the interpolation type can be set as parameter
         self._outs = Variable(
             self,

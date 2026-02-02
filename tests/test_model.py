@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from component_model.model import Model  # type: ignore
+from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
 from component_model.variable import Check, Variable
 from component_model.variable_naming import ParsedVariable, VariableNamingConvention
@@ -148,9 +148,9 @@ def test_from_fmu(bouncing_ball_fmu: Path):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_license()
-    # test_xml()
+    test_xml()
     # test_from_fmu(_bouncing_ball_fmu())
     # test_variable_naming()

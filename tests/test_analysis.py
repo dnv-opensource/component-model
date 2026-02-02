@@ -1,4 +1,3 @@
-# pyright: ignore[reportAttributeAccessIssue] # PythonFMU generates variable value objects using setattr()
 import logging
 
 import numpy as np

@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fmpy import simulate_fmu  # type: ignore
-from pythonfmu import (  # type: ignore
+from fmpy import simulate_fmu
+from pythonfmu import (
     Boolean,
     DefaultExperiment,
     Fmi2Causality,
@@ -131,7 +131,7 @@ def test_make_fmu(build_fmu: Path):
 
 
 def test_use_fmu(build_fmu: Path):
-    _ = simulate_fmu(  # type: ignore #fmpy does not comply to pyright expectations
+    _ = simulate_fmu(
         build_fmu,
         stop_time=1,
         step_size=0.1,

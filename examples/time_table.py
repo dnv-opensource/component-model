@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Any
 
 import numpy as np
 from scipy.interpolate import make_interp_spline
@@ -21,16 +21,18 @@ class TimeTable:
 
     def __init__(
         self,
-        data: Sequence = (
-            (0.0, 1, 0, 0),
-            (1.0, 1, 1, 1),
-            (3.0, 1, 3, 9),
-            (7.0, 1, 7, 49),
-        ),  # default data set useful for testing
-        header: Sequence[str] | None = None,
+        data: list[list[int | float]] | None = None,
+        header: list[str] | None = None,
         interpolate: int = 1,
-        **kwargs,
+        **kwargs: Any,
     ):
+        if data is None:
+            data = [  # default data set useful for testing
+                [0.0, 1, 0, 0],
+                [1.0, 1, 1, 1],
+                [3.0, 1, 3, 9],
+                [7.0, 1, 7, 49],
+            ]
         self._rows = len(data)
         assert self._rows > 0, "Empty lookup table detected, which does not make sense"
         self._cols = len(data[0]) - 1
@@ -46,7 +48,7 @@ class TimeTable:
             assert len(header) == self._cols, "Number of header elements does not match number of columns in data"
             self.header = tuple(header)
         self.outs = self.data[0]  # initial values
-        self.interpolate = self.set_interpolate(interpolate)
+        self.interpolate = self.set_interpolate(int(interpolate))
 
     def set_interpolate(self, interpolate: int):
         assert 0 <= interpolate <= 4, f"Erroneous interpolation exponent {self.interpolate}"
@@ -54,7 +56,7 @@ class TimeTable:
         self.interpolate = interpolate
         return interpolate
 
-    def lookup(self, time):
+    def lookup(self, time: float):
         """Do a simulation step of size 'stepSize at time 'time."""
         self.outs = self._bspl(time)
         return self.outs
