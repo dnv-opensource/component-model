@@ -5,7 +5,9 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def extremum(x: tuple | list | np.ndarray, y: tuple | list | np.ndarray, aerr: float = 0.0):
+def extremum(
+    x: tuple[float, ...] | list[float] | np.ndarray, y: tuple[float, ...] | list[float] | np.ndarray, aerr: float = 0.0
+):
     """Check whether the provided (3) points contain an extremum.
     Return 0 (no extremum), -1 (low point), 1 (top point) and the point, or (0,0).
     """
@@ -26,7 +28,9 @@ def extremum(x: tuple | list | np.ndarray, y: tuple | list | np.ndarray, aerr: f
             return (0.0, (0.0, 0.0))
 
 
-def extremum_series(t: tuple | list | np.ndarray, y: tuple | list | np.ndarray, which: str = "max"):
+def extremum_series(
+    t: tuple[float, ...] | list[float] | np.ndarray, y: tuple[float, ...] | list[float] | np.ndarray, which: str = "max"
+):
     """Estimate the extrema from the time series defined by y(t).
     which can be 'max', 'min' or 'all'.
     """

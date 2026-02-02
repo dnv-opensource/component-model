@@ -1,28 +1,36 @@
 """Additional Enum objects for component-model and enum-related utilities."""
 
 import logging
-from enum import Enum
+from enum import Enum, EnumType, IntFlag
 
-# import pythonfmu.enums # type: ignore
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Initial as Initial
+from pythonfmu.enums import Fmi2Variability as Variability
 
 logger = logging.getLogger(__name__)
 
 
-def ensure_enum(org: str | Enum | None, default: Enum | None) -> Enum | None:
+def ensure_enum(org: str | Enum | None, default: Enum | EnumType | None) -> Enum | None:
     """Ensure that we have an Enum, based on the input as str, Enum or None."""
-    if org is None:
+    if org is None and default is None:
+        return None
+        raise ValueError("org and default shall not both be None") from None
+    elif org is None:
+        assert isinstance(default, Enum), f"Need an Enum (member) as default if org=None. Found {type(default)}"
         return default
-    elif isinstance(org, str):
-        assert isinstance(default, Enum), "Need a default Enum here"
-        if org in type(default).__members__:
-            return type(default)[org]
+    elif default is None:
+        assert isinstance(org, Enum), "When no default is provided, org must be an Enum."
+        return org
+    elif isinstance(org, str):  # both provided and org is a string
+        _default = default if isinstance(default, EnumType) else type(default)  # need the Enum itself
+        if org in _default.__members__:
+            e: Enum = _default[org]  # type: ignore[reportAssignmentType]
+            assert isinstance(e, Enum)
+            return e
         else:
-            raise Exception(f"The value {org} is not compatible with the Enum {type(default)}") from None
-    else:  # expect already an Enum
-        assert default is None or isinstance(org, type(default)), f"{org} is not member of the Enum {type(default)}"
+            raise Exception(f"The value {org} is not compatible with the Enum {_default}") from None
+    else:  # expect already an EnumType
+        assert isinstance(org, type(default)), f"{org} is not member of the Enum {type(default)}"
         return org
 
 
@@ -85,14 +93,14 @@ def check_causality_variability_initial(
     variability: str | Enum | None,  # EnumType | None,
     initial: str | Enum | None,
 ) -> tuple[Causality | None, Variability | None, Initial | None]:
-    _causality = ensure_enum(causality, Causality.parameter)  # type: ignore
-    _variability = ensure_enum(variability, Variability.constant)  # type: ignore
+    _causality = ensure_enum(causality, Causality.parameter)
+    _variability = ensure_enum(variability, Variability.constant)
     res = combination(_variability, _causality)  # type: ignore
     if res in ("a", "b", "c", "d", "e"):  # combination is not allowed
         logger.info(f"(causality {_causality}, variability {variability}) is not allowed: {explanations[res]}")
         return (None, None, None)
     else:  # allowed
-        _initial = ensure_enum(initial, initial_default[res][0])  # type: ignore
+        _initial = ensure_enum(initial, initial_default[res][0])
         if _initial not in initial_default[res][1]:
             logger.info(f"(Causality {_causality}, variability {_variability}, Initial {_initial}) is not allowed")
             return (None, None, None)
@@ -100,3 +108,28 @@ def check_causality_variability_initial(
             return (Causality(_causality), Variability(_variability), None)
         else:
             return (Causality(_causality), Variability(_variability), Initial(_initial))
+
+
+class Check(IntFlag):
+    """Flags to denote how variables should be checked with respect to units and range.
+    The aspects are indepent, but can be combined in the Enum through | or &.
+
+    * none:     neither units nor ranges are expected or checked.
+    * unitNone: only numbers without units expected when new values are provided.
+      If units are provided during initialization, these should be base units (SE), i.e. unit and display are the same.
+    * u_all:    expect always quantity and number and convert internally to base units (SE). Provide output as display
+    * units:    flag to filter only on units, e.g ck & Check.units
+    * r_none:   no range is provided or checked
+    * r_check:  range is provided and checked
+    * ranges:  flag to filter on range, e.g. ck & Check.ranges
+    * all:     short for u_all | r_check
+    """
+
+    none = 0
+    u_none = 0
+    u_all = 1
+    units = 1
+    r_none = 0
+    r_check = 2
+    ranges = 2
+    all = 3

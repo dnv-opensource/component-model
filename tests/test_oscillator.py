@@ -1,14 +1,18 @@
+import logging
 from functools import partial
-from math import atan2, cos, exp, pi, sin, sqrt
+from math import atan2, pi, sin, sqrt
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from scipy.integrate import solve_ivp
+
+from component_model.analytic import ForcedOscillator1D  # , sine_fit
+
+logger = logging.getLogger(__name__)
 
 
-def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps=1e-7):
+def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ...] | list[float], eps: float = 1e-7):
     assert len(res) == len(expected), (
         f"Tuples of different lengths cannot be equal. Found {len(res)} != {len(expected)}"
     )
@@ -18,11 +22,11 @@ def arrays_equal(res: tuple[float, ...] | list[float], expected: tuple[float, ..
 
 
 def do_show(
-    time: list,
-    z: list,
-    v: list,
-    compare1: list | None = None,
-    compare2: list | None = None,
+    time: list[float] | np.ndarray,
+    z: list[float] | np.ndarray,
+    v: list[float] | np.ndarray,
+    compare1: list[float] | np.ndarray | None = None,
+    compare2: list[float] | np.ndarray | None = None,
     z_label: str = "z-position",
     v_label: str = "z-speed",
 ):
@@ -44,67 +48,16 @@ def force(t: float, ampl: float = 1.0, omega: float = 0.1, d_omega: float = 0.0)
         return np.array((0, 0, ampl * sin((omega + d_omega * t) * t)), float)  # frequency sweep
 
 
-def forced_oscillator(
-    t: float, k: float, c: float, m: float, a: float = 0.0, wf: float = 0.1, x0: float = 1.0, v0: float = 0.0
-):
-    """Calculates the expected (analytic) position and speed of a harmonic oscillator (in one dimension)
-    with the given parameter setting.
-
-    Args:
-        t (float): time
-        k,c,m (float): harmonic oscillator parameters
-        a,wf (float): sinusoidal force parameters (amplitude and angular frequency)
-        x0, v0 (float): start values for harmonic oscillator (force has fixed start values)
-    """
-    from math import atan2, sin, sqrt
-
-    w0 = sqrt(k / m)  # omega0
-    b = c / (2 * m)  # beta
-    if a != 0:
-        assert x0 == 0 and v0 == 0, "Checking of forced oscillations is only implemented for x0=0 and v0=0"
-        A = a / sqrt(((w0**2 - wf**2) ** 2 + (2 * b * wf) ** 2))
-        d = atan2(2 * b * wf, w0**2 - wf**2)  # phase angle in equilibrium
-        x0 = A * sin(d)
-        v0 = -A * wf * cos(d)
-        x_e = A * sin(wf * t - d)
-        v_e = A * wf * cos(wf * t - d)
-        # return x_e, v_e
-    else:
-        x_e, v_e = (0.0, 0.0)
-
-    if w0 - b > 1e-10:  # damped oscillation
-        w1 = sqrt(w0**2 - b**2)  # angular frequency of oscillation
-        x = exp(-b * t) * (x0 * cos(w1 * t) + (x0 * b + v0) / w1 * sin(w1 * t))
-        v = exp(-b * t) * (v0 * cos(w1 * t) - (w1 * x0 + b**2 / w1 * x0 + b / w1 * v0) * sin(w1 * t))
-    elif abs(w0 - b) < 1e-10:  # critically damped oscillation
-        x = ((v0 + b * x0) * t + x0) * exp(-b * t)
-        v = -b * (v0 + b * x0) * t * exp(-b * t)
-    else:  # over-damped oscillation
-        w1_ = sqrt(b**2 - w0**2)
-        _b1 = 2 * b - w1_
-        _b2 = 2 * b + w1_
-        x = ((b + w1_) * x0 + v0) / 2 / w1_ * exp(-(b - w1_) * t) - ((b - w1_) * x0 + v0) / 2 / w1_ * exp(
-            -(b + w1_) * t
-        )
-        v = -((b + w1_) * x0 + v0) / 2 / w1_ * (b - w1_) * exp(-(b - w1_) * t) + ((b - w1_) * x0 + v0) / 2 / w1_ * (
-            b + w1_
-        ) * exp(-(b + w1_) * t)
-    if a != 0:
-        return (x + x_e, v + v_e)
-    else:
-        return (x, v)
-
-
 def run_oscillation_z(
     k: float,
     c: float,
     m: float,
     ampl: float,
     omega: float,
-    x0: float = 1.0,
-    v0: float = 0.0,
+    x0: float = 0.0,
+    v0: float = 1.0,
     dt: float = 0.01,
-    end: float = 30.0,
+    end: float = 50.0,
     tol: float = 1e-3,
 ):
     """Run the oscillator with the given settings for the given time (only z-direction activated)
@@ -150,9 +103,10 @@ def sweep_oscillation_z(
 
     f_func = f_func = partial(force, ampl=ampl, omega=0.0, d_omega=d_omega)
     osc = Oscillator(k=(1.0, 1.0, k), c=(0.0, 0.0, c), m=m, tolerance=tol, f_func=f_func)
+    a_osc = ForcedOscillator1D(k=k, c=c, m=m, a=ampl, wf=1, x0=x0, dx0=v0)
     osc.x[2] = x0  # set initial z value
     osc.v[2] = v0  # set initial z-speed
-    times, z, v, f = [], [], [], []
+    times, z, v, f, _z, _v = [], [], [], [], [], []
     time = 0.0
     while time < end:
         times.append(time)
@@ -160,9 +114,14 @@ def sweep_oscillation_z(
         v.append(osc.v[2])
         osc.do_step(time, dt)
         f.append(f_func(time)[2])
+        # analytic solution for comparison
+        a_osc.coefficients(wf=d_omega * time)
+        zz, vv = a_osc.calc(time)
+        _z.append(zz)
+        _v.append(vv)
         time += dt
 
-    return (osc, times, z, v, f)
+    return (osc, times, z, v, f, _z, _v)
 
 
 def test_oscillator_class(show: bool = False):
@@ -172,30 +131,33 @@ def test_oscillator_class(show: bool = False):
     With respect to `wiki <https://en.wikipedia.org/wiki/Oscillation>`_ our parameters are:
     b = c, k=k => beta = c/(2m), w0 = sqrt(k/m) => w1 = sqrt(beta^2 - w0^2) = sqrt( c^2/4/m^2 - k/m)
     """
-    test_cases: list[tuple[float, float, float, float, float, float, str]] = [
-        # k    c    m    a    w    x0   description
-        (1.0, 0.0, 1.0, 0.0, 0.1, 1.0, "Oscillator without damping and force"),
-        (1.0, 0.2, 1.0, 0.0, 0.1, 1.0, "Oscillator include damping"),
-        (1.0, 2.0, 1.0, 0.0, 0.1, 1.0, "Oscillator critically damped"),
-        (1.0, 5.0, 1.0, 0.0, 0.1, 1.0, "Oscillator over-damped"),
-        (1.0, 0.2, 1.0, 1.0, 0.5, 0.0, "Forced oscillation. Less than resonance freq"),
-        (1.0, 0.2, 1.0, 1.0, 1.0, 0.0, "Forced oscillation. Damped. Resonant"),
-        (1.0, 0.2, 1.0, 1.0, 2.0, 0.0, "Forced oscillation. Damped. Above resonance freq"),
-        (1.0, 2.0, 1.0, 1.0, 1.0, 0.0, "Forced oscillation. Crit. damped. Resonant"),
-        (1.0, 5.0, 1.0, 1.0, 1.0, 0.0, "Forced oscillation. Over-damped. Resonant"),
+    test_cases: list[tuple[float, float, float, float, float, str]] = [
+        # k    c    m    a    w   description
+        (1.0, 0.0, 1.0, 0.0, 0.1, "Oscillator without damping and force"),
+        (1.0, 0.2, 1.0, 0.0, 0.1, "Oscillator include damping"),
+        (1.0, 2.0, 1.0, 0.0, 0.1, "Oscillator critically damped"),
+        (1.0, 5.0, 1.0, 0.0, 0.1, "Oscillator over-damped"),
+        (1.0, 0.2, 1.0, 1.0, 0.5, "Forced oscillation. Less than resonance freq"),
+        (1.0, 0.2, 1.0, 1.0, 1.0, "Forced oscillation. Damped. Resonant"),
+        (1.0, 0.2, 1.0, 1.0, 2.0, "Forced oscillation. Damped. Above resonance freq"),
+        (1.0, 2.0, 1.0, 1.0, 1.0, "Forced oscillation. Crit. damped. Resonant"),
+        (1.0, 5.0, 1.0, 1.0, 1.0, "Forced oscillation. Over-damped. Resonant"),
     ]
     tol = 1e-3  # tolerance for simulation
-    for k, c, m, a, w, x0, msg in test_cases:
-        print(f"{msg}: k={k}, c={c}, m={m}, a={a}, wf={w}", end="")
-        osc, t, z, v = run_oscillation_z(k=k, c=c, m=m, ampl=a, omega=w, x0=x0, tol=tol)
+    for k, c, m, a, w, msg in test_cases:
+        a_osc = ForcedOscillator1D(k=k, c=c, m=m, a=a, wf=w, x0=0, dx0=1.0 if a == 0.0 else 0.0)
+        if a != 0.0:
+            a_osc.coefficients(d0=2 * a_osc.d)
+        logger.info(f"{msg}. k:{k}, c:{c}, a:{a}, w:{w}, x0:{a_osc.x0}, v:{a_osc.dx0}")
+        osc, t, z, v = run_oscillation_z(k=k, c=c, m=m, ampl=a, omega=w, v0=1.0 if a == 0 else 0.0, tol=tol)
+        # a, w, phi = sine_fit(t, z)
+        # print(f"{a}* sin({w}* t + {phi})")
+        # print( f"x0:{z[0]} - {a_osc.x0}, v0:{v[0]} - {a_osc.dx0}, force: {a_osc.a}, {a_osc.wf}, {a_osc.phi}")
         if c < 2.0:  # only if damping is small enough
             cp = 2.0 * pi / sqrt(k / m - (c / 2.0 / m) ** 2)
             assert abs(osc.period[2] - cp) < 1e-12, f"Period: {osc.period} != {2 * pi}"
-        x_expect, v_expect = [], []
-        for ti in t:
-            _x, _v = forced_oscillator(ti, k, c, m, a, w, x0=x0)
-            x_expect.append(_x)
-            v_expect.append(_v)
+        t = np.array(t, float)
+        x_expect, v_expect = a_osc.calc(t)
         if show:
             do_show(t, z, v, x_expect, v_expect)
         emax = 0.0
@@ -279,7 +241,7 @@ def test_sweep_oscillator(show: bool = False):
     The test demonstrates that a monolithic simulation provides accurate results in all ranges of the force frequency.
     Co-simulating the oscillator and the force, this does not work.
     """
-    osc, times0, z0, v0, f0 = sweep_oscillation_z(
+    osc, times0, z0, v0, f0, _z, _v = sweep_oscillation_z(
         k=1.0,
         c=0.1,
         m=1.0,
@@ -297,14 +259,17 @@ def test_sweep_oscillator(show: bool = False):
 
     if show:
         freq = [0.1 * t / 2 / np.pi for t in times0]
-        fig, ax = plt.subplots()
-        ax.plot(freq, z0, label="z0(t)")
-        ax.plot(freq, v0, label="v0(t)")
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        ax1.plot(freq, z0, label="z0(t)")
+        ax1.plot(freq, v0, label="v0(t)")
+        ax2.plot(freq, _z, label="z(t)")
+        # ax2.plot(freq, _v, label="v(t)")
         # ax.plot(freq, f0, label="F0(t)")
-        ax.legend()
+        ax1.legend()
+        ax2.legend()
         plt.show()
 
-    osc, times, z, v, f = sweep_oscillation_z(
+    osc, times, z, v, f, _z, _v = sweep_oscillation_z(
         k=1.0,
         c=0.1,
         m=1.0,
@@ -334,35 +299,6 @@ def test_sweep_oscillator(show: bool = False):
         plt.show()
 
 
-def test_ivp(show: bool = False):
-    """Perform a few tests to get more acquainted with the IVP solver. Taken from scipy documentation"""
-
-    def upward_cannon(t, y):  # return speed and accelleration as function of (position, speed)
-        return [y[1], -9.81]
-
-    def hit_ground(t, y):
-        return y[0]
-
-    sol = solve_ivp(
-        upward_cannon,  # initial value function
-        [0, 100],  # time range
-        [0, 200],  # start values (position, speed)
-        t_eval=[t for t in range(100)],  # evaluate at these points (not only last time value. For plotting)
-    )
-    assert sol.status == 0, "No events involved. Successful status should be 0"
-    assert len(sol.y) == 2, "y is a double vector of (position, speed), which is also reflected in results"
-    if show:
-        do_show(sol.t, sol.y[0], sol.y[1], z_label="pos", v_label="speed")
-    # include hit_ground event. Monkey patching function (which mypy, pyright do not like)
-    hit_ground.terminal = True  # type: ignore[attr-defined]
-    hit_ground.direction = -1  # type: ignore[attr-defined]
-    sol = solve_ivp(upward_cannon, [0, 100], [0, 200], t_eval=[t for t in range(100)], events=hit_ground)
-    assert np.allclose(sol.t_events, [2 * 200 / 9.81]), "Time when hitting the ground"
-    assert np.allclose(sol.y_events, [[0.0, -200.0]]), "Position and speed when hitting the ground"
-    if show:
-        do_show(sol.t, sol.y[0], sol.y[1], z_label="pos", v_label="speed")
-
-
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
@@ -372,4 +308,3 @@ if __name__ == "__main__":
     # test_oscillator_class(show=True)
     # test_2d(show=True)
     # test_sweep_oscillator(show=True)
-    # test_ivp()

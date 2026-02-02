@@ -6,9 +6,9 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from fmpy.simulation import simulate_fmu  # type: ignore
-from fmpy.util import fmu_info, plot_result  # type: ignore
-from fmpy.validation import validate_fmu  # type: ignore
+from fmpy.simulation import simulate_fmu
+from fmpy.util import fmu_info, plot_result
+from fmpy.validation import validate_fmu
 from pythonfmu.enums import Fmi2Causality as Causality
 from pythonfmu.enums import Fmi2Variability as Variability
 
@@ -46,11 +46,11 @@ def _time_table_fmu():
 
 
 @pytest.fixture(scope="session")
-def time_table_system_structure(time_table_fmu):
+def time_table_system_structure(time_table_fmu: Path):
     return _time_table_system_structure(time_table_fmu)
 
 
-def _time_table_system_structure(time_table_fmu):
+def _time_table_system_structure(time_table_fmu: Path):
     """Make a structure file and return the path"""
     #     path = make_osp_system_structure(
     #         name="TimeTableStructure",
@@ -87,21 +87,14 @@ def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
 
 
-def _linear(t: float, tt: tuple | list, xx: tuple | list):
-    if t <= tt[-1]:
-        return np.interp([t], tt, xx)[0]
-    else:
-        return xx[-1] + (t - tt[-1]) * (xx[-1] - xx[-2]) / (tt[-1] - tt[-2])
-
-
 def _to_et(file: str, sub: str = "modelDescription.xml"):
     with ZipFile(file) as zp:
         xml = zp.read(sub)
     return ET.fromstring(xml)
 
 
-def test_make_time_table(time_table_fmu):
-    info = fmu_info(time_table_fmu)  # this is a formatted string. Not easy to check
+def test_make_time_table(time_table_fmu: Path):
+    info = fmu_info(str(time_table_fmu))  # this is a formatted string. Not easy to check
     print(f"Info: {info}")
     et = _to_et(str(time_table_fmu))
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
@@ -114,12 +107,12 @@ def test_make_time_table(time_table_fmu):
     )
 
 
-def test_use_fmu(time_table_fmu, show: bool = False):
+def test_use_fmu(time_table_fmu: Path, show: bool = False):
     """Use the FMU running it on fmpy using various interpolate settings."""
-    print(fmu_info(time_table_fmu))
+    print(fmu_info(str(time_table_fmu)))
     _t = np.linspace(0, 10, 101)
     for ipol in range(4):
-        result = simulate_fmu(  # type: ignore[reportArgumentType]
+        result = simulate_fmu(
             time_table_fmu,
             stop_time=10.0,
             step_size=0.1,
@@ -163,9 +156,9 @@ def test_make_with_new_data():
 
 
 # @pytest.mark.skip(reason="Does so far not work within pytest, only stand-alone")
-def test_use_with_new_data(show):
+def test_use_with_new_data(show: bool):
     fmu_path = Path(__file__).parent / "test_working_directory" / "TimeTableFMU.fmu"
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         fmu_path,
         stop_time=2 * np.pi,
         step_size=0.1,

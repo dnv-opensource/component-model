@@ -18,15 +18,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def arrays_equal(arr1: np.ndarray | tuple | list, arr2: np.ndarray | tuple | list, dtype="float", eps=1e-7):
-    assert len(arr1) == len(arr2), "Length not equal!"
-
-    for i in range(len(arr1)):
-        # assert type(arr1[i]) == type(arr2[i]), f"Array element {i} type {type(arr1[i])} != {type(arr2[i])}"
-        assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
-
-
-def tuples_nearly_equal(tuple1: tuple, tuple2: tuple, eps=1e-10):
+def tuples_nearly_equal(tuple1: tuple[float, ...], tuple2: tuple[float, ...], eps: float = 1e-10):
     """Check whether the values in tuples (of any tuple-structure) are nearly equal"""
     assert isinstance(tuple1, tuple), f"{tuple1} is not a tuple"
     assert isinstance(tuple2, tuple), f"{tuple2} is not a tuple"
@@ -55,11 +47,11 @@ def test_spherical_cartesian():
     ]:
         sVec = cartesian_to_spherical(vec)
         _vec = spherical_to_cartesian(sVec)
-        arrays_equal(np.array(vec, dtype="float"), _vec)
+        assert np.allclose(np.array(vec, dtype="float"), _vec)
 
 
 def test_spherical_unique():
-    def do_test(x0: tuple, x1: tuple):
+    def do_test(x0: tuple[float, ...], x1: tuple[float, ...]):
         if len(x0) == 3:
             _unique = spherical_unique(np.append(x0[0], np.radians(x0[1:])))
             unique = np.append(_unique[0], np.degrees(_unique[1:]))
@@ -86,7 +78,7 @@ def test_rot_from_spherical():
 
 
 def test_rot_from_vectors():
-    def do_check(vec1: tuple | list | np.ndarray, vec2: tuple | list | np.ndarray):
+    def do_check(vec1: tuple[float, ...] | np.ndarray, vec2: tuple[float, ...] | np.ndarray):
         v1 = np.array(vec1, float)
         v2 = np.array(vec2, float)
         r = rot_from_vectors(v1, v2)

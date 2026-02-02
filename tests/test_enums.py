@@ -1,10 +1,10 @@
 import logging
-from enum import Enum
+from enum import Enum, EnumType
 
 import pytest
-from pythonfmu.enums import Fmi2Causality as Causality  # type: ignore
-from pythonfmu.enums import Fmi2Initial as Initial  # type: ignore
-from pythonfmu.enums import Fmi2Variability as Variability  # type: ignore
+from pythonfmu.enums import Fmi2Causality as Causality
+from pythonfmu.enums import Fmi2Initial as Initial
+from pythonfmu.enums import Fmi2Variability as Variability
 
 from component_model.enums import check_causality_variability_initial, combination, combinations, ensure_enum
 from component_model.variable_naming import VariableNamingConvention
@@ -14,10 +14,25 @@ logging.basicConfig(level=logging.INFO)
 
 
 def test_enum():
+    def enum_func(e: Enum) -> None:
+        assert isinstance(e, Enum), f"Argument {e} should be an enum member"
+        logger.info(f"Name:{e.name}, value:{e.value}")
+
+    def enumtype_func(e: EnumType):
+        assert isinstance(e, EnumType), f"Argument {e} should be an EnumType, i.e. the Enum Class itself"
+        logger.info(f"Members:{e._member_names_}")
+        if "flat" in e.__members__:
+            m: Enum = e["flat"]  # type: ignore[reportAssignmentType]
+            logger.info(f"Member flat: {m}")
+
     f = VariableNamingConvention.flat
     assert isinstance(f, Enum)
     assert type(f) is VariableNamingConvention
     assert type(f)["structured"] == VariableNamingConvention.structured
+    logger.info(f"Type of Enum class itself:{type(VariableNamingConvention)}")
+    logger.info(f"Type of member:{type(VariableNamingConvention.flat)}")
+    enum_func(VariableNamingConvention.flat)
+    enumtype_func(VariableNamingConvention)
 
 
 def test_combinations():
@@ -33,7 +48,7 @@ def test_ensure_enum():
     assert str(err.value).startswith("The value input is not compatible with ")
     assert ensure_enum("discrete", Variability.continuous) == Variability.discrete
     assert ensure_enum("input", Causality.local) == Causality.input
-    assert ensure_enum(None, Causality.input) == Causality.input
+    assert ensure_enum(None, Causality.input) == Causality.input, f"Found {ensure_enum(None, Causality.input)}"
 
 
 def test_check():

@@ -46,7 +46,7 @@ test_cases = [
 
 
 @pytest.mark.parametrize("txt, expected, text", test_cases)
-def test_basic_re_expressions(txt, expected, text):
+def test_basic_re_expressions(txt: str, expected: tuple[str, str, list[int], int], text: str):
     """Test the expressions used in variable_naming."""
     parsed = ParsedVariable(txt, VariableNamingConvention.structured)
     tpl = (parsed.parent, parsed.var, parsed.indices, parsed.der)

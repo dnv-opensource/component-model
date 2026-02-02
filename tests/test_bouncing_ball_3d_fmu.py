@@ -9,9 +9,9 @@ from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from fmpy import plot_result, simulate_fmu  # type: ignore
-from fmpy.util import fmu_info  # type: ignore
-from fmpy.validation import validate_fmu  # type: ignore
+from fmpy import plot_result, simulate_fmu
+from fmpy.util import fmu_info
+from fmpy.validation import validate_fmu
 from pythonfmu.default_experiment import DefaultExperiment
 
 from component_model.model import Model
@@ -22,13 +22,13 @@ def _in_interval(x: float, x0: float, x1: float):
     return x0 <= x <= x1 or x1 <= x <= x0
 
 
-def _to_et(file: str, sub: str = "modelDescription.xml"):
+def _to_et(file: Path | str, sub: str = "modelDescription.xml"):
     with ZipFile(file) as zp:
         xml = zp.read(sub)
     return ET.fromstring(xml)
 
 
-def do_show(result: list):
+def do_show(result: list[list[float]] | list[tuple[float, ...]]):
     fig, ax = plt.subplots()
     ax.plot([res[3] for res in result], label="z-position")
     ax.plot([res[4] for res in result], label="x-speed")
@@ -53,7 +53,7 @@ def _bouncing_ball_fmu():
     return fmu_path
 
 
-def test_bouncing_ball_class(show):
+def test_bouncing_ball_class(show: bool = False):
     """Test the BouncingBall3D class in isolation.
 
     The first four lines are necessary to ensure that the BouncingBall3D class can be accessed:
@@ -101,9 +101,9 @@ def test_bouncing_ball_class(show):
     if len(bb._pos) > 1 and bb._pos.unit[2].du is not None:
         bb._pos.setter((0, 0, 10))
     t_b, p_b = bb.next_bounce()
-    assert t_bounce == t_b
+    assert t_bounce == t_b, f"Bounce time {t_bounce} != {t_b}"
     # print("Bounce", t_bounce, x_bounce, p_b)
-    assert np.allclose((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"  # type: ignore ##??
+    assert np.allclose((x_bounce, 0, 0), p_b), f"x_bounce:{x_bounce} != {p_b[0]}"
     get_result()
     # after one step
     bb.do_step(time, dt)
@@ -201,8 +201,8 @@ def test_bouncing_ball_class(show):
         do_show(result)
 
 
-def test_make_bouncing_ball(bouncing_ball_fmu):
-    _ = fmu_info(bouncing_ball_fmu)  # not necessary, but it lists essential properties of the FMU
+def test_make_bouncing_ball(bouncing_ball_fmu: Path):
+    _ = fmu_info(str(bouncing_ball_fmu))  # not necessary, but it lists essential properties of the FMU
     et = _to_et(bouncing_ball_fmu)
     assert et.attrib["fmiVersion"] == "2.0", "FMI Version"
     # similarly other critical issues of the modelDescription can be checked
@@ -214,17 +214,17 @@ def test_make_bouncing_ball(bouncing_ball_fmu):
     )
 
 
-def test_use_fmu(bouncing_ball_fmu, show):
+def test_use_fmu(bouncing_ball_fmu: Path, show: bool = False):
     """Test and validate the basic BouncingBall using fmpy and not using OSP or case_study."""
 
-    def check_result(res: np.ndarray, expected: tuple, eps=1e-10):  # res is a structured array
+    def check_result(res: np.ndarray, expected: tuple[float, ...], eps: float = 1e-10):  # res is a structured array
         assert len(res) == len(expected), f"Lengths {res} != {expected}"
         for r, e in zip(res, expected, strict=True):
             assert abs(r - e) < eps, f"{r} != {e}"
 
     assert bouncing_ball_fmu.exists(), f"File {bouncing_ball_fmu} does not exist"
     dt = 0.01
-    result = simulate_fmu(  # type: ignore[reportArgumentType]
+    result = simulate_fmu(
         bouncing_ball_fmu,
         start_time=0.0,
         stop_time=3.0,
@@ -341,7 +341,7 @@ def test_use_fmu(bouncing_ball_fmu, show):
             assert abs(result[row - 1][4] * e - result[row][4]) < 1e-15, "Reduced speed in x-direction"
 
 
-def test_from_fmu(bouncing_ball_fmu):
+def test_from_fmu(bouncing_ball_fmu: Path):
     assert bouncing_ball_fmu.exists(), "FMU not found"
     model = model_from_fmu(bouncing_ball_fmu)
     assert model["name"] == "BouncingBall3D", f"Name: {model['name']}"
@@ -363,12 +363,12 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     import os
 
     os.chdir(Path(__file__).parent / "test_working_directory")
-    # test_bouncing_ball_class(show=False)
+    test_bouncing_ball_class(show=False)
     # test_make_bouncing_ball(_bouncing_ball_fmu())
     # test_use_fmu(_bouncing_ball_fmu(), True)
     # test_from_fmu( _bouncing_ball_fmu())

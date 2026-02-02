@@ -1,6 +1,5 @@
-# pyright: reportAttributeAccessIssue=false
-# pyright: reportOptionalMemberAccess=false
 from math import sqrt
+from typing import Any
 
 import numpy as np
 
@@ -30,26 +29,29 @@ class BouncingBall3D(Model):
     def __init__(
         self,
         name: str = "BouncingBall3D",
-        description="Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
-        pos: tuple = ("0 m", "0 m", "10 inch"),
-        speed: tuple = ("1 m/s", "0 m/s", "0 m/s"),
-        g="9.81 m/s^2",
-        e=0.9,
+        description: str = "Another Python-based BouncingBall model, using Model and Variable to construct a FMU",
+        pos: tuple[str | float, ...] = ("0 m", "0 m", "10 inch"),
+        speed: tuple[str | float, ...] = ("1 m/s", "0 m/s", "0 m/s"),
+        g: str | float = "9.81 m/s^2",
+        e: float = 0.9,
         min_speed_z: float = 1e-6,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(name, description, author="DNV, SEACo project", **kwargs)
+        self.pos: np.ndarray
         self._pos = self._interface("pos", pos)
         self._speed = self._interface("speed", speed)
+        self.g: float
         self._g = self._interface("g", g)
         self.a = np.array((0, 0, -self.g), float)
+        self.e: float
         self._e = self._interface("e", e)
         self.min_speed_z = min_speed_z
         self.stopped = False
         self.time = 0.0
         self._p_bounce = self._interface("p_bounce", ("0m", "0m", "0m"))  # Note: 3D, but z always 0
         # provoke an update at simulation start:
-        self.t_bounce, self.p_bounce = (-1.0, self.pos)  # type: ignore
+        self.t_bounce, self.p_bounce = (-1.0, self.pos)
 
     def do_step(self, current_time: float, step_size: float) -> bool:
         """Perform a simulation step from `self.time` to `self.time + step_size`.
@@ -110,7 +112,7 @@ class BouncingBall3D(Model):
         super().exit_initialization_mode()
         self.a = np.array((0, 0, -self.g), float)
 
-    def _interface(self, name: str, start: str | float | tuple) -> Variable:
+    def _interface(self, name: str, start: str | float | tuple[str | float, ...]) -> Variable:
         """Define a FMU2 interface variable, using the variable interface.
 
         Args:

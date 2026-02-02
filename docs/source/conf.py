@@ -1,4 +1,3 @@
-# ruff: noqa
 # mypy: ignore-errors
 
 # Configuration file for the Sphinx documentation builder.
@@ -24,10 +23,10 @@ sys.path.insert(0, str(Path("../_ext").absolute()))
 
 project = "component-model"
 copyright = "2025, DNV AS. All rights reserved."
-author = "Siegfried Eisinger"
+author = "Siegfried Eisinger, Jorge Luis Mendez"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = "0.3.2"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -47,8 +46,12 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     # "sphinx.ext.autosectionlabel",
 ]
-todo_include_todos = True
-spec_include_specs = True
+
+# Extenstion for myst_parser
+myst_enable_extensions = [
+    "dollarmath",
+    "attrs_inline",
+]
 
 # The file extensions of source files.
 source_suffix = {
@@ -70,17 +73,8 @@ exclude_patterns = []
 
 html_title = f"component-model {release}"
 html_theme = "furo"
-# html_theme = "classic"  # alabaster'
-# html_theme_options = {
-#     "rightsidebar": "false",
-#     "stickysidebar": "true",
-#     "relbarbgcolor": "black",
-#     "body_min_width": "700px",
-#     "body_max_width": "900px",
-#     "sidebarwidth": "250px",
-# }
 html_static_path = ["_static"]
-html_logo = "_static/component-model.svg"
+html_logo = "_static/component_model.svg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,
@@ -89,6 +83,9 @@ autodoc_default_options = {
 autodoc_preserve_defaults = True
 
 myst_heading_anchors = 3
+
+todo_include_todos = True
+spec_include_specs = True
 
 # add markdown mermaid support
 myst_fence_as_directive = ["mermaid"]

@@ -33,7 +33,7 @@ class Oscillator:
         c: tuple[float, ...] | tuple[str, ...] = (0.0, 0.0, 0.0),
         m: float | tuple[float, ...] = 1.0,
         tolerance: float = 1e-5,
-        f_func: Callable | None = None,
+        f_func: Callable | None = None,  # type: ignore[reportMissingTypeArgument]  ## kwargs
     ):
         self.dim = len(k)
         self.k = np.array(k, float)
@@ -106,7 +106,7 @@ class Force:
         func (callable)=lambda t:np.array( (0,0,0), float): A function of t, producing a 3D vector
     """
 
-    def __init__(self, func: Callable):
+    def __init__(self, func: Callable):  # type: ignore[reportMissingTypeArgument]  ## kwargs
         self.func = func
         self.out = np.array((0, 0, 0), float)
 

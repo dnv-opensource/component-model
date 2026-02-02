@@ -29,11 +29,16 @@ def test_limits():
     _b.append("azimuth", ((-1, 1), (-2, 2), (0, 0)))
     assert _b.limit(1, 2, 0) == _b.limit(1, 2, 1) == 0.0, "No polar acceleration allowed"
     assert _b.nogoals, "No goals yet set"
+    # check values just beyond limits (caused by e.g. numerical issues), which should not lead to messages
+    assert _b.check_limit(0, 0, 1 - 1e-14) == 1.0, "Minor correction"
+    assert _b.check_limit(0, 0, 20 + 1e-14) == 20.0, "Minor correction"
+    assert _b.check_limit(0, 0, 10 + 1e-10) == 10 + 1e-10, f"No correction: {_b.check_limit(0, 0, 10 + 1e-10)}"
+
     # try to set goal outside limits
     _b.limit_err = logging.CRITICAL
-    with pytest.raises(ValueError) as err:  # type: ignore[assignment]  #it is a 'ValueError'
+    with pytest.raises(ValueError) as err:  # type: ignore[assignment] ## mypy believes that it is an AssertionError??
         _b.setgoal(1, 2, 9.9, 0.0)
-    assert err.value.args[0] == "Goal value 9.9 is above the limit 0.0.Stopping execution."
+    assert err.value.args[0] == "Goal 'polar'@ 9.9 is above the limit 0.0. Stopping execution."
     _b.limit_err = logging.WARNING
     _b.setgoal(1, 2, 9.9, 0.0)
     assert _b.nogoals, f"No goals expected, because the adjusted goal is already reached. Found {_b.goals}"
@@ -54,7 +59,7 @@ def test_goal(show: bool = False):
         else:
             _b.setgoal("len", order, value, time)
         dt = 0.1
-        res: list[tuple] = []
+        res: list[tuple[float, ...]] = []
         assert _b.goals[0] is not None
         res.append((time, _b.current[0][0], _b.current[0][1], _b.goals[0][0][1]))
         while time + dt < t_end:
@@ -115,7 +120,7 @@ def test_goal(show: bool = False):
     res = do_goal(0, 0.0)
 
 
-def do_show(results: list[tuple]):
+def do_show(results: list[tuple[float, ...]]):
     """Plot selected traces."""
     times = [row[0] for row in results]
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3)

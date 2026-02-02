@@ -2,10 +2,11 @@ import logging
 import time
 import xml.etree.ElementTree as ET  # noqa: N817
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from component_model.model import Model  # type: ignore
+from component_model.model import Model
 from component_model.utils.fmu import model_from_fmu
 from component_model.variable import Check, Variable
 from component_model.variable_naming import ParsedVariable, VariableNamingConvention
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class DummyModel(Model):
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs: Any):
         super().__init__(name=name, description="Just a dummy model to be able to do testing", **kwargs)
 
     def do_step(self, current_time: float, step_size: float):
@@ -22,7 +23,7 @@ class DummyModel(Model):
 
 
 @pytest.fixture(scope="session")
-def bouncing_ball_fmu(tmp_path_factory):
+def bouncing_ball_fmu(tmp_path_factory: Path):
     return _bouncing_ball_fmu()
 
 
@@ -127,7 +128,7 @@ def test_xml():
     # print( ET.tostring(et))
 
 
-def test_from_fmu(bouncing_ball_fmu):
+def test_from_fmu(bouncing_ball_fmu: Path):
     model = model_from_fmu(bouncing_ball_fmu)
     assert model["name"] == "BouncingBall3D", f"Name:{model['name']}"
     expected = "Another Python-based BouncingBall model, using Model and Variable to construct a FMU"
@@ -147,9 +148,9 @@ def test_from_fmu(bouncing_ball_fmu):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # test_license()
-    # test_xml()
+    test_xml()
     # test_from_fmu(_bouncing_ball_fmu())
     # test_variable_naming()
