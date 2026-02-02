@@ -8,7 +8,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
-## [0.3.2] - 2026-01-23
+## [0.3.2] - 2026-02-02
 
 ### Added
 * Added new module unit.py, containing class `Unit`, a helper class to store and manage units and display units. One `Unit` object represents one scalar variable.
