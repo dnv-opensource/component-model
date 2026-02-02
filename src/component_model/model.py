@@ -814,7 +814,6 @@ class Model(Fmi2Slave):
                         var.setter((values[_svr],), idx=_sv)
             else:  # simple Variable
                 var.setter(values[svr], idx=0)
-        # print(f"{self.name}. Set {vrs}:{values}")
 
     def set_integer(
         self,
