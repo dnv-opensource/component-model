@@ -1,0 +1,17 @@
+﻿component\_model.variable
+=========================
+
+.. automodule:: component_model.variable
+   :members:
+   :exclude-members: Variable,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Variable
+   

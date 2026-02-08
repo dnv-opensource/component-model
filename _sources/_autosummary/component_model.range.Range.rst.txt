@@ -1,0 +1,28 @@
+Range
+=====
+
+.. currentmodule:: component_model.range
+
+.. autoclass:: Range
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Range.__init__
+      ~Range.auto_extreme
+      ~Range.check
+      ~Range.err_code_msg
+      ~Range.is_valid_spec
+   
+   
+
+
+   
+   
+   

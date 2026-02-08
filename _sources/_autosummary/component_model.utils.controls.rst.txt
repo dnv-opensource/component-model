@@ -1,0 +1,17 @@
+component\_model.utils.controls
+===============================
+
+.. automodule:: component_model.utils.controls
+   :members:
+   :exclude-members: Controls,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Controls
+   
