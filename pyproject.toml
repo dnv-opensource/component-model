@@ -66,13 +66,12 @@ dependencies = [
     "jsonpath-ng>=1.7.0",
     "pythonfmu>=0.7.0",
     "flexparser>=0.4",
-    "scipy-stubs>=1.17.0.0",
+    "scipy>=1.16",
 ]
 
 [project.optional-dependencies]
 test = [
-    "fmpy==0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
-    "scipy>=1.16",
+    "fmpy>=0.3.21", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
     "matplotlib>=3.10",
     "plotly>=6.3",
     "libcosimpy>=0.0.5",
@@ -103,6 +102,7 @@ dev = [
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-parser>=4.0",
     "furo>=2025.9",
+    "scipy-stubs>=1.17.0.0",
 ]
 
 [tool.uv]
