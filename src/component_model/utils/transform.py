@@ -32,9 +32,9 @@ def cartesian_to_spherical(vec: np.ndarray | tuple[float, ...], deg: bool = Fals
     if vec[0] == vec[1] == 0:
         if vec[2] == 0.0:
             return np.array((0, 0, 0), float)
-        elif vec[2] < 0: # vector in negative z-direction
+        elif vec[2] < 0:  # vector in negative z-direction
             return np.array((r, np.pi, 0), float)
-        else: # vector in z-direction
+        else:  # vector in z-direction
             return np.array((r, 0, 0), float)
     elif deg:
         return np.array((r, np.degrees(np.arccos(vec[2] / r)), np.degrees(np.arctan2(vec[1], vec[0]))), float)

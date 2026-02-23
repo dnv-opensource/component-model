@@ -651,10 +651,12 @@ class Model(Fmi2Slave):
         init = ET.Element("InitialUnknowns")
 
         for v in filter(
-            lambda v: v is not None
-            and (
-                (v.causality == Causality.output and v.initial in (Initial.approx, Initial.calculated))
-                or (v.causality == Causality.calculatedParameter)
+            lambda v: (
+                v is not None
+                and (
+                    (v.causality == Causality.output and v.initial in (Initial.approx, Initial.calculated))
+                    or (v.causality == Causality.calculatedParameter)
+                )
             ),
             self.vars.values(),
         ):

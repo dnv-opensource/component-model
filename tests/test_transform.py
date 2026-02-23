@@ -54,7 +54,7 @@ def test_spherical_cartesian():
     ]:
         sVec = cartesian_to_spherical(vec)
         _vec = spherical_to_cartesian(sVec)
-        assert np.allclose(np.array(vec, dtype="float"), _vec), f"{np.array(vec, dtype="float")} != {_vec}"
+        assert np.allclose(np.array(vec, dtype="float"), _vec), f"{np.array(vec, dtype='float')} != {_vec}"
 
 
 def test_spherical_unique():
