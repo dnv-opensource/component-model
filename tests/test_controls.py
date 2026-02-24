@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from component_model.utils.controls import Control, Controls
+from component_model.utils.controls import RW, Control, Controls
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -28,15 +28,16 @@ def do_show(results: list[tuple[float, ...]]):
 def test_limits():
     _val = 1.0
 
-    def _rw(v: float | None) -> float:
-        if v is not None:
-            _val = v
-        return _val
+    class _RW(RW):
+        def __call__(self, v: float | None = None) -> float:
+            if v is not None:
+                _val = v
+            return _val
 
     _b = Controls()
-    _len = Control("len", ((1, 20), None, (100, 100)), _rw)
-    _polar = Control("polar", ((-2, 2), (-1, 1), (0, 0)), _rw)
-    _azimuth = Control("azimuth", ((-1, 1), (-2, 2), (0, 0)), _rw)
+    _len = Control("len", ((1, 20), None, (100, 100)), _RW())
+    _polar = Control("polar", ((-2, 2), (-1, 1), (0, 0)), _RW())
+    _azimuth = Control("azimuth", ((-1, 1), (-2, 2), (0, 0)), _RW())
     _b.extend((_len, _polar, _azimuth))
     assert _b[0].name == "len", f"Control 'len' expected. Found {_b[0].name}"
     assert _b[0].limits(1) == _b["len"].limits(1) == (float("-inf"), float("inf")), (
@@ -44,11 +45,11 @@ def test_limits():
     )
     assert _b[1].limits(2) == _b["polar"].limits(2) == (0, 0), f"Found {_b[1].limits(2)}, {_b['polar'].limits(2)}"
     with pytest.raises(AssertionError) as err:
-        _b.append(Control("additional", ((1, 0), (0, 1), (0, 1)), _rw))
+        _b.append(Control("additional", ((1, 0), (0, 1), (0, 1)), _RW()))
     assert err.value.args[0].startswith("Wrong order of limits:")
     _b["len"].limits(2, (1, 100))
     # fixed velocity and the acceleration limits are not needed:
-    _b.append(Control("newPolar", ((-2, 2), 1), _rw))
+    _b.append(Control("newPolar", ((-2, 2), 1), _RW()))
     assert _b["newPolar"].limit(2, 0) == _b[3].limit(2, 1) == 0.0, "No polar acceleration allowed"
     assert _b.nogoals, "No goals yet set"
     # check values just beyond limits (caused by e.g. numerical issues), which should not lead to messages
@@ -77,11 +78,10 @@ def test_goal(show: bool = False):
         speed = 0.0 if current is None else current[1]
         acc = 0.0 if current is None else current[2]
         _b["len"].setgoal(order, value, speed, acc)
-        print(f"GOAL({order}): {_b['len'].goal}")
         dt = 0.1
         res: list[tuple[float, ...]] = []
         assert len(_b[0].goal)
-        res.append((time, _b[0].rw(None), _b[0].speed, _b[0].acc))
+        res.append((time, _b[0].rw(), _b[0].speed, _b[0].acc))
         while time + dt < t_end:
             _b.step(time, dt)
             time += dt

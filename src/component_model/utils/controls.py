@@ -1,9 +1,22 @@
 import logging
-from typing import Callable
+from typing import Protocol
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class RW(Protocol):
+    """Defines the read/write access function for a single controll, i.e. the .rw property.
+
+    Since it is desired to have a default empty argument list (for read access),
+    a Protocol must be used for proper type checking. Implement as
+
+    Implement either through a new class, implementing the full __call__ method or use functool.partial().
+    See `tests/test_controls.py` for examples
+    """
+
+    def __call__(self, val: float | None = None, /) -> float: ...
 
 
 class Controls(object):
@@ -85,7 +98,7 @@ class Control(object):
           In general the (min,max) is provided for all orders, i.e. 3 tuples of 2-tuples of float per name.
           A given order can be fixed through min==max or by providing a single float instead of the tuple.
           The sub-orders of a fixed order do not need to be provided and are internally set to (0.0, 0,0)
-        rw (Callable[float|None]): getter/setter function for the variable related to the control.
+        rw (RW): getter/setter function for the variable related to the control.
           The function shall have a single optional (float or None) argument and return the value of the variable.
           If omittet, or None, only the current value is returned. If not None, the new value is set and returned.
     """
@@ -94,7 +107,7 @@ class Control(object):
         self,
         name: str,
         limits: tuple[tuple[float | None, float | None] | float | None, ...],
-        rw: Callable[[float | None], float],
+        rw: RW,
     ):
         self.name = name
         self._limits = Control._prepare_limits(limits)
@@ -211,7 +224,7 @@ class Control(object):
             assert value is not None, "float value expected here"
             # print(f"SET {order}: {value}. Current:{current}. Limits:{self.limits(order)}")
             if (
-                (order == 0 and abs(self.rw(None) - value) < 1e-13)  # (adjusted) position goal already reached
+                (order == 0 and abs(self.rw() - value) < 1e-13)  # (adjusted) position goal already reached
                 or (order == 2 and value == 0.0)
             ):  # zero acceleration requested
                 self.goal = []
@@ -221,7 +234,7 @@ class Control(object):
                 acc = self.limit(2, int(self.speed < value))  # maximum acceleration or deceleration
                 self.goal = [((value - self.speed) / acc, acc), (float("inf"), 0.0)]
             elif order == 0:  # sequence of acceleration and deceleration to reach a new position
-                _pos = self.rw(None)
+                _pos = self.rw()
                 t0 = 0.0
                 if abs(self.speed) > 1e-12:  # the initial velocity is not zero. Need to decelerate
                     v0 = self.speed
@@ -278,7 +291,7 @@ class Control(object):
     @property
     def current(self):
         """Return the tuple of current value, speed and acceleration."""
-        return (self.rw(None), self.speed, self.acc)
+        return (self.rw(), self.speed, self.acc)
 
     def step(self, time: float, dt: float):
         """Step towards the goal (if goal is set)."""
@@ -293,7 +306,7 @@ class Control(object):
                 _t, self.acc = self.goal[0]
             while dt > 0:
                 _dt = dt if time + dt < _t else _t - time  # may need to split dt if sub-goal ends within
-                self.rw(self.check_limit(0, self.rw(None) + self.speed * _dt + 0.5 * self.acc * _dt * _dt))
+                self.rw(self.check_limit(0, self.rw() + self.speed * _dt + 0.5 * self.acc * _dt * _dt))
                 self.speed = self.check_limit(1, self.speed + self.acc * _dt)
                 dt -= _dt
                 if abs(dt) < 1e-13:
