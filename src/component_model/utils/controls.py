@@ -7,13 +7,18 @@ logger = logging.getLogger(__name__)
 
 
 class RW(Protocol):
-    """Defines the read/write access function for a single controll, i.e. the .rw property.
+    """Defines the read/write access function for a single control.
 
-    Since it is desired to have a default empty argument list (for read access),
-    a Protocol must be used for proper type checking. Implement as
+    A function passed as `rw` argument when instantiating a `Control` instance must satisfy this protocol.
+    The function is then accessible through the .rw property of the instantiated `Control` instance.
 
-    Implement either through a new class, implementing the full __call__ method or use functool.partial().
-    See `tests/test_controls.py` for examples
+    Using `Protocol` to define the signature of the read/write function allows for proper type checking
+    while still providing flexibility in the implementation of the read/write function.
+    It also allows the argument list to be empty when called for read access, which is desired in this case.
+
+    Implement the `RW` protocol either through a class, implementing the `__call__()` method, or use functools.partial()
+    to tweak the signature of an existing function to match the signature of `__call__()`, and return that.
+    See `tests/test_controls.py` for examples.
     """
 
     def __call__(self, val: float | None = None, /) -> float: ...
@@ -55,11 +60,16 @@ class Control(object):
     ):
         self.name = name
         self._limits = Control._prepare_limits(limits)
-        self.rw = rw
+        self._rw = rw
         self.started: bool = False
         self.goal: list[tuple[float, float]] = []
         self.speed: float = 0.0  # may be used during goal tracking
         self.acc: float = 0.0  # may be used during goal tracking
+
+    @property
+    def rw(self) -> RW:
+        """Read-only property to access the read/write function."""
+        return self._rw
 
     @staticmethod
     def _prepare_limits(
