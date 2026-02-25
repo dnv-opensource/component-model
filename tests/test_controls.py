@@ -1,5 +1,6 @@
 import logging
 from functools import partial
+from typing import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -71,7 +72,17 @@ def test_limits():
 
 
 def test_goal(show: bool = False):
-    def do_goal(order: int, value: float, current: np.ndarray | None = None, t_end: float = 10.0):
+    def do_goal(
+        order: int,
+        value: float,
+        current: np.ndarray | None = None,
+        t_end: float = 10.0,
+        change: tuple[float, int, float]|None = None,
+    ):
+        if change is not None:
+            t1, order1, val1 = change
+        else:
+            t1 = float("inf")
         time = 0.0
         if current is not None:
             _b[0].rw(current[0])
@@ -83,6 +94,8 @@ def test_goal(show: bool = False):
         assert len(_b[0].goal)
         res.append((time, _b[0].rw(), _b[0].speed, _b[0].acc))
         while time + dt < t_end:
+            if change is not None and abs(time - t1) < dt / 2:
+                _b["len"].setgoal(order1, val1)
             _b.step(time, dt)
             time += dt
             res.append((time, *_b[0].current))
@@ -98,6 +111,12 @@ def test_goal(show: bool = False):
         else:
             boom[idx] = newval
             return newval
+
+    def i_time(res: Sequence[tuple[float, ...]], time: float, eps: float = 0.0001):
+        for i in range(len(res)):
+            if abs(res[i][0] - time) < eps:
+                return i
+        raise KeyError(f"Time {time} not found in table")
 
     _b = Controls(limit_err=logging.CRITICAL)
     _b.append(Control("len", ((-100.0, 90.0), None, (-1.0, 0.5)), partial(boom_setter, idx=0)))
@@ -131,7 +150,15 @@ def test_goal(show: bool = False):
     # set an acceleration (non-zero position and velocity)
     res = do_goal(2, -0.1, current=np.array((10.0, 1.0, 0.0), float), t_end=2.01)
     expected = (10 + 1.0 * 2.0 - 0.5 * 0.1 * 2.0**2, 1.0 - 0.1 * 2.0, -0.1)
-    assert np.allclose(_b[0].current, expected), f"{_b[0].current} != {expected} "
+    assert np.allclose(_b[0].current, expected), f"{_b[0].current} != {expected}."
+
+    # set a speed and overwrite it after a time with a new value
+    res = do_goal(1, 0.45, current=np.array((10.0, 0, 0), float), t_end=10.0, change=(5.0, 1, 0.0))
+    i_acc = i_time(res, 0.45 / 0.5)
+    assert np.allclose(res[i_acc], (0.45 / 0.5, 10 + 0.5 * 0.5 * (0.45 / 0.5) ** 2, 0.45, 0.5)), (
+        f"After acc.: {res[i_acc]}"
+    )
+    assert np.allclose(res[-1][1:], (12.14875, 0, 0)), f"Found end state {res[-1]}"
 
     Controls.limit_err = logging.WARNING  # allow corrections from now on
 

@@ -19,62 +19,6 @@ class RW(Protocol):
     def __call__(self, val: float | None = None, /) -> float: ...
 
 
-class Controls(object):
-    """Keep track of float variable changes.
-
-    limit_err: Determines how limit errors are dealt with.
-      Anything below critical sets the value to the limit and provides a logger message.
-      Critical leads to a program run error.
-    """
-
-    limit_err: int = logging.WARNING
-
-    def __init__(
-        self,
-        limit_err: int = logging.WARNING,
-    ):
-        Controls.limit_err = limit_err
-        self.controls: list["Control"] = []
-
-    @property
-    def nogoals(self):
-        for crl in self.controls:
-            if len(crl.goal):
-                return False
-        return True
-
-    def extend(self, crls: tuple["Control", ...]):
-        for crl in crls:
-            self.append(crl)
-
-    def append(self, crl: "Control"):
-        """Append one or several Control object(s)."""
-        for c in self.controls:
-            if c.name == crl.name:
-                raise KeyError(f"Control with name {c.name} already exists. Choose a unique name.") from None
-        self.controls.append(crl)
-
-    def __getitem__(self, ident: int | str):
-        """Get the control object identified by ident (index within .controls or valid name)."""
-        if isinstance(ident, str):
-            for crl in self.controls:
-                if crl.name == ident:
-                    return crl
-            raise KeyError(f"Control with name {ident} not found.") from None
-        elif isinstance(ident, int):
-            if ident < 0 or ident >= len(self.controls):
-                raise ValueError(f"Control {ident} does not exist within set of controls.") from None
-            return self.controls[ident]
-        else:
-            raise TypeError(f"Integer expected as subscript. Found {ident}") from None
-
-    def step(self, time: float, dt: float):
-        """Step towards the goals (if goals are set)."""
-        if not self.nogoals:
-            for crl in self.controls:
-                crl.step(time, dt)
-
-
 class Control(object):
     """Keep track of the changes of a single float variable, avoiding discontinuities and abrupt changes.
 
@@ -194,7 +138,7 @@ class Control(object):
                 return lim
         return value
 
-    def setgoal(self, order: int, value: float | None, speed: float | None = 0.0, acc: float | None = 0.0):
+    def setgoal(self, order: int, value: float | None, speed: float | None = None, acc: float | None = None):
         """Set a new goal for the control, i.e. set the required time-acceleration sequence
         to reach value with all derivatives = 0.0.
 
@@ -285,7 +229,6 @@ class Control(object):
                             (t0 + dt1 + dt2 + dt3, acc2),
                             (float("inf"), 0.0),
                         ]
-        logger.info(f"New goal({self.name}): {self.goal}")
         self.started = False
 
     @property
@@ -299,6 +242,7 @@ class Control(object):
             if not self.started:  # not yet started. Need to add current time.
                 for i, (t, a) in enumerate(self.goal):
                     self.goal[i] = (t + time, a)
+                logger.info(f"@{time}. New goal({self.name}): {self.goal}")
                 self.started = True
             _t, self.acc = self.goal[0]
             if time > _t:  # move to correct goal entry
@@ -317,4 +261,61 @@ class Control(object):
                     _t, self.acc = self.goal[0]
 
             if np.isinf(_t) and abs(self.acc) < 1e-12 and abs(self.speed) < 1e-12:
+                logger.info(f"@{time}. Goal {self.name} finalized.")
                 self.goal = []
+
+
+class Controls(object):
+    """Keep track of float variable changes.
+
+    limit_err: Determines how limit errors are dealt with.
+      Anything below critical sets the value to the limit and provides a logger message.
+      Critical leads to a program run error.
+    """
+
+    limit_err: int = logging.WARNING
+
+    def __init__(
+        self,
+        limit_err: int = logging.WARNING,
+    ):
+        Controls.limit_err = limit_err
+        self.controls: list[Control] = []
+
+    @property
+    def nogoals(self):
+        for crl in self.controls:
+            if len(crl.goal):
+                return False
+        return True
+
+    def append(self, crl: "Control"):
+        """Append one or several Control object(s)."""
+        for c in self.controls:
+            if c.name == crl.name:
+                raise KeyError(f"Control with name {c.name} already exists. Choose a unique name.") from None
+        self.controls.append(crl)
+
+    def extend(self, crls: tuple[Control, ...]):
+        for crl in crls:
+            self.append(crl)
+
+    def __getitem__(self, ident: int | str):
+        """Get the control object identified by ident (index within .controls or valid name)."""
+        if isinstance(ident, str):
+            for crl in self.controls:
+                if crl.name == ident:
+                    return crl
+            raise KeyError(f"Control with name {ident} not found.") from None
+        elif isinstance(ident, int):
+            if ident < 0 or ident >= len(self.controls):
+                raise ValueError(f"Control {ident} does not exist within set of controls.") from None
+            return self.controls[ident]
+        else:
+            raise TypeError(f"Integer expected as subscript. Found {ident}") from None
+
+    def step(self, time: float, dt: float):
+        """Step towards the goals (if goals are set)."""
+        if not self.nogoals:
+            for crl in self.controls:
+                crl.step(time, dt)
