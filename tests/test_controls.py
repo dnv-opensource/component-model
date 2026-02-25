@@ -77,7 +77,7 @@ def test_goal(show: bool = False):
         value: float,
         current: np.ndarray | None = None,
         t_end: float = 10.0,
-        change: tuple[float, int, float]|None = None,
+        change: tuple[float, int, float] | None = None,
     ):
         if change is not None:
             t1, order1, val1 = change
