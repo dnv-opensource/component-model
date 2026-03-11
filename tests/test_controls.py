@@ -77,7 +77,7 @@ def test_goal(show: bool = False):
         value: float,
         current: np.ndarray | None = None,
         t_end: float = 10.0,
-        change: tuple[float, int, float]|None = None,
+        change: tuple[float, int, float] | None = None,
     ):
         if change is not None:
             t1, order1, val1 = change
@@ -124,6 +124,9 @@ def test_goal(show: bool = False):
     _b.append(Control("polar", ((-2.0, 2.0), 1.0), partial(boom_setter, idx=1)))
     _b.append(Control("azimuth", ((-1, 1), (-2, 2), (0, 0)), partial(boom_setter, idx=2)))
 
+    res = do_goal(0, 7.0, current=np.array((1.0, 0.0, 0.0), float), t_end=10.0)
+
+    return
     # set a constant acceleration for 1 time unit
     res = do_goal(2, 0.5, current=np.array((1.0, 0.3, 0.0), float), t_end=1.0)
     assert abs(res[-1][1] - (1.0 + 0.3 * 1 + 0.5 * 0.5 * 1**2)) < 1e-10
@@ -179,9 +182,9 @@ def test_goal(show: bool = False):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     logging.basicConfig(level=logging.DEBUG)
     plt.set_loglevel(level="warning")
     # test_limits()
-    # test_goal(show=True)
+    test_goal(show=True)

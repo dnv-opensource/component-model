@@ -168,9 +168,10 @@ class Control(object):
             assert value is not None, "float value expected here"
             # print(f"SET {order}: {value}. Current:{current}. Limits:{self.limits(order)}")
             if (
-                (order == 0 and abs(self.rw() - value) < 1e-13)  # (adjusted) position goal already reached
-                or (order == 2 and value == 0.0)
-            ):  # zero acceleration requested
+                (order == 0 and abs(self.rw() - value) < 1e-13)  # position goal already reached
+                or (order == 1 and abs(self.speed - value) < 1e-13)  # speed goal already reached
+                or (order == 2 and abs(self.acc - value) < 1e-13)
+            ):  # nothing to do
                 self.goal = []
             elif order == 2:  # set the acceleration from now and 'forever'
                 self.goal = [(float("inf"), value)]
