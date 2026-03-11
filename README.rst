@@ -301,7 +301,7 @@ Development Setup
 
 1. Install uv
 ^^^^^^^^^^^^^
-This project uses `uv` as package manager.
+This project uses ``uv`` as package manager.
 
 If you haven't already, install `uv <https://docs.astral.sh/uv/>`_, preferably using it's `"Standalone installer" <https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_2/>`_ method:
 
@@ -319,7 +319,7 @@ If you haven't already, install `uv <https://docs.astral.sh/uv/>`_, preferably u
 
 (see `docs.astral.sh/uv <https://docs.astral.sh/uv/getting-started/installation//>`_ for all / alternative installation methods.)
 
-Once installed, you can update `uv` to its latest version, anytime, by running:
+Once installed, you can update ``uv`` to its latest version, anytime, by running:
 
 .. code:: sh
 
@@ -381,7 +381,7 @@ Run ``uv sync -U`` to create a virtual environment and install all project depen
    **Note**: ``uv`` will create a new virtual environment called
    ``.venv`` in the project root directory when running ``uv sync -U``
    the first time. Optionally, you can create your own virtual
-   environment using e.g. ``uv venv``, before running ``uv sync -U``.
+   environment using e.g. ``uv venv``, before running ``uv sync -U``.
 
 
 5. (Optional) Activate the virtual environment

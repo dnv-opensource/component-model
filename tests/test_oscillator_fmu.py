@@ -19,7 +19,7 @@ def _oscillator_fmu():
     """Make FMU and return .fmu file with path."""
     fmu_path = Model.build(
         script=Path(__file__).parent.parent / "examples" / "oscillator_fmu.py",
-        dest=Path(__file__).parent.parent / "examples" / "HarmonicOscillator.fmu",
+        dest=Path.cwd() / "HarmonicOscillator.fmu",
     )
     return fmu_path
 
@@ -33,7 +33,7 @@ def _driver_fmu():
     """Make FMU and return .fmu file with path."""
     fmu_path = Model.build(
         script=Path(__file__).parent.parent / "examples" / "driving_force_fmu.py",
-        dest=Path(__file__).parent.parent / "examples" / "DrivingForce.fmu",
+        dest=Path.cwd() / "DrivingForce.fmu",
         newargs={"ampl": ("3N", "2N", "1N"), "freq": ("3Hz", "2Hz", "1Hz")},
     )
     return fmu_path
