@@ -8,6 +8,22 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
+## [0.4.0] - 2026-03-12
+
+### Breaking Changes
+* src/component_model/utils/controls.py: Refactored `Controls` from a multi-variable container into per-variable `Control` objects with typed read/write access, and improved goal tracking so initial speed and acceleration are handled correctly when setting or changing goals.
+* src/component_model/utils/analysis.py: Reworked sine fitting by moving the `sine_fit()` function from `component_model.analytic` into `component_model.utils.analysis` and expanding it to fit offset sine waves, detect cycles from maxima, support cosine-like starts, and return offset, amplitude, angular frequency, phase, and a reference mid-time.
+
+### Resolved
+* Fixed coordinate transform handling for vectors pointing in the negative z-direction.
+
+### Changed
+* Relaxed range compatibility checks for units and promoted scipy from a test-only dependency to a runtime package dependency, aligning dependencies with actual package usage.
+* Cleaned up FMU test artifacts by removing generated FMU binaries from the examples folder, building FMUs into the test working directory instead, ignoring generated .dat files, and switching shared test fixtures to session scope.
+* Added or updated tests for the new controls behavior, sine fitting, transform handling, and FMU build workflow.
+* Included minor follow-up cleanup such as corrected example text typos, small README/docstring/formatting updates, and lockfile refreshes.
+
+
 ## [0.3.2] - 2026-02-02
 
 ### Added
@@ -139,7 +155,8 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 
 <!-- Markdown link & img dfn's -->
-[unreleased]: https://github.com/dnv-innersource/component-model/compare/v0.3.2...HEAD
+[unreleased]: https://github.com/dnv-innersource/component-model/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/dnv-innersource/component-model/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/dnv-innersource/component-model/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dnv-innersource/component-model/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/dnv-innersource/component-model/compare/v0.2.0...v0.3.0
