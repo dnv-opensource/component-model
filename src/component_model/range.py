@@ -59,7 +59,7 @@ class Range(object):
                     l_rng[i] = val  # type: ignore[reportArgumentType] ## l_rng is not empty # fixed display value
                 else:
                     assert isinstance(r, (str, int, bool, float, Enum)), f"Found type {type(r)}"
-                    check, q = unit.compatible(r, no_unit=False, strict=True)  # q in base units
+                    check, q = unit.compatible(r, no_unit=False, strict=False)  # q in base units
                     if not check:
                         raise ValueError(f"Provided range {rng}[{i}] is not conformant with unit {unit}") from None
                     assert isinstance(q, (int, bool, float)), "Unexpected type {type(q)} in {rng}[{i}]"

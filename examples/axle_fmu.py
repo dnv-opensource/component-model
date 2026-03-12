@@ -64,7 +64,7 @@ class AxleFMU(Model, Axle):  # refer to Model first!
         self._rpm0 = Variable(
             self,
             "wheels[0].motor.rpm",
-            "Angualar speed of wheel 1 in rad/s:",
+            "Angular speed of wheel 1 in rad/s:",
             causality="input",
             variability="continuous",
             start=f"{rpm1} 1/s",
@@ -72,7 +72,7 @@ class AxleFMU(Model, Axle):  # refer to Model first!
         self._rpm1 = Variable(
             self,
             "wheels[1].motor.rpm",
-            "Angualar speed of wheel 2 in rad/s:",
+            "Angular speed of wheel 2 in rad/s:",
             causality="input",
             variability="continuous",
             start=f"{rpm2} 1/s",
@@ -80,7 +80,7 @@ class AxleFMU(Model, Axle):  # refer to Model first!
         self._acc0 = Variable(
             self,
             "der(wheels[0].motor.rpm)",
-            "Angualar acceleration of wheel 1 in rad/s**2:",
+            "Angular acceleration of wheel 1 in rad/s**2:",
             causality="input",
             variability="continuous",
             start="0.0 1/s**2",
@@ -90,7 +90,7 @@ class AxleFMU(Model, Axle):  # refer to Model first!
             Variable(
                 self,
                 "der(wheels[1].motor.rpm)",
-                "Angualar acceleration of wheel 2 in rad/s**2:",
+                "Angular acceleration of wheel 2 in rad/s**2:",
                 causality="input",
                 variability="continuous",
                 start="0.0 1/s**2",
