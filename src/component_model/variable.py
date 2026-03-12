@@ -164,7 +164,11 @@ class Variable(ScalarVariable):
                 self.local_name = f"der{parsed.der}_{parsed.var}"
                 if not hasattr(self.owner, self.local_name):  # a virtual derivative
                     basevar = self.model.add_derivative(
-                        self.name, parsed.as_string(("parent", "var", "der"), primitive=True)
+                        dername=self.name,
+                        basename=parsed.as_string(
+                            include=("parent", "var", "der"),
+                            primitive=True,
+                        ),
                     )
                     assert isinstance(basevar, Variable), f"The primitive of {self.name} must be a Variable object"
                     assert basevar.typ is float, f"The primitive of {self.name} shall be float. Found {basevar.typ}"

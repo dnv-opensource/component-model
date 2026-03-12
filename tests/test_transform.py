@@ -44,10 +44,17 @@ def test_spherical_cartesian():
         (1, 0, 1),
         (1, 1, 0),
         (1, 1, 1),
+        (0, 0, -1),
+        (0, -1, 0),
+        (0, -1, -1),
+        (-1, 0, 0),
+        (-1, 0, -1),
+        (-1, -1, 0),
+        (-1, -1, -1),
     ]:
         sVec = cartesian_to_spherical(vec)
         _vec = spherical_to_cartesian(sVec)
-        assert np.allclose(np.array(vec, dtype="float"), _vec)
+        assert np.allclose(np.array(vec, dtype="float"), _vec), f"{np.array(vec, dtype='float')} != {_vec}"
 
 
 def test_spherical_unique():
@@ -163,10 +170,10 @@ def test_normalized():
 if __name__ == "__main__":
     retcode = 0  # pytest.main(["-rP -s -v", __file__])
     assert retcode == 0, f"Return code {retcode}"
-    # test_spherical_cartesian()
+    test_spherical_cartesian()
     # test_spherical_unique()
     # test_rot_from_spherical()
     # test_rot_from_vectors()
     # test_euler_rot_spherical()
-    test_euler_rot()
+    # test_euler_rot()
     # test_normalized()

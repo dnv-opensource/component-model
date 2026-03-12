@@ -21,7 +21,7 @@ def _oscillator_6d_fmu():
     assert src.exists(), f"Model file {src} not found."
     fmu_path = Model.build(
         script=str(src),
-        dest=Path(__file__).parent.parent / "examples" / "HarmonicOscillator6D.fmu",
+        dest=Path.cwd() / "HarmonicOscillator6D.fmu",
         newargs={
             "k": ("1N/m", "1N/m", "1N/m", "1N*m/rad", "1N*m/rad", "1N*m/rad"),
             "c": ("0.1N*s/m", "0.1N*s/m", "0.1N*s/m", "0.1N*m*s/rad", "0.1N*m*s/rad", "0.1N*m*s/rad"),
@@ -45,7 +45,7 @@ def _driver_6d_fmu():
     assert src.exists(), f"Model file {src} not found."
     fmu_path = Model.build(
         script=str(src),
-        dest=Path(__file__).parent.parent / "examples" / "DrivingForce6D.fmu",
+        dest=Path.cwd() / "DrivingForce6D.fmu",
         newargs={"ampl": ("1.0N", "1.0N", "1.0N", "1.0N*m", "1.0N*m", "1.0N*m"), "freq": ("1.0Hz",) * 6},
     )
     return fmu_path

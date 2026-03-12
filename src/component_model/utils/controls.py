@@ -1,12 +1,39 @@
 import logging
+from typing import Protocol
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-class Controls(object):
-    """Keep track of float variable changes.
+class RW(Protocol):
+    """Defines the read/write access function for a single control.
+
+    A function passed as `rw` argument when instantiating a `Control` instance must satisfy this protocol.
+    The function is then accessible through the .rw property of the instantiated `Control` instance.
+
+    Using `Protocol` to define the signature of the read/write function allows for proper type checking
+    while still providing flexibility in the implementation of the read/write function.
+    It also allows the argument list to be empty when called for read access, which is desired in this case.
+
+    Implement the `RW` protocol either through a class, implementing the `__call__()` method, or use functools.partial()
+    to tweak the signature of an existing function to match the signature of `__call__()`, and return that.
+    See `tests/test_controls.py` for examples.
+    """
+
+    def __call__(self, val: float | None = None, /) -> float: ...
+
+
+class Control(object):
+    """Keep track of the changes of a single float variable, avoiding discontinuities and abrupt changes.
+
+    Based on the ranges of value, speed, acceleration, the following rules are used:
+
+    #. Instantaneous acceleration changes (within the limits set for acceleration) are allowed
+    #. When a goal is reached, the goal value (variable value, first or second derivation) is kept 'forever'
+    #. Derivatives above 2nd order are not considered.
+
+    The goal shall be reached in as short time as possible.
 
     * Store and check possible float variable changes, including first and second derivatives
     * Set control goals as list of goals, one goal per control variable.
@@ -14,42 +41,41 @@ class Controls(object):
       In this way an acceleration can be set or the velocity or position can be changed through the step function.
 
     Args:
-        names (tuple[str]): Tuple of name strings for the control variables to use.
+        name (str): Name of control variable. Unique within Controls.
           The names are only used internally an do not need to correlate with outside names and objects
         limits: None or tuple of limits one per name. None means 'no limit' for variable(s), order or min/max.
           In general the (min,max) is provided for all orders, i.e. 3 tuples of 2-tuples of float per name.
           A given order can be fixed through min==max or by providing a single float instead of the tuple.
           The sub-orders of a fixed order do not need to be provided and are internally set to (0.0, 0,0)
-        limit_err: Determines how limit errors are dealt with.
-          Anything below critical sets the value to the limit and provides a logger message.
-          Critical leads to a program run error.
+        rw (RW): getter/setter function for the variable related to the control.
+          The function shall have a single optional (float or None) argument and return the value of the variable.
+          If omittet, or None, only the current value is returned. If not None, the new value is set and returned.
     """
 
     def __init__(
         self,
-        names: tuple[str, ...] = (),
-        limits: tuple[tuple[tuple[float | None, float | None] | float | None, ...], ...] | None = None,
-        limit_err: int = logging.WARNING,
+        name: str,
+        limits: tuple[tuple[float | None, float | None] | float | None, ...],
+        rw: RW,
     ):
-        self.names = list(names)
-        self.dim = len(names)
-        # one goal slot per dimension
-        self.goals: list[tuple[tuple[float, float], ...] | None] = [] if self.dim == 0 else [None] * self.dim
-        self.rows = [] if self.dim == 0 else [-1] * self.dim  # current row in goal list
-        self.current: list[np.ndarray] = (
-            [] if self.dim == 0 else [np.array((0.0, 0.0, 0.0), float) * self.dim]
-        )  # current positions, speeds, accelerations
-        self.nogoals: bool = True
-        self.limit_err = limit_err
-        self._limits: list[list[tuple[float, float]]] = []
-        if isinstance(limits, tuple):
-            for idx in range(self.dim):
-                self._limits.append(self._prepare_limits(limits[idx]))
+        self.name = name
+        self._limits = Control._prepare_limits(limits)
+        self._rw = rw
+        self.started: bool = False
+        self.goal: list[tuple[float, float]] = []
+        self.speed: float = 0.0  # may be used during goal tracking
+        self.acc: float = 0.0  # may be used during goal tracking
 
+    @property
+    def rw(self) -> RW:
+        """Read-only property to access the read/write function."""
+        return self._rw
+
+    @staticmethod
     def _prepare_limits(
-        self, limits: tuple[tuple[float | None, float | None] | float | None, ...]
+        limits: tuple[tuple[float | None, float | None] | float | None, ...],
     ) -> list[tuple[float, float]]:
-        """Prepare and check 'limits', so that they can be appended to Controls.
+        """Prepare and check 'limits', so that they can be stored in Control.
 
         Args:
             limits : optional specification of limits for var, d_var/dt and d2_var/dt2 of single float variable:
@@ -90,105 +116,96 @@ class Controls(object):
                     raise ValueError(f"Unknown type of limits[{order}]: {lim}") from None
         return _limits
 
-    def append(self, name: str, limits: tuple[tuple[float | None, float | None] | float | None, ...]):
-        """Append a control variable."""
-        self.names.append(name)
-        self.dim += 1
-        self.goals.append(None)
-        self.rows.append(-1)
-        self.current.append(np.array((0.0, 0.0, 0.0), float))
-        self._limits.append(self._prepare_limits(limits))
-
-    def idx(self, name: str) -> int:
-        """Find index from name."""
-        return self.names.index(name)
-
-    def limit(self, ident: int | str, order: int, minmax: int, value: float | None = None) -> float:
-        """Get/Set the single limit for 'idx', 'order', 'minmax'."""
-        idx = ident if isinstance(ident, int) else self.names.index(ident)
+    def limit(self, order: int, minmax: int, value: float | None = None) -> float:
+        """Get/Set the limit for the Control, 'order', 'minmax'."""
         assert 0 <= order < 3, f"Only order = 0,1,2 allowed. Found {order}"
         assert 0 <= minmax < 2, f"Only minmax = 0,1 allowed. Found {minmax}"
         if value is not None:
-            lim = self._limits[idx][order]
-            self.limits(idx, order, (value if minmax == 0 else lim[0], value if minmax == 1 else lim[1]))
-        return self._limits[idx][order][minmax]
+            lim = self._limits[order]
+            self.limits(order, (value if minmax == 0 else lim[0], value if minmax == 1 else lim[1]))
+        return self._limits[order][minmax]
 
-    def limits(self, ident: int | str, order: int, value: tuple[float, float] | None = None) -> tuple[float, float]:
+    def limits(self, order: int, value: tuple[float, float] | None = None) -> tuple[float, float]:
         """Get/Set the min/max limit for 'idx', 'order'."""
-        idx = ident if isinstance(ident, int) else self.names.index(ident)
-        assert 0 <= idx < 3, f"Only idx = 0,1,2 allowed. Found {idx}"
         assert 0 <= order < 3, f"Only order = 0,1,2 allowed. Found {order}"
         if value is not None:
             assert value[0] <= value[1], f"Wrong order:{value}"
-            self._limits[idx][order] = value
-        return self._limits[idx][order]
+            self._limits[order] = value
+        return self._limits[order]
 
-    def check_limit(self, ident: int | str, order: int, value: float) -> float | None:
-        idx = ident if isinstance(ident, int) else self.names.index(ident)
+    def check_limit(self, order: int, value: float) -> float:
         for k in range(2):
-            lim = self.limit(idx, order, k)
+            lim = self.limit(order, k)
             err = (lim - value) if k == 0 else (value - lim)
             if err > 0:  # goal exceeded
                 if err > 1e-13:  # not a minor (probably numerical) issue. Message or error
                     side = "below" if k == 0 else "above"
-                    msg = f"Goal '{self.names[idx]}'@ {value} is {side} the limit {lim}."
-                    if self.limit_err == logging.CRITICAL:
+                    msg = f"Goal '{self.name}'@ {value} is {side} the limit {lim}."
+                    if Controls.limit_err == logging.CRITICAL:
                         raise ValueError(msg + " Stopping execution.") from None
                     else:
-                        logger.log(self.limit_err, msg + " Setting value to minimum.")
+                        logger.log(Controls.limit_err, msg + " Setting value to minimum.")
                 return lim
         return value
 
-    def setgoal(self, ident: int | str, order: int, value: float | None, t0: float = 0.0):
-        """Set a new goal for 'ident', i.e. set the required time-acceleration sequence
+    def setgoal(self, order: int, value: float | None, speed: float | None = None, acc: float | None = None):
+        """Set a new goal for the control, i.e. set the required time-acceleration sequence
         to reach value with all derivatives = 0.0.
 
+        .. note:: Initially the start-time for the goal sequence is unknown and is set to zero.
+          At the first step the current time is added to these times
+
         Args:
-            ident (int|str): the identificator of the control element (as integer or name)
             order (int): the order 0,1,2 of the goal to be set
             value (float|None): the goal value (acceleration, velocity or position) to be reached.
               None to unset the goal.
-            t0 (float): the current time
+            speed (float): Optional possibility to set a start-speed != 0.0.
+              None: keep the internally stored value
+            acc (float): Optional possibility to set a start-acceleration != 0.0.
+              None: keep the internally stored value
         """
-        idx = ident if isinstance(ident, int) else self.names.index(ident)
-        # check the index, the order and the value with respect to limits
+        # check the order and the value with respect to limits
         if not 0 <= order < 3:
             raise ValueError(f"Only order = 0,1,2 allowed. Found {order}") from None
-        # assert value is None or self.goals[idx] is None, "Change of goals is currently not implemented."
+        if speed is not None:
+            self.speed = speed
+        if acc is not None:
+            self.acc = acc
         if value is None:  # unset goal
-            self.goals[idx] = None
+            self.goal = []
         else:
-            value = self.check_limit(idx, order, value)
+            value = self.check_limit(order, value)
             assert value is not None, "float value expected here"
-            # print(f"SET {idx}, {order}: {value}. Current:{current}. Limits:{self.limits(idx, order)}")
+            # print(f"SET {order}: {value}. Current:{current}. Limits:{self.limits(order)}")
             if (
-                (order == 0 and abs(self.current[idx][0] - value) < 1e-13)  # (adjusted) position goal already reached
-                or (order == 2 and value == 0.0)
-            ):  # zero acceleration requested
-                self.goals[idx] = None
+                (order == 0 and abs(self.rw() - value) < 1e-13)  # position goal already reached
+                or (order == 1 and abs(self.speed - value) < 1e-13)  # speed goal already reached
+                or (order == 2 and abs(self.acc - value) < 1e-13)
+            ):  # nothing to do
+                self.goal = []
             elif order == 2:  # set the acceleration from now and 'forever'
-                self.goals[idx] = ((float("inf"), value),)
+                self.goal = [(float("inf"), value)]
             elif order == 1:  # accelerate to another velocity and keep that 'forever'
-                _speed = self.current[idx][1]
-                acc = self.limit(idx, 2, int(_speed < value))  # maximum acceleration or deceleration
-                self.goals[idx] = ((t0 + (value - _speed) / acc, acc), (float("inf"), 0.0))
+                acc = self.limit(2, int(self.speed < value))  # maximum acceleration or deceleration
+                self.goal = [((value - self.speed) / acc, acc), (float("inf"), 0.0)]
             elif order == 0:  # sequence of acceleration and deceleration to reach a new position
-                _pos = self.current[idx][0]
-                if abs(self.current[idx][1]) > 1e-12:  # the initial velocity is not zero. Need to decelerate
-                    v0 = self.current[idx][1]
-                    a = self.limit(idx, 2, int(bool(-np.sign(v0) + 1)))
-                    goal0 = (t0, a)
+                _pos = self.rw()
+                t0 = 0.0
+                if abs(self.speed) > 1e-12:  # the initial velocity is not zero. Need to decelerate
+                    v0 = self.speed
+                    a = self.limit(2, int(bool(-np.sign(v0) + 1)))
+                    goal0 = (0, a)
                     t0 += -v0 / a
                     _pos = -v0 * v0 / 2 / a  # updated position when the velocity is zero
                 else:
-                    goal0 = None
-                acc1 = self.limit(idx, 2, int(_pos < value))  # maximum acceleration on first leg
-                acc2 = self.limit(idx, 2, int(_pos > value))  # maximum acceleration on last leg
+                    goal0 = None  # start from zero velocity
+                acc1 = self.limit(2, int(_pos < value))  # maximum acceleration on first leg
+                acc2 = self.limit(2, int(_pos > value))  # maximum acceleration on last leg
                 if acc1 == 0 or acc2 == 0:
                     _acc = np.sign(int(_pos < value) + 1) * float("inf")
                 else:
                     _acc = 0.5 * (1.0 / acc1 - 1.0 / acc2)
-                vmax = self.limit(idx, 1, int(_pos < value))  # maximum velocity towards goal
+                vmax = self.limit(1, int(_pos < value))  # maximum velocity towards goal
                 dx1_dx3 = vmax**2 * _acc
                 dx2 = value - _pos - dx1_dx3
                 if np.sign(value - _pos) != np.sign(dx2):  # maximum velocity is not reached
@@ -196,69 +213,120 @@ class Controls(object):
                     dt1 = v1 / acc1
                     dt2 = -v1 / acc2
                     if goal0 is None:
-                        self.goals[idx] = ((t0 + dt1, acc1), (t0 + dt1 + dt2, acc2), (float("inf"), 0.0))
+                        self.goal = [(t0 + dt1, acc1), (t0 + dt1 + dt2, acc2), (float("inf"), 0.0)]
                     else:
-                        self.goals[idx] = (goal0, (t0 + dt1, acc1), (t0 + dt1 + dt2, acc2), (float("inf"), 0.0))
+                        self.goal = [
+                            goal0,
+                            (t0 + dt1, acc1),
+                            (t0 + dt1 + dt2, acc2),
+                            (float("inf"), 0.0),
+                        ]
                 else:
                     dt1 = vmax / acc1
                     dt2 = dx2 / vmax
                     dt3 = -vmax / acc2
                     if goal0 is None:
-                        self.goals[idx] = (
+                        self.goal = [
                             (t0 + dt1, acc1),
                             (t0 + dt1 + dt2, 0.0),
                             (t0 + dt1 + dt2 + dt3, acc2),
                             (float("inf"), 0.0),
-                        )
+                        ]
                     else:
-                        self.goals[idx] = (
+                        self.goal = [
                             goal0,
                             (t0 + dt1, acc1),
                             (t0 + dt1 + dt2, 0.0),
                             (t0 + dt1 + dt2 + dt3, acc2),
                             (float("inf"), 0.0),
-                        )
-        logger.info(f"New goals: {self.goals}")
-        self.nogoals = all(x is None for x in self.goals)
-        self.rows[idx] = -1 if self.goals[idx] is None else 0  # set start row
+                        ]
+        self.started = False
 
-    def getgoal(self, ident: int | str) -> tuple[float, tuple[tuple[float, float], ...] | None]:
-        idx = ident if isinstance(ident, int) else self.names.index(ident)
-        assert 0 <= idx < 3, f"Only idx = 0,1,2 allowed. Found {idx}"
-        return (float(self.current[idx]), self.goals[idx])
+    @property
+    def current(self):
+        """Return the tuple of current value, speed and acceleration."""
+        return (self.rw(), self.speed, self.acc)
+
+    def step(self, time: float, dt: float):
+        """Step towards the goal (if goal is set)."""
+        if len(self.goal):
+            if not self.started:  # not yet started. Need to add current time.
+                for i, (t, a) in enumerate(self.goal):
+                    self.goal[i] = (t + time, a)
+                logger.info(f"@{time}. New goal({self.name}): {self.goal}")
+                self.started = True
+            _t, self.acc = self.goal[0]
+            if time > _t:  # move to correct goal entry
+                self.goal.pop(0)
+                _t, self.acc = self.goal[0]
+            while dt > 0:
+                _dt = dt if time + dt < _t else _t - time  # may need to split dt if sub-goal ends within
+                self.rw(self.check_limit(0, self.rw() + self.speed * _dt + 0.5 * self.acc * _dt * _dt))
+                self.speed = self.check_limit(1, self.speed + self.acc * _dt)
+                dt -= _dt
+                if abs(dt) < 1e-13:
+                    break
+                else:  # start with the next sub-goal
+                    time += _dt
+                    self.goal.pop(0)
+                    _t, self.acc = self.goal[0]
+
+            if np.isinf(_t) and abs(self.acc) < 1e-12 and abs(self.speed) < 1e-12:
+                logger.info(f"@{time}. Goal {self.name} finalized.")
+                self.goal = []
+
+
+class Controls(object):
+    """Keep track of float variable changes.
+
+    limit_err: Determines how limit errors are dealt with.
+      Anything below critical sets the value to the limit and provides a logger message.
+      Critical leads to a program run error.
+    """
+
+    limit_err: int = logging.WARNING
+
+    def __init__(
+        self,
+        limit_err: int = logging.WARNING,
+    ):
+        Controls.limit_err = limit_err
+        self.controls: list[Control] = []
+
+    @property
+    def nogoals(self):
+        for crl in self.controls:
+            if len(crl.goal):
+                return False
+        return True
+
+    def append(self, crl: "Control"):
+        """Append one or several Control object(s)."""
+        for c in self.controls:
+            if c.name == crl.name:
+                raise KeyError(f"Control with name {c.name} already exists. Choose a unique name.") from None
+        self.controls.append(crl)
+
+    def extend(self, crls: tuple[Control, ...]):
+        for crl in crls:
+            self.append(crl)
+
+    def __getitem__(self, ident: int | str):
+        """Get the control object identified by ident (index within .controls or valid name)."""
+        if isinstance(ident, str):
+            for crl in self.controls:
+                if crl.name == ident:
+                    return crl
+            raise KeyError(f"Control with name {ident} not found.") from None
+        elif isinstance(ident, int):
+            if ident < 0 or ident >= len(self.controls):
+                raise ValueError(f"Control {ident} does not exist within set of controls.") from None
+            return self.controls[ident]
+        else:
+            raise TypeError(f"Integer expected as subscript. Found {ident}") from None
 
     def step(self, time: float, dt: float):
         """Step towards the goals (if goals are set)."""
         if not self.nogoals:
-            for idx in range(self.dim):
-                goals = self.goals[idx]
-                if goals is not None:
-                    _time = time  # copies needed in case that there are several goals
-                    _dt = dt
-                    _current = self.current[idx]
-
-                    _t, _current[2] = goals[self.rows[idx]]
-                    while _time > _t:  # move row so that it starts in the right time-acc row
-                        self.rows[idx] += 1
-                        _t, _current[2] = goals[self.rows[idx]]
-                    while _dt > 0:
-                        if _time + _dt < _t:  # covers the whole
-                            _current[0] = self.check_limit(
-                                idx, 0, _current[0] + _current[1] * _dt + 0.5 * _current[2] * _dt * _dt
-                            )
-                            _current[1] = self.check_limit(idx, 1, _current[1] + _current[2] * _dt)
-                            _dt = 0
-                        else:  # dt must be split
-                            dt1 = _t - _time
-                            _current[0] = self.check_limit(
-                                idx, 0, _current[0] + _current[1] * dt1 + 0.5 * _current[2] * dt1 * dt1
-                            )
-                            _current[1] = self.check_limit(idx, 1, _current[1] + _current[2] * dt1)
-                            _time = _t
-                            _dt -= dt1
-                            self.rows[idx] += 1
-                            _t, _current[2] = goals[self.rows[idx]]
-
-                    if np.isinf(_t) and abs(_current[2]) < 1e-12 and abs(_current[1]) < 1e-12:
-                        self.goals[idx] = None
-        self.nogoals = all(x is None for x in self.goals)
+            for crl in self.controls:
+                crl.step(time, dt)

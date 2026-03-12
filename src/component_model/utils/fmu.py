@@ -2,8 +2,6 @@
 but which can be useful to work with fmu files (e.g. retrieving and working with a modelDefinition.xml file),
 to make an OSP system structure file, or to reverse-engineer the interface of a model
 (e.g. when making a surrogate model).
-
-
 """
 
 import xml.etree.ElementTree as ET  # noqa: N817
