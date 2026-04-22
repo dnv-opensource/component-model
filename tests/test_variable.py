@@ -1,3 +1,4 @@
+# mypy: disable-error-code="attr-defined"
 import logging
 import math
 import xml.etree.ElementTree as ET  # noqa: N817
