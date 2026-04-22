@@ -73,7 +73,7 @@ dependencies = [
 test = [
     "fmpy>=0.3.29", # version 0.3.22 does so far (25.3.25) not workwhen installing through pip
     "matplotlib>=3.10",
-    "plotly>=6.3",
+    "plotly>=6.6",
     "libcosimpy>=0.0.5",
 ]
 rest = ["docutils>=0.22.4"]
