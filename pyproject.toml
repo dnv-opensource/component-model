@@ -90,7 +90,7 @@ Changelog = "https://github.com/dnv-opensource/component-model/blob/main/CHANGEL
 [dependency-groups]
 dev = [
     "pytest>=8.4",
-    "pytest-cov>=7.0",
+    "pytest-cov>=7.1",
     "ruff>=0.15.9",
     "pyright>=1.1.407",
     "mypy>=1.18",
