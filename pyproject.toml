@@ -76,7 +76,7 @@ test = [
     "plotly>=6.3",
     "libcosimpy>=0.0.5",
 ]
-rest = ["docutils>=0.21"]
+rest = ["docutils>=0.22.4"]
 editor = []
 
 [project.urls]
