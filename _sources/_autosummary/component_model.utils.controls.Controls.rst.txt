@@ -1,0 +1,33 @@
+Controls
+========
+
+.. currentmodule:: component_model.utils.controls
+
+.. autoclass:: Controls
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Controls.__init__
+      ~Controls.append
+      ~Controls.extend
+      ~Controls.step
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Controls.limit_err
+      ~Controls.nogoals
+   
+   
