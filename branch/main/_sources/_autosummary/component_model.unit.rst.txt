@@ -1,0 +1,17 @@
+﻿component\_model.unit
+=====================
+
+.. automodule:: component_model.unit
+   :members:
+   :exclude-members: Unit,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Unit
+   

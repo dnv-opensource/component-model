@@ -1,0 +1,47 @@
+Check
+=====
+
+.. currentmodule:: component_model.enums
+
+.. autoclass:: Check
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Check.conjugate
+      ~Check.bit_length
+      ~Check.bit_count
+      ~Check.to_bytes
+      ~Check.from_bytes
+      ~Check.as_integer_ratio
+      ~Check.is_integer
+      ~Check.__init__
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Check.real
+      ~Check.imag
+      ~Check.numerator
+      ~Check.denominator
+      ~Check.none
+      ~Check.u_none
+      ~Check.u_all
+      ~Check.units
+      ~Check.r_none
+      ~Check.r_check
+      ~Check.ranges
+      ~Check.all
+   
+   

@@ -1,0 +1,61 @@
+Model
+=====
+
+.. currentmodule:: component_model.model
+
+.. autoclass:: Model
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Model.__init__
+      ~Model.add_derivative
+      ~Model.add_variable
+      ~Model.build
+      ~Model.check_flags
+      ~Model.dirty_do
+      ~Model.dirty_ensure
+      ~Model.do_step
+      ~Model.ensure_requirements
+      ~Model.enter_initialization_mode
+      ~Model.exit_initialization_mode
+      ~Model.get_boolean
+      ~Model.get_integer
+      ~Model.get_real
+      ~Model.get_string
+      ~Model.log
+      ~Model.make_copyright_license
+      ~Model.owner_hierarchy
+      ~Model.ref_to_var
+      ~Model.register_variable
+      ~Model.set_boolean
+      ~Model.set_integer
+      ~Model.set_real
+      ~Model.set_string
+      ~Model.setup_experiment
+      ~Model.terminate
+      ~Model.to_xml
+      ~Model.variable_by_name
+      ~Model.vars_iter
+      ~Model.xml_unit_definitions
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Model.dirty
+      ~Model.instances
+      ~Model.log_categories
+      ~Model.units
+   
+   

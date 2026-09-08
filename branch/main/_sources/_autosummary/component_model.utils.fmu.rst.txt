@@ -1,0 +1,14 @@
+component\_model.utils.fmu
+==========================
+
+.. automodule:: component_model.utils.fmu
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      model_from_fmu
+      variables_from_fmu
+   

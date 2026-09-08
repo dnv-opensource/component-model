@@ -1,0 +1,17 @@
+﻿component\_model.range
+======================
+
+.. automodule:: component_model.range
+   :members:
+   :exclude-members: Range,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Range
+   
