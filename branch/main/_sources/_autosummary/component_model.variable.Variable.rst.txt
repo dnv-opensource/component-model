@@ -1,0 +1,50 @@
+Variable
+========
+
+.. currentmodule:: component_model.variable
+
+.. autoclass:: Variable
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Variable.__init__
+      ~Variable.auto_type
+      ~Variable.check_range
+      ~Variable.der1
+      ~Variable.fmi_type_str
+      ~Variable.getter
+      ~Variable.primitive
+      ~Variable.requires_start
+      ~Variable.setter
+      ~Variable.setter_internal
+      ~Variable.to_xml
+      ~Variable.xml_scalarvariables
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Variable.causality
+      ~Variable.check
+      ~Variable.description
+      ~Variable.initial
+      ~Variable.name
+      ~Variable.range
+      ~Variable.start
+      ~Variable.typ
+      ~Variable.unit
+      ~Variable.value_reference
+      ~Variable.variability
+   
+   

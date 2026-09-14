@@ -1,0 +1,25 @@
+VariableNamingConvention
+========================
+
+.. currentmodule:: component_model.variable_naming
+
+.. autoclass:: VariableNamingConvention
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~VariableNamingConvention.flat
+      ~VariableNamingConvention.structured
+   
+   

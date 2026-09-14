@@ -1,0 +1,17 @@
+﻿component\_model.analytic
+=========================
+
+.. automodule:: component_model.analytic
+   :members:
+   :exclude-members: ForcedOscillator1D,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      ForcedOscillator1D
+   

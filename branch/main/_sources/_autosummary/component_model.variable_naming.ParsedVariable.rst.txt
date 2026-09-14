@@ -1,0 +1,27 @@
+ParsedVariable
+==============
+
+.. currentmodule:: component_model.variable_naming
+
+.. autoclass:: ParsedVariable
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~ParsedVariable.__init__
+      ~ParsedVariable.as_string
+      ~ParsedVariable.as_tuple
+      ~ParsedVariable.disect_indices
+   
+   
+
+
+   
+   
+   

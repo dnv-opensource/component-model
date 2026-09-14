@@ -1,0 +1,24 @@
+﻿component\_model.model
+======================
+
+.. automodule:: component_model.model
+   :members:
+   :exclude-members: Model,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Model
+   
+   .. rubric:: Exceptions
+   .. autosummary::
+   
+      ModelAnimationError
+      ModelInitError
+      ModelOperationError
+   
